@@ -68,4 +68,7 @@ typedef struct sValue {
 #define VECTOR_VAL(value) ((Value){VAL_VECTOR, {.vVector = value}})
 #define SLICE_VAL(value) ((Value){VAL_SLICE, {.vSlice = value}})
 
+// Logs a textual representation of the given value to the output
+void printValue(Value value);
+
 #endif
