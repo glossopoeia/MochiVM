@@ -11,7 +11,7 @@ void freeVM(VM * vm) {
 
 // Dispatcher function to run the current chunk in the given vm.
 static InterpretResult run(VM * vm) {
-#define READ_BYTE() (*vm.ip++)
+/*#define READ_BYTE() (*vm.ip++)
 
   for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
@@ -25,7 +25,8 @@ static InterpretResult run(VM * vm) {
     }
   }
 
-#undef READ_BYTE
+#undef READ_BYTE*/
+  return INTERPRET_OK;
 }
 
 InterpretResult interpret(Chunk * chunk, VM * vm) {
