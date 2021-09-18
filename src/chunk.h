@@ -19,7 +19,8 @@ typedef enum {
     OP_DIVIDE,
     OP_EQUAL,
     OP_GREATER,
-    OP_LESS
+    OP_LESS,
+    OP_CONCAT
 } OpCode;
 
 typedef struct {

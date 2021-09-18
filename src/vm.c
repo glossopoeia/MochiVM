@@ -1,7 +1,10 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "common.h"
 #include "debug.h"
+#include "object.h"
+#include "memory.h"
 #include "vm.h"
 
 static void resetStack(VM * vm) {
@@ -65,6 +68,20 @@ static InterpretResult run(VM * vm) {
             case OP_TRUE:       push(BOOL_VAL(true), vm); break;
             case OP_FALSE:      push(BOOL_VAL(false), vm); break;
             case OP_NOT:        push(BOOL_VAL(!AS_BOOL(pop(vm))), vm); break;
+            case OP_CONCAT: {
+                ObjString* b = AS_STRING(pop(vm));
+                ObjString* a = AS_STRING(pop(vm));
+
+                int length = a->length + b->length;
+                char* chars = ALLOCATE(char, length + 1);
+                memcpy(chars, a->chars, a->length);
+                memcpy(chars + a->length, b->chars, b->length);
+                chars[length] = '\0';
+
+                ObjString* result = takeString(chars, length);
+                push(OBJ_VAL(result), vm);
+                break;
+            }
         }
     }
 

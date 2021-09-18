@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "chunk.h"
+#include "object.h"
 #include "vm.h"
 #include "debug.h"
 
@@ -31,6 +32,15 @@ int main(int argc, const char * argv[]) {
     writeChunk(&chunk, OP_DIVIDE, 123);
 
     writeChunk(&chunk, OP_NEGATE, 123);
+
+    constantLocation = addConstant(&chunk, OBJ_VAL(copyString("Hello,", 6)));
+    writeChunk(&chunk, OP_CONSTANT, 123);
+    writeChunk(&chunk, constantLocation, 123);
+    constantLocation = addConstant(&chunk, OBJ_VAL(copyString(" world!", 7)));
+    writeChunk(&chunk, OP_CONSTANT, 123);
+    writeChunk(&chunk, constantLocation, 123);
+
+    writeChunk(&chunk, OP_CONCAT, 123);
 
     writeChunk(&chunk, OP_NOP, 123);
 
