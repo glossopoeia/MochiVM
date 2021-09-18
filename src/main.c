@@ -15,16 +15,16 @@ int main(int argc, const char * argv[]) {
     Chunk chunk;
     initChunk(&chunk);
 
-    int constantLocation = addConstant(&chunk, 1.2);
+    int constantLocation = addConstant(&chunk, NUMBER_VAL(1.2));
     writeChunk(&chunk, OP_CONSTANT, 123);
     writeChunk(&chunk, constantLocation, 123);
-    constantLocation = addConstant(&chunk, 3.4);
+    constantLocation = addConstant(&chunk, NUMBER_VAL(3.4));
     writeChunk(&chunk, OP_CONSTANT, 123);
     writeChunk(&chunk, constantLocation, 123);
 
     writeChunk(&chunk, OP_ADD, 123);
 
-    constantLocation = addConstant(&chunk, 5.6);
+    constantLocation = addConstant(&chunk, NUMBER_VAL(5.6));
     writeChunk(&chunk, OP_CONSTANT, 123);
     writeChunk(&chunk, constantLocation, 123);
 

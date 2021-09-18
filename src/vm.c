@@ -16,15 +16,19 @@ void freeVM(VM * vm) {
 
 }
 
+//static Value peek(int distance, VM * vm) {
+//    return vm->stackTop[-1 - distance];
+//}
+
 // Dispatcher function to run the current chunk in the given vm.
 static InterpretResult run(VM * vm) {
 #define READ_BYTE() (*vm->ip++)
 #define READ_CONSTANT() (vm->chunk->constants.values[READ_BYTE()])
-#define BINARY_OP(op) \
+#define BINARY_OP(valueType, op) \
     do { \
-        double b = pop(vm); \
-        double a = pop(vm); \
-        push(a op b, vm); \
+        double b = AS_NUMBER(pop(vm)); \
+        double a = AS_NUMBER(pop(vm)); \
+        push(valueType(a op b), vm); \
     } while (false)
 
     for (;;) {
@@ -50,11 +54,17 @@ static InterpretResult run(VM * vm) {
                 push(constant, vm);
                 break;
             }
-            case OP_NEGATE: push(-pop(vm), vm); break;
-            case OP_ADD: BINARY_OP(+); break;
-            case OP_SUBTRACT: BINARY_OP(-); break;
-            case OP_MULTIPLY: BINARY_OP(*); break;
-            case OP_DIVIDE: BINARY_OP(/); break;
+            case OP_NEGATE:     push(NUMBER_VAL(-AS_NUMBER(pop(vm))), vm); break;
+            case OP_ADD:        BINARY_OP(NUMBER_VAL, +); break;
+            case OP_SUBTRACT:   BINARY_OP(NUMBER_VAL, -); break;
+            case OP_MULTIPLY:   BINARY_OP(NUMBER_VAL, *); break;
+            case OP_DIVIDE:     BINARY_OP(NUMBER_VAL, /); break;
+            case OP_EQUAL:      BINARY_OP(BOOL_VAL, ==); break;
+            case OP_GREATER:    BINARY_OP(BOOL_VAL, >); break;
+            case OP_LESS:       BINARY_OP(BOOL_VAL, <); break;
+            case OP_TRUE:       push(BOOL_VAL(true), vm); break;
+            case OP_FALSE:      push(BOOL_VAL(false), vm); break;
+            case OP_NOT:        push(BOOL_VAL(!AS_BOOL(pop(vm))), vm); break;
         }
     }
 
