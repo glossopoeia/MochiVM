@@ -8,7 +8,12 @@ typedef enum {
     // No-op, doesn't do anything besides move on to the next instruction
     OP_NOP,
     // Push a constant onto the stack
-    OP_CONSTANT
+    OP_CONSTANT,
+    OP_NEGATE,
+    OP_ADD,
+    OP_SUBTRACT,
+    OP_MULTIPLY,
+    OP_DIVIDE
 } OpCode;
 
 typedef struct {

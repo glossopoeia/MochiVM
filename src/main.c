@@ -18,6 +18,19 @@ int main(int argc, const char * argv[]) {
     int constantLocation = addConstant(&chunk, 1.2);
     writeChunk(&chunk, OP_CONSTANT, 123);
     writeChunk(&chunk, constantLocation, 123);
+    constantLocation = addConstant(&chunk, 3.4);
+    writeChunk(&chunk, OP_CONSTANT, 123);
+    writeChunk(&chunk, constantLocation, 123);
+
+    writeChunk(&chunk, OP_ADD, 123);
+
+    constantLocation = addConstant(&chunk, 5.6);
+    writeChunk(&chunk, OP_CONSTANT, 123);
+    writeChunk(&chunk, constantLocation, 123);
+
+    writeChunk(&chunk, OP_DIVIDE, 123);
+
+    writeChunk(&chunk, OP_NEGATE, 123);
 
     writeChunk(&chunk, OP_NOP, 123);
 
