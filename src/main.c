@@ -33,10 +33,10 @@ int main(int argc, const char * argv[]) {
 
     writeChunk(&chunk, OP_NEGATE, 123);
 
-    constantLocation = addConstant(&chunk, OBJ_VAL(copyString("Hello,", 6)));
+    constantLocation = addConstant(&chunk, OBJ_VAL(copyString("Hello,", 6, &vm)));
     writeChunk(&chunk, OP_CONSTANT, 123);
     writeChunk(&chunk, constantLocation, 123);
-    constantLocation = addConstant(&chunk, OBJ_VAL(copyString(" world!", 7)));
+    constantLocation = addConstant(&chunk, OBJ_VAL(copyString(" world!", 7, &vm)));
     writeChunk(&chunk, OP_CONSTANT, 123);
     writeChunk(&chunk, constantLocation, 123);
 

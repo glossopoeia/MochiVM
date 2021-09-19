@@ -3,6 +3,7 @@
 
 #include "chunk.h"
 #include "value.h"
+#include "object.h"
 
 #define STACK_MAX 256
 
@@ -11,6 +12,7 @@ typedef struct {
     uint8_t * ip;
     Value stack[STACK_MAX];
     Value * stackTop;
+    Obj* objects;
 } VM;
 
 typedef enum {
@@ -27,5 +29,8 @@ void freeVM(VM * vm);
 InterpretResult interpret(Chunk * chunk, VM * vm);
 void push(Value value, VM * vm);
 Value pop(VM * vm);
+
+ObjString* takeString(char* chars, int length, VM* vm);
+ObjString* copyString(const char* chars, int length, VM* vm);
 
 #endif
