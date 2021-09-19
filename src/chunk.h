@@ -20,7 +20,11 @@ typedef enum {
     OP_EQUAL,
     OP_GREATER,
     OP_LESS,
-    OP_CONCAT
+    OP_CONCAT,
+
+    OP_STORE,
+    OP_OVERWRITE,
+    OP_FORGET,
 } OpCode;
 
 typedef struct {

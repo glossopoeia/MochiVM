@@ -6,10 +6,25 @@
 #include "value.h"
 #include "vm.h"
 
-void printObject(Value value) {
-    switch (OBJ_TYPE(value)) {
+void printObject(Obj* object) {
+    switch (object->type) {
         case OBJ_STRING:
-            printf("%s", AS_CSTRING(value));
+            printf("%s", AS_CSTRING(object));
             break;
+        case OBJ_VAR_FRAME: {
+            ObjVarFrame* frame = AS_VAR_FRAME(object);
+            printf("%d", frame->slotCount);
+            break;
+        }
+        case OBJ_CALL_FRAME: {
+            ObjCallFrame* frame = AS_CALL_FRAME(object);
+            printf("%d -> %p", frame->vars.slotCount, (void*)frame->afterLocation);
+            break;
+        }
+        case OBJ_MARK_FRAME: {
+            ObjMarkFrame* frame = AS_MARK_FRAME(object);
+            printf("%d: %d -> %p", frame->markId, frame->call.vars.slotCount, (void*)frame->call.afterLocation);
+            break;
+        }
     }
 }

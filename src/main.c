@@ -42,6 +42,10 @@ int main(int argc, const char * argv[]) {
 
     writeChunk(&chunk, OP_CONCAT, 123);
 
+    writeChunk(&chunk, OP_STORE, 123);
+    writeChunk(&chunk, 2, 123);
+    writeChunk(&chunk, OP_FORGET, 123);
+
     writeChunk(&chunk, OP_NOP, 123);
 
     disassembleChunk(&chunk, "test chunk");

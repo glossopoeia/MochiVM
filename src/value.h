@@ -5,6 +5,9 @@
 
 typedef struct Obj Obj;
 typedef struct ObjString ObjString;
+typedef struct ObjVarFrame ObjVarFrame;
+typedef struct ObjCallFrame ObjCallFrame;
+typedef struct ObjMarkFrame ObjMarkFrame;
 
 typedef enum {
     VAL_BOOL,

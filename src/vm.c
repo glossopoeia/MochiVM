@@ -9,6 +9,7 @@
 
 static void resetStack(VM * vm) {
     vm->stackTop = vm->stack;
+    vm->callStackTop = vm->callStack;
 }
 
 void initVM(VM * vm) {
@@ -37,10 +38,17 @@ static InterpretResult run(VM * vm) {
 
     for (;;) {
 #ifdef DEBUG_TRACE_EXECUTION
-        printf("          ");
+        printf("STACK:    ");
         for (Value * slot = vm->stack; slot < vm->stackTop; slot++) {
             printf("[ ");
             printValue(*slot);
+            printf(" ]");
+        }
+        printf("\n");
+        printf("FRAMES:   ");
+        for (ObjVarFrame** frame = vm->callStack; frame < vm->callStackTop; frame++) {
+            printf("[ ");
+            printObject((Obj*)*frame);
             printf(" ]");
         }
         printf("\n");
@@ -70,8 +78,8 @@ static InterpretResult run(VM * vm) {
             case OP_FALSE:      push(BOOL_VAL(false), vm); break;
             case OP_NOT:        push(BOOL_VAL(!AS_BOOL(pop(vm))), vm); break;
             case OP_CONCAT: {
-                ObjString* b = AS_STRING(pop(vm));
-                ObjString* a = AS_STRING(pop(vm));
+                ObjString* b = VAL_AS_STRING(pop(vm));
+                ObjString* a = VAL_AS_STRING(pop(vm));
 
                 int length = a->length + b->length;
                 char* chars = ALLOCATE(char, length + 1);
@@ -81,6 +89,29 @@ static InterpretResult run(VM * vm) {
 
                 ObjString* result = takeString(chars, length, vm);
                 push(OBJ_VAL(result), vm);
+                break;
+            }
+
+            case OP_STORE: {
+                uint8_t varCount = READ_BYTE();
+                Value* vars = ALLOCATE(Value, varCount);
+                for (int i = 0; i < (int)varCount; i++) {
+                    vars[i] = *(vm->stackTop - i);
+                }
+
+                ObjVarFrame* frame = newVarFrame(vars, varCount, vm);
+                pushFrame(frame, vm);
+
+                pop(vm);
+                pop(vm);
+                break;
+            }
+            case OP_OVERWRITE: {
+                printf("TODO\n");
+                break;
+            }
+            case OP_FORGET: {
+                popFrame(vm);
                 break;
             }
         }
@@ -104,6 +135,16 @@ void push(Value value, VM * vm) {
 Value pop(VM * vm) {
     vm->stackTop--;
     return *vm->stackTop;
+}
+
+void pushFrame(ObjVarFrame* frame, VM* vm) {
+    *vm->callStackTop = frame;
+    vm->callStackTop++;
+}
+
+ObjVarFrame* popFrame(VM* vm) {
+    vm->callStackTop--;
+    return *vm->callStackTop;
 }
 
 
@@ -135,4 +176,19 @@ ObjString* copyString(const char* chars, int length, VM* vm) {
     memcpy(heapChars, chars, length);
     heapChars[length] = '\0';
     return allocateString(heapChars, length, vm);
+}
+
+ObjVarFrame* newVarFrame(Value* vars, int varCount, VM* vm) {
+    ObjVarFrame* frame = ALLOCATE_OBJ(ObjVarFrame, OBJ_VAR_FRAME, vm);
+    frame->slots = vars;
+    frame->slotCount = varCount;
+    return frame;
+}
+
+ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, VM* vm) {
+    ObjCallFrame* frame = ALLOCATE_OBJ(ObjCallFrame, OBJ_CALL_FRAME, vm);
+    frame->vars.slots = vars;
+    frame->vars.slotCount = varCount;
+    frame->afterLocation = afterLocation;
+    return frame;
 }
