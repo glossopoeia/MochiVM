@@ -26,6 +26,10 @@ static void freeVarFrame(ObjVarFrame* frame) {
     FREE_ARRAY(Value, frame->slots, frame->slotCount);
 }
 
+static void freeClosure(ObjClosure* closure) {
+    FREE_ARRAY(Value, closure->vars, closure->varCount);
+}
+
 void freeObject(Obj* object) {
     switch (object->type) {
         case OBJ_STRING: {
@@ -49,6 +53,23 @@ void freeObject(Obj* object) {
             ObjMarkFrame* mark = (ObjMarkFrame*)object;
             FREE_ARRAY(Value, mark->operations, mark->operationCount);
             FREE(ObjMarkFrame, object);
+            break;
+        }
+        case OBJ_CLOSURE: {
+            freeClosure((ObjClosure*)object);
+            FREE(ObjClosure, object);
+            break;
+        }
+        case OBJ_OP_CLOSURE: {
+            freeClosure((ObjClosure*)object);
+            FREE(ObjOpClosure, object);
+            break;
+        }
+        case OBJ_CONTINUATION: {
+            ObjContinuation* cont = (ObjContinuation*)object;
+            FREE_ARRAY(Value, cont->savedStack, cont->savedStackCount);
+            FREE_ARRAY(ObjVarFrame*, cont->savedFrames, cont->savedFramesCount);
+            FREE(ObjContinuation, object);
             break;
         }
     }

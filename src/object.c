@@ -26,5 +26,17 @@ void printObject(Obj* object) {
             printf("%d: %d -> %p", frame->markId, frame->call.vars.slotCount, (void*)frame->call.afterLocation);
             break;
         }
+        case OBJ_CLOSURE: {
+            printf("closure");
+            break;
+        }
+        case OBJ_OP_CLOSURE: {
+            printf("op-closure");
+            break;
+        }
+        case OBJ_CONTINUATION: {
+            printf("continuation");
+            break;
+        }
     }
 }

@@ -8,6 +8,9 @@ typedef struct ObjString ObjString;
 typedef struct ObjVarFrame ObjVarFrame;
 typedef struct ObjCallFrame ObjCallFrame;
 typedef struct ObjMarkFrame ObjMarkFrame;
+typedef struct ObjClosure ObjClosure;
+typedef struct ObjOpClosure ObjOpClosure;
+typedef struct ObjContinuation ObjContinuation;
 
 typedef enum {
     VAL_BOOL,
