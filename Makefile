@@ -17,14 +17,15 @@ endif
 HEADERS := $(wildcard src/*.h)
 SOURCES := $(wildcard src/*.c)
 OBJECTS := $(addprefix $(BUILD_DIR)/zhenzhu/, $(notdir $(SOURCES:.c=.o)))
+LIBS := -luv_a
 
 # Targets ---------------------------------------------------------------------
 
 # Link the interpreter.
 build/zhenzhu: $(OBJECTS)
-	@ printf "%8s %-40s %s\n" $(CC) $@ "$(CFLAGS)"
+	@ printf "%8s %-40s %s %s\n" $(CC) $@ "$(CFLAGS)" "$(LIBS)"
 	@ mkdir -p build
-	@ $(CC) $(CFLAGS) $^ -o $@
+	@ $(CC) $(CFLAGS) -Lbuild $(LIBS) $^ -o $@
 
 # Compile object files.
 $(BUILD_DIR)/zhenzhu/%.o: src/%.c $(HEADERS)
