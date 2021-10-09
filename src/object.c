@@ -6,8 +6,8 @@
 #include "value.h"
 #include "vm.h"
 
-void printObject(Obj* object) {
-    switch (object->type) {
+void printObject(Value object) {
+    switch (AS_OBJ(object)->type) {
         case OBJ_STRING:
             printf("%s", AS_CSTRING(object));
             break;
@@ -36,6 +36,10 @@ void printObject(Obj* object) {
         }
         case OBJ_CONTINUATION: {
             printf("continuation");
+            break;
+        }
+        case OBJ_FIBER: {
+            printf("fiber");
             break;
         }
     }

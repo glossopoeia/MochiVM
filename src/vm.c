@@ -7,26 +7,35 @@
 #include "memory.h"
 #include "vm.h"
 
-static void resetStack(VM * vm) {
+static void resetStack(ZZVM * vm) {
     vm->stackTop = vm->stack;
     vm->callStackTop = vm->callStack;
 }
 
-void initVM(VM * vm) {
+void initVM(ZZVM * vm) {
     resetStack(vm);
     vm->objects = NULL;
 }
 
-void freeVM(VM * vm) {
+void freeObjects(ZZVM* vm) {
+    Obj* object = vm->objects;
+    while (object != NULL) {
+        Obj* next = object->next;
+        freeObject(object);
+        object = next;
+    }
+}
+
+void freeVM(ZZVM * vm) {
     freeObjects(vm);
 }
 
-//static Value peek(int distance, VM * vm) {
+//static Value peek(int distance, ZZVM * vm) {
 //    return vm->stackTop[-1 - distance];
 //}
 
 // Dispatcher function to run the current chunk in the given vm.
-static InterpretResult run(VM * vm) {
+static InterpretResult run(ZZVM * vm) {
 #define READ_BYTE() (*vm->ip++)
 #define READ_CONSTANT() (vm->chunk->constants.values[READ_BYTE()])
 #define BINARY_OP(valueType, op) \
@@ -121,28 +130,28 @@ static InterpretResult run(VM * vm) {
 #undef READ_CONSTANT
 }
 
-InterpretResult interpret(Chunk * chunk, VM * vm) {
+InterpretResult interpret(Chunk * chunk, ZZVM * vm) {
     vm->chunk = chunk;
     vm->ip = chunk->code;
     return run(vm);
 }
 
-void push(Value value, VM * vm) {
+void push(Value value, ZZVM * vm) {
     *vm->stackTop = value;
     vm->stackTop++;
 }
 
-Value pop(VM * vm) {
+Value pop(ZZVM * vm) {
     vm->stackTop--;
     return *vm->stackTop;
 }
 
-void pushFrame(ObjVarFrame* frame, VM* vm) {
+void pushFrame(ObjVarFrame* frame, ZZVM* vm) {
     *vm->callStackTop = frame;
     vm->callStackTop++;
 }
 
-ObjVarFrame* popFrame(VM* vm) {
+ObjVarFrame* popFrame(ZZVM* vm) {
     vm->callStackTop--;
     return *vm->callStackTop;
 }
@@ -151,8 +160,8 @@ ObjVarFrame* popFrame(VM* vm) {
 
 #define ALLOCATE_OBJ(type, objectType, vm) (type*)allocateObject(sizeof(type), (objectType), (vm))
 
-static Obj* allocateObject(size_t size, ObjType type, VM* vm) {
-    Obj* object = (Obj*)reallocate(NULL, 0, size);
+static Obj* allocateObject(size_t size, ObjType type, ZZVM* vm) {
+    Obj* object = (Obj*)zzReallocate(NULL, 0, size);
     object->type = type;
     // keep track of all allocated objects via the linked list in the vm
     object->next = vm->objects;
@@ -160,32 +169,32 @@ static Obj* allocateObject(size_t size, ObjType type, VM* vm) {
     return object;
 }
 
-static ObjString* allocateString(char* chars, int length, VM* vm) {
+static ObjString* allocateString(char* chars, int length, ZZVM* vm) {
     ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING, vm);
     string->length = length;
     string->chars = chars;
     return string;
 }
 
-ObjString* takeString(char* chars, int length, VM* vm) {
+ObjString* takeString(char* chars, int length, ZZVM* vm) {
     return allocateString(chars, length, vm);
 }
 
-ObjString* copyString(const char* chars, int length, VM* vm) {
+ObjString* copyString(const char* chars, int length, ZZVM* vm) {
     char* heapChars = ALLOCATE(char, length + 1);
     memcpy(heapChars, chars, length);
     heapChars[length] = '\0';
     return allocateString(heapChars, length, vm);
 }
 
-ObjVarFrame* newVarFrame(Value* vars, int varCount, VM* vm) {
+ObjVarFrame* newVarFrame(Value* vars, int varCount, ZZVM* vm) {
     ObjVarFrame* frame = ALLOCATE_OBJ(ObjVarFrame, OBJ_VAR_FRAME, vm);
     frame->slots = vars;
     frame->slotCount = varCount;
     return frame;
 }
 
-ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, VM* vm) {
+ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, ZZVM* vm) {
     ObjCallFrame* frame = ALLOCATE_OBJ(ObjCallFrame, OBJ_CALL_FRAME, vm);
     frame->vars.slots = vars;
     frame->vars.slotCount = varCount;

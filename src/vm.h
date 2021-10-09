@@ -22,7 +22,7 @@ typedef struct {
 
     // A list of every object heap-allocated by the virtual machine.
     Obj* objects;
-} VM;
+} ZZVM;
 
 typedef enum {
     INTERPRET_OK,
@@ -30,23 +30,24 @@ typedef enum {
 } InterpretResult;
 
 // Initialize an empty virtual machine state.
-void initVM(VM * vm);
+void initVM(ZZVM * vm);
 // Deallocate the given virtual machine state.
-void freeVM(VM * vm);
+void freeVM(ZZVM * vm);
+void freeObjects(ZZVM* vm);
 // Set the given vm state to run through the given chunk,
 // starting with the first instruction in the chunk.
-InterpretResult interpret(Chunk * chunk, VM * vm);
+InterpretResult interpret(Chunk * chunk, ZZVM * vm);
 
-void push(Value value, VM * vm);
-Value pop(VM * vm);
+void push(Value value, ZZVM * vm);
+Value pop(ZZVM * vm);
 
-void pushFrame(ObjVarFrame* frame, VM* vm);
-ObjVarFrame* popFrame(VM* vm);
+void pushFrame(ObjVarFrame* frame, ZZVM* vm);
+ObjVarFrame* popFrame(ZZVM* vm);
 
-ObjString* takeString(char* chars, int length, VM* vm);
-ObjString* copyString(const char* chars, int length, VM* vm);
+ObjString* takeString(char* chars, int length, ZZVM* vm);
+ObjString* copyString(const char* chars, int length, ZZVM* vm);
 
-ObjVarFrame* newVarFrame(Value* vars, int varCount, VM* vm);
-ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, VM* vm);
+ObjVarFrame* newVarFrame(Value* vars, int varCount, ZZVM* vm);
+ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, ZZVM* vm);
 
 #endif

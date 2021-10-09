@@ -10,7 +10,7 @@
 int main(int argc, const char * argv[]) {
     printf("Zhenzhu VM is in progress... \n");
 
-    VM vm;
+    ZZVM vm;
     initVM(&vm);
 
     Chunk chunk;

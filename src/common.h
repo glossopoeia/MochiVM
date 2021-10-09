@@ -18,6 +18,7 @@
 #define __STDC_LIMIT_MACROS
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 // The Microsoft compiler does not support the "inline" modifier when compiling
 // as plain C.
@@ -29,9 +30,6 @@
 // Usually they trade-off a bit of portability for speed. They default to the
 // most efficient behavior.
 
-// If both pointer tagging and NaN tagging are set to enabled, the build will
-// choose pointer tagging.
-
 // Because Zhenzhu is intended as a target for the statically-typed Boba
 // language, we can make guarantees that runtime type errors will not
 // occur, enabling a more efficient representation of data at runtime.
@@ -39,7 +37,7 @@
 // available a version that uses standard C tagged unions. Pointer
 // tagging defaults to on for efficiency on common hardware.
 #ifndef ZHENZHU_POINTER_TAGGING
-    #define ZHENZHU_POINTER_TAGGING 1
+    #define ZHENZHU_POINTER_TAGGING 0
 #endif
 
 // We also make available a representation for NaN tagging/boxing,
@@ -48,7 +46,7 @@
 // point arithmetic could benefit from NaN tagging instead of pointer
 // tagging.
 #ifndef ZHENZHU_NAN_TAGGING
-    #define ZHENZHU_NAN_TAGGING 0
+    #define ZHENZHU_NAN_TAGGING 1
 #endif
 
 #if ZHENZHU_POINTER_TAGGING == 1 && ZHENZHU_NAN_TAGGING == 1
@@ -92,6 +90,9 @@
 
 // Log all garbage collections.
 #define ZHENZHU_DEBUG_TRACE_GC 1
+
+// Display all the input bytecode before beginning execution.
+#define ZHENZHU_DEBUG_DUMP_BYTECODE 1
 
 // Log VM state and current instruction before every executed instruction.
 #define ZHENZHU_DEBUG_TRACE_EXECUTION 1
