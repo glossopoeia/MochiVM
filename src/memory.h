@@ -5,76 +5,40 @@
 #include "object.h"
 #include "vm.h"
 
-#define ALLOCATE(type, count) (type*)zzReallocate(NULL, 0, sizeof(type) * (count))
+// Use the VM's allocator to allocate an object of [type].
+#define ALLOCATE(vm, type)                                                     \
+    ((type*)zzReallocate(vm, NULL, 0, sizeof(type)))
 
-#define FREE(type, pointer) zzReallocate(pointer, sizeof(type), 0)
+// Use the VM's allocator to allocate an object of [mainType] containing a
+// flexible array of [count] objects of [arrayType].
+#define ALLOCATE_FLEX(vm, mainType, arrayType, count)                          \
+    ((mainType*)zzReallocate(vm, NULL, 0,                                      \
+        sizeof(mainType) + sizeof(arrayType) * (count)))
 
-#define GROW_CAPACITY(capacity) \
-    ((capacity) < 8 ? 8 : (capacity) * 2)
+// Use the VM's allocator to allocate an array of [count] elements of [type].
+#define ALLOCATE_ARRAY(vm, type, count)                                        \
+    ((type*)zzReallocate(vm, NULL, 0, sizeof(type) * (count)))
 
-#define GROW_ARRAY(type, pointer, oldCount, newCount) \
-    (type*)zzReallocate(pointer, sizeof(type) * (oldCount), \
-        sizeof(type) * (newCount))
+// Use the VM's allocator to free the previously allocated memory at [pointer].
+#define DEALLOCATE(vm, pointer) zzReallocate(vm, pointer, 0, 0)
 
-#define FREE_ARRAY(type, pointer, oldCount) \
-    zzReallocate(pointer, sizeof(type) * (oldCount), 0)
-
-// We need buffers of a few different types. To avoid lots of casting between
-// void* and back, we'll use the preprocessor as a poor man's generics and let
-// it generate a few type-specific ones.
-#define DECLARE_BUFFER(name, type)                                             \
-    typedef struct                                                             \
-    {                                                                          \
-        type* data;                                                            \
-        int count;                                                             \
-        int capacity;                                                          \
-    } name##Buffer;                                                            \
-    void zz##name##BufferInit(name##Buffer* buffer);                           \
-    void zz##name##BufferClear(ZZVM* vm, name##Buffer* buffer);                \
-    void zz##name##BufferFill(ZZVM* vm, name##Buffer* buffer, type data,       \
-                                int count);                                    \
-    void zz##name##BufferWrite(ZZVM* vm, name##Buffer* buffer, type data)
-
-// This should be used once for each type instantiation, somewhere in a .c file.
-#define DEFINE_BUFFER(name, type)                                              \
-    void zz##name##BufferInit(name##Buffer* buffer)                            \
-    {                                                                          \
-      buffer->data = NULL;                                                     \
-      buffer->capacity = 0;                                                    \
-      buffer->count = 0;                                                       \
-    }                                                                          \
-                                                                               \
-    void zz##name##BufferClear(ZZVM* vm, name##Buffer* buffer)                 \
-    {                                                                          \
-      zzReallocate(vm, buffer->data, 0, 0);                                    \
-      zz##name##BufferInit(buffer);                                            \
-    }                                                                          \
-                                                                               \
-    void zz##name##BufferFill(ZZVM* vm, name##Buffer* buffer, type data,       \
-                                int count)                                     \
-    {                                                                          \
-      if (buffer->capacity < buffer->count + count)                            \
-      {                                                                        \
-        int capacity = zzPowerOf2Ceil(buffer->count + count);                  \
-        buffer->data = (type*)zzReallocate(vm, buffer->data,                   \
-            buffer->capacity * sizeof(type), capacity * sizeof(type));         \
-        buffer->capacity = capacity;                                           \
-      }                                                                        \
-                                                                               \
-      for (int i = 0; i < count; i++)                                          \
-      {                                                                        \
-        buffer->data[buffer->count++] = data;                                  \
-      }                                                                        \
-    }                                                                          \
-                                                                               \
-    void zz##name##BufferWrite(ZZVM* vm, name##Buffer* buffer, type data)      \
-    {                                                                          \
-      zz##name##BufferFill(vm, buffer, data, 1);                               \
-    }
-
-// If newSize is 0, frees the pointed-to memory. Otherwise reallocates
-// at the new specified size. Early exit if memory cannot be reallocated.
-void* zzReallocate(void* pointer, size_t oldSize, size_t newSize);
+// A generic allocation function that handles all explicit memory management.
+// It's used like so:
+//
+// - To allocate new memory, [memory] is NULL and [oldSize] is zero. It should
+//   return the allocated memory or NULL on failure.
+//
+// - To attempt to grow an existing allocation, [memory] is the memory,
+//   [oldSize] is its previous size, and [newSize] is the desired size.
+//   It should return [memory] if it was able to grow it in place, or a new
+//   pointer if it had to move it.
+//
+// - To shrink memory, [memory], [oldSize], and [newSize] are the same as above
+//   but it will always return [memory].
+//
+// - To free memory, [memory] will be the memory to free and [newSize] and
+//   [oldSize] will be zero. It should return NULL.
+void* zzReallocate(ZZVM* vm, void* memory, size_t oldSize, size_t newSize);
 
 // Returns the smallest power of two that is equal to or greater than [n].
 int zzPowerOf2Ceil(int n);

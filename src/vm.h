@@ -5,11 +5,19 @@
 #include "value.h"
 #include "object.h"
 
+// The maximum number of temporary objects that can be made visible to the GC
+// at one time.
+#define ZHENZHU_MAX_TEMP_ROOTS 8
+
 #define STACK_MAX 256
 #define CALL_STACK_MAX 512
 
-typedef struct {
-    Chunk * chunk;
+struct ZZVM {
+    ZhenzhuConfiguration config;
+
+    ByteBuffer* code;
+    ValueBuffer* constants;
+    IntBuffer* lines;
     uint8_t * ip;
 
     // Value stack, which all instructions that consume and produce data operate upon.
@@ -20,23 +28,39 @@ typedef struct {
     ObjVarFrame* callStack[CALL_STACK_MAX];
     ObjVarFrame** callStackTop;
 
-    // A list of every object heap-allocated by the virtual machine.
+    // Memory management data:
+
+    // The number of bytes that are known to be currently allocated. Includes all
+    // memory that was proven live after the last GC, as well as any new bytes
+    // that were allocated since then. Does *not* include bytes for objects that
+    // were freed since the last GC.
+    size_t bytesAllocated;
+
+    // The number of total allocated bytes that will trigger the next GC.
+    size_t nextGC;
+
+    // The first object in the linked list of all currently allocated objects.
     Obj* objects;
-} ZZVM;
 
-typedef enum {
-    INTERPRET_OK,
-    INTERPRET_RUNTIME_ERROR,
-} InterpretResult;
+    // The "gray" set for the garbage collector. This is the stack of unprocessed
+    // objects while a garbage collection pass is in process.
+    Obj** gray;
+    int grayCount;
+    int grayCapacity;
 
-// Initialize an empty virtual machine state.
-void initVM(ZZVM * vm);
-// Deallocate the given virtual machine state.
-void freeVM(ZZVM * vm);
-void freeObjects(ZZVM* vm);
-// Set the given vm state to run through the given chunk,
-// starting with the first instruction in the chunk.
-InterpretResult interpret(Chunk * chunk, ZZVM * vm);
+    // The list of temporary roots. This is for temporary or new objects that are
+    // not otherwise reachable but should not be collected.
+    //
+    // They are organized as a stack of pointers stored in this array. This
+    // implies that temporary roots need to have stack semantics: only the most
+    // recently pushed object can be released.
+    Obj* tempRoots[ZHENZHU_MAX_TEMP_ROOTS];
+
+    int numTempRoots;
+};
+
+int addConstant(ZZVM* vm, Value value);
+void writeChunk(ZZVM* vm, uint8_t instr, int line);
 
 void push(Value value, ZZVM * vm);
 Value pop(ZZVM * vm);

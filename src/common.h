@@ -97,6 +97,59 @@
 // Log VM state and current instruction before every executed instruction.
 #define ZHENZHU_DEBUG_TRACE_EXECUTION 1
 
+// We need buffers of a few different types. To avoid lots of casting between
+// void* and back, we'll use the preprocessor as a poor man's generics and let
+// it generate a few type-specific ones.
+#define DECLARE_BUFFER(name, type)                                             \
+    typedef struct                                                             \
+    {                                                                          \
+        type* data;                                                            \
+        int count;                                                             \
+        int capacity;                                                          \
+    } name##Buffer;                                                            \
+    void zz##name##BufferInit(name##Buffer* buffer);                           \
+    void zz##name##BufferClear(ZZVM* vm, name##Buffer* buffer);                \
+    void zz##name##BufferFill(ZZVM* vm, name##Buffer* buffer, type data,       \
+                                int count);                                    \
+    void zz##name##BufferWrite(ZZVM* vm, name##Buffer* buffer, type data)
+
+// This should be used once for each type instantiation, somewhere in a .c file.
+#define DEFINE_BUFFER(name, type)                                              \
+    void zz##name##BufferInit(name##Buffer* buffer)                            \
+    {                                                                          \
+      buffer->data = NULL;                                                     \
+      buffer->capacity = 0;                                                    \
+      buffer->count = 0;                                                       \
+    }                                                                          \
+                                                                               \
+    void zz##name##BufferClear(ZZVM* vm, name##Buffer* buffer)                 \
+    {                                                                          \
+      zzReallocate(vm, buffer->data, 0, 0);                                    \
+      zz##name##BufferInit(buffer);                                            \
+    }                                                                          \
+                                                                               \
+    void zz##name##BufferFill(ZZVM* vm, name##Buffer* buffer, type data,       \
+                                int count)                                     \
+    {                                                                          \
+      if (buffer->capacity < buffer->count + count)                            \
+      {                                                                        \
+        int capacity = zzPowerOf2Ceil(buffer->count + count);                  \
+        buffer->data = (type*)zzReallocate(vm, buffer->data,                   \
+            buffer->capacity * sizeof(type), capacity * sizeof(type));         \
+        buffer->capacity = capacity;                                           \
+      }                                                                        \
+                                                                               \
+      for (int i = 0; i < count; i++)                                          \
+      {                                                                        \
+        buffer->data[buffer->count++] = data;                                  \
+      }                                                                        \
+    }                                                                          \
+                                                                               \
+    void zz##name##BufferWrite(ZZVM* vm, name##Buffer* buffer, type data)      \
+    {                                                                          \
+      zz##name##BufferFill(vm, buffer, data, 1);                               \
+    }
+
 // Assertions are used to validate program invariants. They indicate things the
 // program expects to be true about its internal state during execution. If an
 // assertion fails, there is a bug in Zhenzhu.

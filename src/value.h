@@ -2,6 +2,7 @@
 #define zhenzhu_value_h
 
 #include "common.h"
+#include "zhenzhu.h"
 
 // These macros promote a primitive C value to a full Zhenzhu Value. There are
 // more defined below that are specific to the various Value representations.
@@ -63,27 +64,82 @@ struct Obj {
 
 #endif
 
-typedef struct ObjString ObjString;
-typedef struct ObjVarFrame ObjVarFrame;
-typedef struct ObjCallFrame ObjCallFrame;
-typedef struct ObjMarkFrame ObjMarkFrame;
-typedef struct ObjClosure ObjClosure;
-typedef struct ObjOpClosure ObjOpClosure;
-typedef struct ObjContinuation ObjContinuation;
+DECLARE_BUFFER(Value, Value);
+DECLARE_BUFFER(Byte, uint8_t);
+DECLARE_BUFFER(Int, int);
 
-typedef struct {
-    int count;
-    int capacity;
-    Value * values;
-} ValueArray;
+#define OBJ_TYPE(value)        (AS_OBJ(value)->type)
 
-void initValueArray(ValueArray * array);
-void writeValueArray(ValueArray * array, Value value);
-void freeValueArray(ValueArray * array);
+#define IS_VAR_FRAME(value)    isObjType(value, OBJ_VAR_FRAME)
+#define IS_CALL_FRAME(value)   isObjType(value, OBJ_CALL_FRAME)
+#define IS_MARK_FRAME(value)   isObjType(value, OBJ_MARK_FRAME)
+#define IS_STRING(value)       isObjType(value, OBJ_STRING)
+#define IS_CLOSURE(value)      isObjType(value, OBJ_CLOSURE)
+#define IS_OP_CLOSURE(value)   isObjType(value, OBJ_OP_CLOSURE)
+#define IS_CONTINUATION(value) isObjType(value, OBJ_CONTINUATION)
+
+#define VAL_AS_VAR_FRAME(value)    ((ObjVarFrame*)AS_OBJ(value))
+#define VAL_AS_CALL_FRAME(value)   ((ObjCallFrame*)AS_OBJ(value))
+#define VAL_AS_MARK_FRAME(value)   ((ObjMarkFrame*)AS_OBJ(value))
+#define VAL_AS_STRING(value)       ((ObjString*)AS_OBJ(value))
+#define VAL_AS_CSTRING(value)      (((ObjString*)AS_OBJ(value))->chars)
+#define VAL_AS_CLOSURE(value)      ((ObjClosure*)AS_OBJ(value))
+#define VAL_AS_OP_CLOSURE(value)   ((ObjOpClosure*)AS_OBJ(value))
+#define VAL_AS_CONTINUATION(value) ((ObjContinuation*)AS_OBJ(value))
+
+typedef struct ObjString {
+    Obj obj;
+    int length;
+    char* chars;
+} ObjString;
+
+typedef struct ObjVarFrame {
+    Obj obj;
+    Value* slots;
+    int slotCount;
+} ObjVarFrame;
+
+typedef struct ObjCallFrame {
+    ObjVarFrame vars;
+    uint8_t* afterLocation;
+} ObjCallFrame;
+
+typedef struct ObjMarkFrame {
+    ObjCallFrame call;
+    // The identifier that will be searched for when trying to execute a particular operation. Designed to
+    // enable efficiently finding sets of related operations that all get handled by the same handler expression.
+    // Trying to execute an operation must specify the 'set' of operations the operation belongs to (markId), then
+    // the index within the set of the operation itself (operations[i]).
+    int markId;
+    Value afterClosure;
+    Value* operations;
+    int operationCount;
+} ObjMarkFrame;
+
+typedef struct ObjClosure {
+    Obj obj;
+    uint8_t* funcLocation;
+    Value* vars;
+    int varCount;
+} ObjClosure;
+
+typedef struct ObjOpClosure {
+    ObjClosure closure;
+    int argCount;
+} ObjOpClosure;
+
+typedef struct ObjContinuation {
+    Obj obj;
+    uint8_t* resumeLocation;
+    Value* savedStack;
+    int savedStackCount;
+    ObjVarFrame** savedFrames;
+    int savedFramesCount;
+} ObjContinuation;
 
 // Logs a textual representation of the given value to the output
 void printValue(Value value);
 
-void freeObject(Obj* object);
+void zzFreeObj(ZZVM* vm, Obj* object);
 
 #endif

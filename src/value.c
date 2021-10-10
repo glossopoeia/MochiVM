@@ -5,82 +5,59 @@
 #include "object.h"
 #include "memory.h"
 
-void initValueArray(ValueArray * array) {
-    array->values = NULL;
-    array->capacity = 0;
-    array->count = 0;
+DEFINE_BUFFER(Value, Value);
+DEFINE_BUFFER(Byte, uint8_t);
+DEFINE_BUFFER(Int, int);
+
+static void freeVarFrame(ZZVM* vm, ObjVarFrame* frame) {
+    DEALLOCATE(vm, frame->slots);
 }
 
-void writeValueArray(ValueArray* array, Value value) {
-    if (array->capacity < array->count + 1) {
-        int oldCapacity = array->capacity;
-        array->capacity = GROW_CAPACITY(oldCapacity);
-        array->values = GROW_ARRAY(Value, array->values, oldCapacity, array->capacity);
-    }
-
-    array->values[array->count] = value;
-    array->count++;
+static void freeClosure(ZZVM* vm, ObjClosure* closure) {
+    DEALLOCATE(vm, closure->vars);
 }
 
-void freeValueArray(ValueArray* array) {
-    FREE_ARRAY(Value, array->values, array->capacity);
-    initValueArray(array);
-}
-
-static void freeVarFrame(ObjVarFrame* frame) {
-    FREE_ARRAY(Value, frame->slots, frame->slotCount);
-}
-
-static void freeClosure(ObjClosure* closure) {
-    FREE_ARRAY(Value, closure->vars, closure->varCount);
-}
-
-void freeObject(Obj* object) {
+void zzFreeObj(ZZVM* vm, Obj* object) {
     switch (object->type) {
         case OBJ_STRING: {
             ObjString* string = (ObjString*)object;
-            FREE_ARRAY(char, string->chars, string->length + 1);
-            FREE(ObjString, object);
+            DEALLOCATE(vm, string->chars);
             break;
         }
         case OBJ_VAR_FRAME: {
-            freeVarFrame((ObjVarFrame*)object);
-            FREE(ObjVarFrame, object);
+            freeVarFrame(vm, (ObjVarFrame*)object);
             break;
         }
         case OBJ_CALL_FRAME: {
-            freeVarFrame((ObjVarFrame*)object);
-            FREE(ObjCallFrame, object);
+            freeVarFrame(vm, (ObjVarFrame*)object);
             break;
         }
         case OBJ_MARK_FRAME: {
-            freeVarFrame((ObjVarFrame*)object);
+            freeVarFrame(vm, (ObjVarFrame*)object);
             ObjMarkFrame* mark = (ObjMarkFrame*)object;
-            FREE_ARRAY(Value, mark->operations, mark->operationCount);
-            FREE(ObjMarkFrame, object);
+            DEALLOCATE(vm, mark->operations);
             break;
         }
         case OBJ_CLOSURE: {
-            freeClosure((ObjClosure*)object);
-            FREE(ObjClosure, object);
+            freeClosure(vm, (ObjClosure*)object);
             break;
         }
         case OBJ_OP_CLOSURE: {
-            freeClosure((ObjClosure*)object);
-            FREE(ObjOpClosure, object);
+            freeClosure(vm, (ObjClosure*)object);
             break;
         }
         case OBJ_CONTINUATION: {
             ObjContinuation* cont = (ObjContinuation*)object;
-            FREE_ARRAY(Value, cont->savedStack, cont->savedStackCount);
-            FREE_ARRAY(ObjVarFrame*, cont->savedFrames, cont->savedFramesCount);
-            FREE(ObjContinuation, object);
+            DEALLOCATE(vm, cont->savedStack);
+            DEALLOCATE(vm, cont->savedFrames);
             break;
         }
         case OBJ_FIBER: {
             ASSERT(false, "Freeing fibers currently unimplemented.");
         }
     }
+
+    DEALLOCATE(vm, object);
 }
 
 void printValue(Value value) {

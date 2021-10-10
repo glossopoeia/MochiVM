@@ -1,27 +1,163 @@
 #include <stdio.h>
 #include <string.h>
 
+#if ZHENZHU_DEBUG_TRACE_MEMORY || ZHENZHU_DEBUG_TRACE_GC
+    #include <time.h>
+#endif
+
 #include "common.h"
 #include "debug.h"
 #include "object.h"
 #include "memory.h"
 #include "vm.h"
 
-static void resetStack(ZZVM * vm) {
-    vm->stackTop = vm->stack;
-    vm->callStackTop = vm->callStack;
+// The behavior of realloc() when the size is 0 is implementation defined. It
+// may return a non-NULL pointer which must not be dereferenced but nevertheless
+// should be freed. To prevent that, we avoid calling realloc() with a zero
+// size.
+static void* defaultReallocate(void* ptr, size_t newSize, void* _) {
+    if (newSize == 0) {
+        free(ptr);
+        return NULL;
+    }
+    return realloc(ptr, newSize);
 }
 
-void initVM(ZZVM * vm) {
-    resetStack(vm);
-    vm->objects = NULL;
+int zzGetVersionNumber() { 
+  return ZHENZHU_VERSION_NUMBER;
+}
+
+void zzInitConfiguration(ZhenzhuConfiguration* config) {
+    config->reallocateFn = defaultReallocate;
+    config->errorFn = NULL;
+    config->initialHeapSize = 1024 * 1024 * 10;
+    config->minHeapSize = 1024 * 1024;
+    config->heapGrowthPercent = 50;
+    config->userData = NULL;
+}
+
+ZZVM* zzNewVM(ZhenzhuConfiguration* config) {
+    ZhenzhuReallocateFn reallocate = defaultReallocate;
+    void* userData = NULL;
+    if (config != NULL) {
+        userData = config->userData;
+        reallocate = config->reallocateFn ? config->reallocateFn : defaultReallocate;
+    }
+    
+    ZZVM* vm = (ZZVM*)reallocate(NULL, sizeof(*vm), userData);
+    memset(vm, 0, sizeof(ZZVM));
+
+    // Copy the configuration if given one.
+    if (config != NULL) {
+        memcpy(&vm->config, config, sizeof(ZhenzhuConfiguration));
+
+        // We choose to set this after copying, 
+        // rather than modifying the user config pointer
+        vm->config.reallocateFn = reallocate;
+    } else {
+        zzInitConfiguration(&vm->config);
+    }
+
+    vm->code = NULL;
+    vm->constants = NULL;
+    vm->lines = NULL;
+
+    // TODO: Should we allocate and free this during a GC?
+    vm->grayCount = 0;
+    // TODO: Tune this.
+    vm->grayCapacity = 4;
+    vm->gray = (Obj**)reallocate(NULL, vm->grayCapacity * sizeof(Obj*), userData);
+    vm->nextGC = vm->config.initialHeapSize;
+
+    return vm;
+}
+
+void zzFreeVM(ZZVM* vm) {
+    // Free all of the GC objects.
+    Obj* obj = vm->objects;
+    while (obj != NULL) {
+        Obj* next = obj->next;
+        zzFreeObj(vm, obj);
+        obj = next;
+    }
+
+    // Free up the GC gray set.
+    vm->gray = (Obj**)vm->config.reallocateFn(vm->gray, 0, vm->config.userData);
+
+    DEALLOCATE(vm, vm);
+}
+
+void zzCollectGarbage(ZZVM* vm) {
+#if ZHENZHU_DEBUG_TRACE_MEMORY || ZHENZHU_DEBUG_TRACE_GC
+    printf("-- gc --\n");
+
+    size_t before = vm->bytesAllocated;
+    double startTime = (double)clock() / CLOCKS_PER_SEC;
+#endif
+
+    // Mark all reachable objects.
+
+    // Reset this. As we mark objects, their size will be counted again so that
+    // we can track how much memory is in use without needing to know the size
+    // of each *freed* object.
+    //
+    // This is important because when freeing an unmarked object, we don't always
+    // know how much memory it is using. For example, when freeing an instance,
+    // we need to know its class to know how big it is, but its class may have
+    // already been freed.
+    vm->bytesAllocated = 0;
+
+    // Temporary roots.
+    for (int i = 0; i < vm->numTempRoots; i++) {
+        zzGrayObj(vm, vm->tempRoots[i]);
+    }
+
+    // The current fiber.
+    zzGrayObj(vm, (Obj*)vm->fiber);
+
+    // Now that we have grayed the roots, do a depth-first search over all of the
+    // reachable objects.
+    zzBlackenObjects(vm);
+
+    // Collect the white objects.
+    Obj** obj = &vm->objects;
+    while (*obj != NULL) {
+        if (!((*obj)->isMarked)) {
+            // This object wasn't reached, so remove it from the list and free it.
+            Obj* unreached = *obj;
+            *obj = unreached->next;
+            zzFreeObj(vm, unreached);
+        } else {
+            // This object was reached, so unmark it (for the next GC) and move on to
+            // the next.
+            (*obj)->isMarked = false;
+            obj = &(*obj)->next;
+        }
+    }
+
+    // Calculate the next gc point, this is the current allocation plus
+    // a configured percentage of the current allocation.
+    vm->nextGC = vm->bytesAllocated + ((vm->bytesAllocated * vm->config.heapGrowthPercent) / 100);
+    if (vm->nextGC < vm->config.minHeapSize) vm->nextGC = vm->config.minHeapSize;
+
+#if ZHENZHU_DEBUG_TRACE_MEMORY || ZHENZHU_DEBUG_TRACE_GC
+    double elapsed = ((double)clock() / CLOCKS_PER_SEC) - startTime;
+    // Explicit cast because size_t has different sizes on 32-bit and 64-bit and
+    // we need a consistent type for the format string.
+    printf("GC %lu before, %lu after (%lu collected), next at %lu. Took %.3fms.\n",
+            (unsigned long)before,
+            (unsigned long)vm->bytesAllocated,
+            (unsigned long)(before - vm->bytesAllocated),
+            (unsigned long)vm->nextGC,
+            elapsed*1000.0);
+#endif
 }
 
 void freeObjects(ZZVM* vm) {
     Obj* object = vm->objects;
     while (object != NULL) {
         Obj* next = object->next;
-        freeObject(object);
+        zzFreeObj(vm, object);
         object = next;
     }
 }
@@ -30,14 +166,23 @@ void freeVM(ZZVM * vm) {
     freeObjects(vm);
 }
 
+int addConstant(ZZVM* vm, Value value) {
+    zzValueBufferWrite(vm, vm->constants, value);
+    return vm->constants->count - 1;
+}
+
+void writeChunk(ZZVM* vm, uint8_t instr, int line) {
+    zzByteBufferWrite(vm, vm->code, instr);
+}
+
 //static Value peek(int distance, ZZVM * vm) {
 //    return vm->stackTop[-1 - distance];
 //}
 
 // Dispatcher function to run the current chunk in the given vm.
-static InterpretResult run(ZZVM * vm) {
+static ZhenzhuInterpretResult run(ZZVM * vm) {
 #define READ_BYTE() (*vm->ip++)
-#define READ_CONSTANT() (vm->chunk->constants.values[READ_BYTE()])
+#define READ_CONSTANT() (vm->constants->data[READ_BYTE()])
 #define BINARY_OP(valueType, op) \
     do { \
         double b = AS_NUMBER(pop(vm)); \
@@ -61,14 +206,14 @@ static InterpretResult run(ZZVM * vm) {
             printf(" ]");
         }
         printf("\n");
-        disassembleInstruction(vm->chunk, (int)(vm->ip - vm->chunk->code));
+        disassembleInstruction(vm->code->data, (int)(vm->ip - vm->code->data));
 #endif
         uint8_t instruction;
         switch (instruction = READ_BYTE()) {
             case OP_NOP: {
                 printValue(pop(vm));
                 printf("\n");
-                return INTERPRET_OK;
+                return ZHENZHU_RESULT_SUCCESS;
             }
             case OP_CONSTANT: {
                 Value constant = READ_CONSTANT();
@@ -91,7 +236,7 @@ static InterpretResult run(ZZVM * vm) {
                 ObjString* a = VAL_AS_STRING(pop(vm));
 
                 int length = a->length + b->length;
-                char* chars = ALLOCATE(char, length + 1);
+                char* chars = ALLOCATE_ARRAY(vm, char, length + 1);
                 memcpy(chars, a->chars, a->length);
                 memcpy(chars + a->length, b->chars, b->length);
                 chars[length] = '\0';
@@ -103,7 +248,7 @@ static InterpretResult run(ZZVM * vm) {
 
             case OP_STORE: {
                 uint8_t varCount = READ_BYTE();
-                Value* vars = ALLOCATE(Value, varCount);
+                Value* vars = ALLOCATE_ARRAY(vm, Value, varCount);
                 for (int i = 0; i < (int)varCount; i++) {
                     vars[i] = *(vm->stackTop - i);
                 }
@@ -130,9 +275,8 @@ static InterpretResult run(ZZVM * vm) {
 #undef READ_CONSTANT
 }
 
-InterpretResult interpret(Chunk * chunk, ZZVM * vm) {
-    vm->chunk = chunk;
-    vm->ip = chunk->code;
+ZhenzhuInterpretResult zzInterpret(ZZVM * vm) {
+    vm->ip = vm->code->data;
     return run(vm);
 }
 
@@ -161,7 +305,7 @@ ObjVarFrame* popFrame(ZZVM* vm) {
 #define ALLOCATE_OBJ(type, objectType, vm) (type*)allocateObject(sizeof(type), (objectType), (vm))
 
 static Obj* allocateObject(size_t size, ObjType type, ZZVM* vm) {
-    Obj* object = (Obj*)zzReallocate(NULL, 0, size);
+    Obj* object = (Obj*)zzReallocate(vm, NULL, 0, size);
     object->type = type;
     // keep track of all allocated objects via the linked list in the vm
     object->next = vm->objects;
@@ -181,7 +325,7 @@ ObjString* takeString(char* chars, int length, ZZVM* vm) {
 }
 
 ObjString* copyString(const char* chars, int length, ZZVM* vm) {
-    char* heapChars = ALLOCATE(char, length + 1);
+    char* heapChars = ALLOCATE_ARRAY(vm, char, length + 1);
     memcpy(heapChars, chars, length);
     heapChars[length] = '\0';
     return allocateString(heapChars, length, vm);
