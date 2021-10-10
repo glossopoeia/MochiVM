@@ -58,9 +58,9 @@ typedef uint64_t Value;
 // A union to let us reinterpret a double as raw bits and back.
 typedef union
 {
-  uint64_t bits64;
-  uint32_t bits32[2];
-  double num;
+    uint64_t bits64;
+    uint32_t bits32[2];
+    double num;
 } ZhenzhuDoubleBits;
 
 #define ZHENZHU_DOUBLE_QNAN_POS_MIN_BITS (UINT64_C(0x7FF8000000000000))

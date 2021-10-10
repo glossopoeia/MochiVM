@@ -4,22 +4,33 @@
 #include "common.h"
 #include "zhenzhu.h"
 
+#define OBJ_TYPE(value)        (AS_OBJ(value)->type)
+
 // These macros promote a primitive C value to a full Zhenzhu Value. There are
 // more defined below that are specific to the various Value representations.
 #define BOOL_VAL(boolean)   ((boolean) ? TRUE_VAL : FALSE_VAL)
 #define NUMBER_VAL(num)     (zzNumToValue(num))
 #define OBJ_VAL(obj)        (zzObjectToValue((Obj*)(obj)))
 
+#define IS_FIBER(value)        isObjType(value, OBJ_FIBER)
+#define IS_VAR_FRAME(value)    isObjType(value, OBJ_VAR_FRAME)
+#define IS_CALL_FRAME(value)   isObjType(value, OBJ_CALL_FRAME)
+#define IS_MARK_FRAME(value)   isObjType(value, OBJ_MARK_FRAME)
+#define IS_STRING(value)       isObjType(value, OBJ_STRING)
+#define IS_CLOSURE(value)      isObjType(value, OBJ_CLOSURE)
+#define IS_OP_CLOSURE(value)   isObjType(value, OBJ_OP_CLOSURE)
+#define IS_CONTINUATION(value) isObjType(value, OBJ_CONTINUATION)
+
 // These macros cast a Value to one of the specific object types. These do *not*
 // perform any validation, so must only be used after the Value has been
 // ensured to be the right type.
 // AS_OBJ and AS_BOOL are implementation specific.
-#define AS_VAR_FRAME(value)     ((ObjVarFrame*)value)
-#define AS_CALL_FRAME(value)    ((ObjCallFrame*)value)
-#define AS_MARK_FRAME(value)    ((ObjMarkFrame*)value)
+#define AS_VAR_FRAME(value)     ((ObjVarFrame*)AS_OBJ(value))
+#define AS_CALL_FRAME(value)    ((ObjCallFrame*)AS_OBJ(value))
+#define AS_MARK_FRAME(value)    ((ObjMarkFrame*)AS_OBJ(value))
 #define AS_CLOSURE(value)       ((ObjClosure*)AS_OBJ(value))
-#define AS_OP_CLOSURE(value)    ((ObjOpClosure*)value)
-#define AS_CONTINUATION(value)  ((ObjContinuation)*value)
+#define AS_OP_CLOSURE(value)    ((ObjOpClosure*)AS_OBJ(value))
+#define AS_CONTINUATION(value)  ((ObjContinuation)AS_OBJ(value))
 #define AS_FIBER(v)             ((ObjFiber*)AS_OBJ(v))
 #define AS_FOREIGN(v)           ((ObjForeign*)AS_OBJ(v))
 #define AS_NUMBER(value)        (zzValueToNum(value))
@@ -28,6 +39,7 @@
 #define AS_CSTRING(v)           (AS_STRING(v)->chars)
 
 typedef enum {
+    OBJ_CODE_BLOCK,
     OBJ_FIBER,
     OBJ_VAR_FRAME,
     OBJ_CALL_FRAME,
@@ -68,24 +80,12 @@ DECLARE_BUFFER(Value, Value);
 DECLARE_BUFFER(Byte, uint8_t);
 DECLARE_BUFFER(Int, int);
 
-#define OBJ_TYPE(value)        (AS_OBJ(value)->type)
-
-#define IS_VAR_FRAME(value)    isObjType(value, OBJ_VAR_FRAME)
-#define IS_CALL_FRAME(value)   isObjType(value, OBJ_CALL_FRAME)
-#define IS_MARK_FRAME(value)   isObjType(value, OBJ_MARK_FRAME)
-#define IS_STRING(value)       isObjType(value, OBJ_STRING)
-#define IS_CLOSURE(value)      isObjType(value, OBJ_CLOSURE)
-#define IS_OP_CLOSURE(value)   isObjType(value, OBJ_OP_CLOSURE)
-#define IS_CONTINUATION(value) isObjType(value, OBJ_CONTINUATION)
-
-#define VAL_AS_VAR_FRAME(value)    ((ObjVarFrame*)AS_OBJ(value))
-#define VAL_AS_CALL_FRAME(value)   ((ObjCallFrame*)AS_OBJ(value))
-#define VAL_AS_MARK_FRAME(value)   ((ObjMarkFrame*)AS_OBJ(value))
-#define VAL_AS_STRING(value)       ((ObjString*)AS_OBJ(value))
-#define VAL_AS_CSTRING(value)      (((ObjString*)AS_OBJ(value))->chars)
-#define VAL_AS_CLOSURE(value)      ((ObjClosure*)AS_OBJ(value))
-#define VAL_AS_OP_CLOSURE(value)   ((ObjOpClosure*)AS_OBJ(value))
-#define VAL_AS_CONTINUATION(value) ((ObjContinuation*)AS_OBJ(value))
+typedef struct ObjCodeBlock {
+    Obj obj;
+    ByteBuffer code;
+    ValueBuffer constants;
+    IntBuffer lines;
+} ObjCodeBlock;
 
 typedef struct ObjString {
     Obj obj;
@@ -116,6 +116,26 @@ typedef struct ObjMarkFrame {
     int operationCount;
 } ObjMarkFrame;
 
+typedef struct ObjFiber {
+    Obj obj;
+    uint8_t* ip;
+    bool isRoot;
+
+    // Value stack, which all instructions that consume and produce data operate upon.
+    Value* stack;
+    Value* stackTop;
+    int stackCount;
+    int stackCapacity;
+
+    // Frame stack, which variable, function, and continuation instructions operate upon.
+    ObjVarFrame** callStack;
+    ObjVarFrame** callStackTop;
+    int callStackCount;
+    int callStackCapacity;
+
+    struct ObjFiber* caller;
+} ObjFiber;
+
 typedef struct ObjClosure {
     Obj obj;
     uint8_t* funcLocation;
@@ -137,8 +157,13 @@ typedef struct ObjContinuation {
     int savedFramesCount;
 } ObjContinuation;
 
+static inline bool isObjType(Value value, ObjType type) {
+    return IS_OBJ(value) && AS_OBJ(value)->type == type;
+}
+
 // Logs a textual representation of the given value to the output
 void printValue(Value value);
+void printObject(Value object);
 
 void zzFreeObj(ZZVM* vm, Obj* object);
 

@@ -3,24 +3,27 @@
 #include "memory.h"
 
 void* zzReallocate(ZZVM* vm, void* memory, size_t oldSize, size_t newSize) {
-#if ZHENZHU_DEBUG_TRACE_MEMORY
-    // Explicit cast because size_t has different sizes on 32-bit and 64-bit and
-    // we need a consistent type for the format string.
-    printf("reallocate %p %lu -> %lu\n", memory, (unsigned long)oldSize, (unsigned long)newSize);
-#endif
-
     // If new bytes are being allocated, add them to the total count. If objects
     // are being completely deallocated, we don't track that (since we don't
     // track the original size). Instead, that will be handled while marking
     // during the next GC.
-    vm->bytesAllocated += newSize - oldSize;
+    size_t newHeapSize = vm->bytesAllocated + (newSize - oldSize);
 
-#if ZZ_DEBUG_GC_STRESS
+#if ZHENZHU_DEBUG_TRACE_MEMORY
+    // Explicit cast because size_t has different sizes on 32-bit and 64-bit and
+    // we need a consistent type for the format string.
+    printf("reallocate %p %lu -> %lu, total %lu -> %lu\n",
+           memory, (unsigned long)oldSize, (unsigned long)newSize, (unsigned long)vm->bytesAllocated, (unsigned long)newHeapSize);
+#endif
+
+    vm->bytesAllocated = newHeapSize;
+
+#if ZHENZHU_DEBUG_GC_STRESS
     // Since collecting calls this function to free things, make sure we don't
     // recurse.
     if (newSize > 0) zzCollectGarbage(vm);
 #else
-    if (newSize > 0 && vm->bytesAllocated > vm->nextGC) zzCollectGarbage(vm);
+    if (newSize > 0 && newHeapSize > vm->nextGC) zzCollectGarbage(vm);
 #endif
 
     return vm->config.reallocateFn(memory, newSize, vm->config.userData);

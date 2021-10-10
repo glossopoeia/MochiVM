@@ -2,7 +2,6 @@
 #define zhenzhu_memory_h
 
 #include "common.h"
-#include "object.h"
 #include "vm.h"
 
 // Use the VM's allocator to allocate an object of [type].

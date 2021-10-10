@@ -3,7 +3,6 @@
 
 #include "chunk.h"
 #include "value.h"
-#include "object.h"
 
 // The maximum number of temporary objects that can be made visible to the GC
 // at one time.
@@ -15,10 +14,9 @@
 struct ZZVM {
     ZhenzhuConfiguration config;
 
-    ByteBuffer* code;
-    ValueBuffer* constants;
-    IntBuffer* lines;
-    uint8_t * ip;
+    ObjCodeBlock* block;
+    uint8_t* ip;
+    ObjFiber* fiber;
 
     // Value stack, which all instructions that consume and produce data operate upon.
     Value stack[STACK_MAX];
@@ -68,10 +66,33 @@ Value pop(ZZVM * vm);
 void pushFrame(ObjVarFrame* frame, ZZVM* vm);
 ObjVarFrame* popFrame(ZZVM* vm);
 
+// Marks [obj] as a GC root so that it doesn't get collected.
+void zzPushRoot(ZZVM* vm, Obj* obj);
+
+// Removes the most recently pushed temporary root.
+void zzPopRoot(ZZVM* vm);
+
 ObjString* takeString(char* chars, int length, ZZVM* vm);
 ObjString* copyString(const char* chars, int length, ZZVM* vm);
 
 ObjVarFrame* newVarFrame(Value* vars, int varCount, ZZVM* vm);
 ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, ZZVM* vm);
+
+// Mark [obj] as reachable and still in use. This should only be called
+// during the sweep phase of a garbage collection.
+void zzGrayObj(ZZVM* vm, Obj* obj);
+
+// Mark [value] as reachable and still in use. This should only be called
+// during the sweep phase of a garbage collection.
+void zzGrayValue(ZZVM* vm, Value value);
+
+// Mark the values in [buffer] as reachable and still in use. This should only
+// be called during the sweep phase of a garbage collection.
+void zzGrayBuffer(ZZVM* vm, ValueBuffer* buffer);
+
+// Processes every object in the gray stack until all reachable objects have
+// been marked. After that, all objects are either white (freeable) or black
+// (in use and fully traversed).
+void zzBlackenObjects(ZZVM* vm);
 
 #endif

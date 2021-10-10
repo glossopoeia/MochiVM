@@ -17,28 +17,28 @@ typedef struct {
 #define TRUE_VAL     ((Value){false, {.boolean = true}})
 
 // Value -> 0 or 1.
-#define AS_BOOL(value) ((value).boolean)
+#define AS_BOOL(value) ((value).as.boolean)
 
 // Value -> Obj*.
 #define AS_OBJ(v) ((v).as.obj)
 
 // Interprets [value] as a [double].
 static inline double zzValueToNum(Value value) {
-    return value.as.num;
+    return value.as.number;
 }
 
 // Converts [num] to a [Value].
 static inline Value zzNumToValue(double num) {
     Value value;
     value.isHeap = false;
-    value.as.num = num;
+    value.as.number = num;
     return value;
 }
 
 // Converts the raw object pointer [obj] to a [Value].
 static inline Value zzObjectToValue(Obj* obj) {
     Value value;
-    value.type = VAL_OBJ;
+    value.isHeap = true;
     value.as.obj = obj;
     return value;
 }

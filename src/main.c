@@ -3,26 +3,16 @@
 
 #include "common.h"
 #include "chunk.h"
-#include "object.h"
 #include "vm.h"
 #include "debug.h"
 #include "memory.h"
 
 int main(int argc, const char * argv[]) {
-    printf("Zhenzhu VM is in progress... \n");
+    printf("Zhenzhu VM is under development... watch for bugs!\n");
 
     ZZVM* vm = zzNewVM(NULL);
 
-    ValueBuffer* consts = ALLOCATE(vm, ValueBuffer);
-    ByteBuffer* code = ALLOCATE(vm, ByteBuffer);
-    IntBuffer* lines = ALLOCATE(vm, IntBuffer);
-    zzValueBufferInit(consts);
-    zzByteBufferInit(code);
-    zzIntBufferInit(lines);
-
-    vm->constants = consts;
-    vm->code = code;
-    vm->lines = lines;
+    printf("=== VM initialized. ===\n");
 
     int constantLocation = addConstant(vm, NUMBER_VAL(1.2));
     writeChunk(vm, OP_CONSTANT, 123);
@@ -41,6 +31,8 @@ int main(int argc, const char * argv[]) {
 
     writeChunk(vm, OP_NEGATE, 123);
 
+    printf("=== Math done. ===\n");
+
     constantLocation = addConstant(vm, OBJ_VAL(copyString("Hello,", 6, vm)));
     writeChunk(vm, OP_CONSTANT, 123);
     writeChunk(vm, constantLocation, 123);
@@ -57,10 +49,10 @@ int main(int argc, const char * argv[]) {
     writeChunk(vm, OP_NOP, 123);
 
     disassembleChunk(vm, "test chunk");
+
+    printf("=== BEGINNING INTERPRETATION. ===\n");
+
     zzInterpret(vm);
-    DEALLOCATE(vm, consts);
-    DEALLOCATE(vm, code);
-    DEALLOCATE(vm, lines);
     zzFreeVM(vm);
 
     return 0;
