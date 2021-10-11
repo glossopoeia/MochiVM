@@ -40,38 +40,38 @@ int disassembleInstruction(ZZVM* vm, int offset) {
 
     uint8_t instruction = vm->block->code.data[offset];
     switch (instruction) {
-        case OP_NOP:
+        case CODE_OP_NOP:
             return simpleInstruction("OP_NOP", offset);
-        case OP_CONSTANT:
+        case CODE_OP_CONSTANT:
             return constantInstruction("OP_CONSTANT", vm, offset);
-        case OP_NEGATE:
+        case CODE_OP_NEGATE:
             return simpleInstruction("OP_NEGATE", offset);
-        case OP_ADD:
+        case CODE_OP_ADD:
             return simpleInstruction("OP_ADD", offset);
-        case OP_SUBTRACT:
+        case CODE_OP_SUBTRACT:
             return simpleInstruction("OP_SUBTRACT", offset);
-        case OP_MULTIPLY:
+        case CODE_OP_MULTIPLY:
             return simpleInstruction("OP_MULTIPLY", offset);
-        case OP_DIVIDE:
+        case CODE_OP_DIVIDE:
             return simpleInstruction("OP_DIVIDE", offset);
-        case OP_EQUAL:
+        case CODE_OP_EQUAL:
             return simpleInstruction("OP_EQUAL", offset);
-        case OP_GREATER:
+        case CODE_OP_GREATER:
             return simpleInstruction("OP_GREATER", offset);
-        case OP_LESS:
+        case CODE_OP_LESS:
             return simpleInstruction("OP_LESS", offset);
-        case OP_TRUE:
+        case CODE_OP_TRUE:
             return simpleInstruction("OP_TRUE", offset);
-        case OP_FALSE:
+        case CODE_OP_FALSE:
             return simpleInstruction("OP_FALSE", offset);
-        case OP_NOT:
+        case CODE_OP_NOT:
             return simpleInstruction("OP_NOT", offset);
-        case OP_CONCAT:
+        case CODE_OP_CONCAT:
             return simpleInstruction("OP_CONCAT", offset);
-        case OP_STORE:
+        case CODE_OP_STORE:
             printf("%s %d\n", "OP_STORE", vm->block->code.data[offset+1]);
             return offset + 2;
-        case OP_FORGET:
+        case CODE_OP_FORGET:
             return simpleInstruction("OP_FORGET", offset);
         default:
             printf("Unknown opcode %d\n", instruction);

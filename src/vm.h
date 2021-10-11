@@ -1,8 +1,14 @@
 #ifndef zhenzhu_vm_h
 #define zhenzhu_vm_h
 
-#include "chunk.h"
 #include "value.h"
+
+typedef enum
+{
+    #define OPCODE(name) CODE_##name,
+    #include "opcodes.h"
+    #undef OPCODE
+} Code;
 
 // The maximum number of temporary objects that can be made visible to the GC
 // at one time.
@@ -59,9 +65,6 @@ struct ZZVM {
 
 int addConstant(ZZVM* vm, Value value);
 void writeChunk(ZZVM* vm, uint8_t instr, int line);
-
-void push(Value value, ZZVM * vm);
-Value pop(ZZVM * vm);
 
 void pushFrame(ObjVarFrame* frame, ZZVM* vm);
 ObjVarFrame* popFrame(ZZVM* vm);

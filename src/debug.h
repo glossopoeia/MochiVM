@@ -1,7 +1,6 @@
 #ifndef zhenzhu_debug_h
 #define zhenzhu_debug_h
 
-#include "chunk.h"
 #include "vm.h"
 
 // Prints a disassembly of the given chunk, using the given name as a header.

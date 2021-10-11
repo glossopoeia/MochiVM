@@ -212,120 +212,164 @@ void writeChunk(ZZVM* vm, uint8_t instr, int line) {
 //    return vm->stackTop[-1 - distance];
 //}
 
-// Dispatcher function to run the current chunk in the given vm.
-static ZhenzhuInterpretResult run(ZZVM * vm) {
+// Dispatcher function to run a particular fiber in the context of the given vm.
+static ZhenzhuInterpretResult run(ZZVM * vm) {//, register ObjFiber* fiber) {
+
+    // Remember the current fiber in case of GC.
+    //vm->fiber = fiber;
+    //fiber->isRoot = true;
+
+#define PUSH_VAL(value) (*vm->stackTop++ = value)
+#define POP_VAL()       (*(--vm->stackTop))
+#define DROP_VAL()      (--vm->stackTop)
+#define PEEK_VAL(index) (*(vm->stackTop - index))
+
 #define READ_BYTE() (*vm->ip++)
+#define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 #define READ_CONSTANT() (vm->block->constants.data[READ_BYTE()])
 #define BINARY_OP(valueType, op) \
     do { \
-        double b = AS_NUMBER(pop(vm)); \
-        double a = AS_NUMBER(pop(vm)); \
-        push(valueType(a op b), vm); \
+        double b = AS_NUMBER(POP_VAL()); \
+        double a = AS_NUMBER(POP_VAL()); \
+        PUSH_VAL(valueType(a op b)); \
     } while (false)
 
-    for (;;) {
 #ifdef ZHENZHU_DEBUG_TRACE_EXECUTION
-        disassembleInstruction(vm, (int)(vm->ip - vm->block->code.data));
-        printf("STACK:    ");
-        if (vm->stack >= vm->stackTop) { printf("<empty>"); }
-        for (Value * slot = vm->stack; slot < vm->stackTop; slot++) {
-            printf("[ ");
-            printValue(*slot);
-            printf(" ]");
-        }
-        printf("\n");
-        printf("FRAMES:   ");
-        if (vm->callStack >= vm->callStackTop) { printf("<empty>"); }
-        for (ObjVarFrame** frame = vm->callStack; frame < vm->callStackTop; frame++) {
-            printf("[ ");
-            printObject(OBJ_VAL(*frame));
-            printf(" ]");
-        }
-        printf("\n");
+    #define DEBUG_TRACE_INSTRUCTIONS() \
+        do { \
+            disassembleInstruction(vm, (int)(vm->ip - vm->block->code.data)); \
+            printf("STACK:    "); \
+            if (vm->stack >= vm->stackTop) { printf("<empty>"); } \
+            for (Value * slot = vm->stack; slot < vm->stackTop; slot++) { \
+                printf("[ "); \
+                printValue(*slot); \
+                printf(" ]"); \
+            } \
+            printf("\n"); \
+            printf("FRAMES:   "); \
+            if (vm->callStack >= vm->callStackTop) { printf("<empty>"); } \
+            for (ObjVarFrame** frame = vm->callStack; frame < vm->callStackTop; frame++) { \
+                printf("[ "); \
+                printObject(OBJ_VAL(*frame)); \
+                printf(" ]"); \
+            } \
+            printf("\n"); \
+        } while (false)
+#else
+    #define DEBUG_TRACE_INSTRUCTIONS() do { } while (false)
 #endif
-        uint8_t instruction;
-        switch (instruction = READ_BYTE()) {
-            case OP_NOP: {
-                return ZHENZHU_RESULT_SUCCESS;
-            }
-            case OP_CONSTANT: {
-                Value constant = READ_CONSTANT();
-                push(constant, vm);
-                break;
-            }
-            case OP_NEGATE:     push(NUMBER_VAL(-AS_NUMBER(pop(vm))), vm); break;
-            case OP_ADD:        BINARY_OP(NUMBER_VAL, +); break;
-            case OP_SUBTRACT:   BINARY_OP(NUMBER_VAL, -); break;
-            case OP_MULTIPLY:   BINARY_OP(NUMBER_VAL, *); break;
-            case OP_DIVIDE:     BINARY_OP(NUMBER_VAL, /); break;
-            case OP_EQUAL:      BINARY_OP(BOOL_VAL, ==); break;
-            case OP_GREATER:    BINARY_OP(BOOL_VAL, >); break;
-            case OP_LESS:       BINARY_OP(BOOL_VAL, <); break;
-            case OP_TRUE:       push(BOOL_VAL(true), vm); break;
-            case OP_FALSE:      push(BOOL_VAL(false), vm); break;
-            case OP_NOT:        push(BOOL_VAL(!AS_BOOL(pop(vm))), vm); break;
-            case OP_CONCAT: {
-                ObjString* b = AS_STRING(pop(vm));
-                ObjString* a = AS_STRING(pop(vm));
-                zzPushRoot(vm, (Obj*)a);
-                zzPushRoot(vm, (Obj*)b);
 
-                int length = a->length + b->length;
-                char* chars = ALLOCATE_ARRAY(vm, char, length + 1);
-                memcpy(chars, a->chars, a->length);
-                memcpy(chars + a->length, b->chars, b->length);
-                chars[length] = '\0';
-                zzPopRoot(vm);
-                zzPopRoot(vm);
+#if ZHENZHU_COMPUTED_GOTO
 
-                ObjString* result = takeString(chars, length, vm);
-                push(OBJ_VAL(result), vm);
-                break;
+    static void* dispatchTable[] = {
+        #define OPCODE(name) &&code_##name,
+        #include "opcodes.h"
+        #undef OPCODE
+    };
+
+    #define INTERPRET_LOOP    DISPATCH();
+    #define CASE_CODE(name)   code_##name
+
+    #define DISPATCH()                                                           \
+        do                                                                       \
+        {                                                                        \
+            DEBUG_TRACE_INSTRUCTIONS();                                          \
+            goto *dispatchTable[instruction = (Code)READ_BYTE()];                \
+        } while (false)
+
+#else
+
+    #define INTERPRET_LOOP                                                       \
+        loop:                                                                    \
+            DEBUG_TRACE_INSTRUCTIONS();                                          \
+            switch (instruction = (Code)READ_BYTE())
+
+    #define CASE_CODE(name)  case CODE_##name
+    #define DISPATCH()       goto loop
+
+#endif
+
+    Code instruction;
+    INTERPRET_LOOP
+    {
+        CASE_CODE(OP_NOP):
+            return ZHENZHU_RESULT_SUCCESS;
+        CASE_CODE(OP_CONSTANT): {
+            Value constant = READ_CONSTANT();
+            PUSH_VAL(constant);
+            DISPATCH();
+        }
+        CASE_CODE(OP_NEGATE): {
+            double n = AS_NUMBER(POP_VAL());
+            PUSH_VAL(NUMBER_VAL(-n));
+            DISPATCH();
+        }
+        CASE_CODE(OP_ADD):      BINARY_OP(NUMBER_VAL, +); DISPATCH();
+        CASE_CODE(OP_SUBTRACT): BINARY_OP(NUMBER_VAL, -); DISPATCH();
+        CASE_CODE(OP_MULTIPLY): BINARY_OP(NUMBER_VAL, *); DISPATCH();
+        CASE_CODE(OP_DIVIDE):   BINARY_OP(NUMBER_VAL, /); DISPATCH();
+        CASE_CODE(OP_EQUAL):    BINARY_OP(BOOL_VAL, ==); DISPATCH();
+        CASE_CODE(OP_GREATER):  BINARY_OP(BOOL_VAL, >); DISPATCH();
+        CASE_CODE(OP_LESS):     BINARY_OP(BOOL_VAL, <); DISPATCH();
+        CASE_CODE(OP_TRUE):     PUSH_VAL(BOOL_VAL(true)); DISPATCH();
+        CASE_CODE(OP_FALSE):    PUSH_VAL(BOOL_VAL(false)); DISPATCH();
+        CASE_CODE(OP_NOT): {
+            bool b = AS_BOOL(POP_VAL());
+            PUSH_VAL(BOOL_VAL(!b));
+            DISPATCH();
+        }
+        CASE_CODE(OP_CONCAT): {
+            ObjString* b = AS_STRING(PEEK_VAL(1));
+            ObjString* a = AS_STRING(PEEK_VAL(2));
+
+            int length = a->length + b->length;
+            char* chars = ALLOCATE_ARRAY(vm, char, length + 1);
+            memcpy(chars, a->chars, a->length);
+            memcpy(chars + a->length, b->chars, b->length);
+            chars[length] = '\0';
+            DROP_VAL();
+            DROP_VAL();
+
+            ObjString* result = takeString(chars, length, vm);
+            PUSH_VAL(OBJ_VAL(result));
+            DISPATCH();
+        }
+        CASE_CODE(OP_STORE): {
+            uint8_t varCount = READ_BYTE();
+            Value* vars = ALLOCATE_ARRAY(vm, Value, varCount);
+            for (int i = 0; i < (int)varCount; i++) {
+                vars[i] = *(vm->stackTop - i);
             }
 
-            case OP_STORE: {
-                uint8_t varCount = READ_BYTE();
-                Value* vars = ALLOCATE_ARRAY(vm, Value, varCount);
-                for (int i = 0; i < (int)varCount; i++) {
-                    vars[i] = *(vm->stackTop - i);
-                }
+            ObjVarFrame* frame = newVarFrame(vars, varCount, vm);
+            pushFrame(frame, vm);
 
-                ObjVarFrame* frame = newVarFrame(vars, varCount, vm);
-                pushFrame(frame, vm);
-
-                for (int i = 0; i < (int)varCount; i++) {
-                    pop(vm);
-                }
-                break;
+            for (int i = 0; i < (int)varCount; i++) {
+                DROP_VAL();
             }
-            case OP_OVERWRITE: {
-                printf("TODO\n");
-                break;
-            }
-            case OP_FORGET: {
-                popFrame(vm);
-                break;
-            }
+            DISPATCH();
+        }
+        CASE_CODE(OP_OVERWRITE): {
+            ASSERT(false, "OP_OVERWRITE not yet implemented.");
+            DISPATCH();
+        }
+        CASE_CODE(OP_FORGET): {
+            popFrame(vm);
+            DISPATCH();
         }
     }
 
+    UNREACHABLE();
+    return ZHENZHU_RESULT_RUNTIME_ERROR;
+
 #undef READ_BYTE
+#undef READ_SHORT
 #undef READ_CONSTANT
 }
 
 ZhenzhuInterpretResult zzInterpret(ZZVM * vm) {
     vm->ip = vm->block->code.data;
     return run(vm);
-}
-
-void push(Value value, ZZVM * vm) {
-    *vm->stackTop = value;
-    vm->stackTop++;
-}
-
-Value pop(ZZVM * vm) {
-    vm->stackTop--;
-    return *vm->stackTop;
 }
 
 void pushFrame(ObjVarFrame* frame, ZZVM* vm) {
