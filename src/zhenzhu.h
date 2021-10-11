@@ -32,6 +32,7 @@
 // Zhenzhu has no global state, so all state stored by a running interpreter lives
 // here.
 typedef struct ZZVM ZZVM;
+typedef struct ObjFiber ObjFiber;
 
 // A generic allocation function that handles all explicit memory management
 // used by Zhenzhu. It's used like so:
@@ -73,6 +74,14 @@ typedef struct {
     // number, and an error message. If this is `NULL`, Zhenzhu doesn't report any
     // errors.
     ZhenzhuErrorFn errorFn;
+
+    // The maximum number of values the VM will allow in a fiber's value stack.
+    // If zero, defaults to 128.
+    int valueStackCapacity;
+
+    // The maximum number of frames the VM will allow in a fiber's frame stack.
+    // If zero, defaults to 512.
+    int frameStackCapacity;
 
     // The number of bytes Zhenzhu will allocate before triggering the first garbage
     // collection.
@@ -144,6 +153,6 @@ ZHENZHU_API void zzCollectGarbage(ZZVM* vm);
 
 // Runs [source], a string of Zhenzhu source code in a new fiber in [vm] in the
 // context of resolved [module].
-ZHENZHU_API ZhenzhuInterpretResult zzInterpret(ZZVM* vm);
+ZHENZHU_API ZhenzhuInterpretResult zzInterpret(ZZVM* vm, ObjFiber* fiber);
 
 #endif

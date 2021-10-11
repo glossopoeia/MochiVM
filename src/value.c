@@ -4,9 +4,82 @@
 #include "value.h"
 #include "memory.h"
 
-DEFINE_BUFFER(Value, Value);
 DEFINE_BUFFER(Byte, uint8_t);
 DEFINE_BUFFER(Int, int);
+DEFINE_BUFFER(Value, Value);
+
+#define ALLOCATE_OBJ(vm, type, objectType) (type*)allocateObject((vm), sizeof(type), (objectType))
+
+static Obj* allocateObject(ZZVM* vm, size_t size, ObjType type) {
+    Obj* object = (Obj*)zzReallocate(vm, NULL, 0, size);
+    object->type = type;
+    // keep track of all allocated objects via the linked list in the vm
+    object->next = vm->objects;
+    vm->objects = object;
+    return object;
+}
+
+static ObjString* allocateString(char* chars, int length, ZZVM* vm) {
+    ObjString* string = ALLOCATE_OBJ(vm, ObjString, OBJ_STRING);
+    string->length = length;
+    string->chars = chars;
+    return string;
+}
+
+ObjString* takeString(char* chars, int length, ZZVM* vm) {
+    return allocateString(chars, length, vm);
+}
+
+ObjString* copyString(const char* chars, int length, ZZVM* vm) {
+    char* heapChars = ALLOCATE_ARRAY(vm, char, length + 1);
+    memcpy(heapChars, chars, length);
+    heapChars[length] = '\0';
+    return allocateString(heapChars, length, vm);
+}
+
+ObjVarFrame* newVarFrame(Value* vars, int varCount, ZZVM* vm) {
+    ObjVarFrame* frame = ALLOCATE_OBJ(vm, ObjVarFrame, OBJ_VAR_FRAME);
+    frame->slots = vars;
+    frame->slotCount = varCount;
+    return frame;
+}
+
+ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, ZZVM* vm) {
+    ObjCallFrame* frame = ALLOCATE_OBJ(vm, ObjCallFrame, OBJ_CALL_FRAME);
+    frame->vars.slots = vars;
+    frame->vars.slotCount = varCount;
+    frame->afterLocation = afterLocation;
+    return frame;
+}
+
+ObjFiber* zzNewFiber(ZZVM* vm, uint8_t* first, Value* initialStack, int initialStackCount) {
+    // Allocate the arrays before the fiber in case it triggers a GC.
+    Value* values = ALLOCATE_ARRAY(vm, Value, vm->config.valueStackCapacity);
+    ObjVarFrame** frames = ALLOCATE_ARRAY(vm, ObjVarFrame*, vm->config.frameStackCapacity);
+    
+    ObjFiber* fiber = ALLOCATE_OBJ(vm, ObjFiber, OBJ_FIBER);
+    fiber->valueStack = values;
+    fiber->frameStack = frames;
+    fiber->valueStackTop = values;
+    fiber->frameStackTop = frames;
+
+    for (int i = 0; i < initialStackCount; i++) {
+        values[i] = initialStack[i];
+    }
+    fiber->valueStackTop += initialStackCount;
+
+    fiber->isRoot = false;
+    fiber->caller = NULL;
+    return fiber;
+}
+
+ObjCodeBlock* zzNewCodeBlock(ZZVM* vm) {
+    ObjCodeBlock* block = ALLOCATE_OBJ(vm, ObjCodeBlock, OBJ_CODE_BLOCK);
+    zzValueBufferInit(&block->constants);
+    zzByteBufferInit(&block->code);
+    zzIntBufferInit(&block->lines);
+    return block;
+}
 
 static void freeVarFrame(ZZVM* vm, ObjVarFrame* frame) {
     DEALLOCATE(vm, frame->slots);
@@ -66,7 +139,9 @@ void zzFreeObj(ZZVM* vm, Obj* object) {
             break;
         }
         case OBJ_FIBER: {
-            ASSERT(false, "Freeing fibers currently unimplemented.");
+            ObjFiber* fiber = (ObjFiber*)object;
+            DEALLOCATE(vm, fiber->valueStack);
+            DEALLOCATE(vm, fiber->frameStack);
         }
     }
 
@@ -231,12 +306,12 @@ static void markContinuation(ZZVM* vm, ObjContinuation* cont) {
 
 static void markFiber(ZZVM* vm, ObjFiber* fiber) {
     // Stack variables.
-    for (Value* slot = fiber->stack; slot < fiber->stackTop; slot++) {
+    for (Value* slot = fiber->valueStack; slot < fiber->valueStackTop; slot++) {
         zzGrayValue(vm, *slot);
     }
 
     // Call stack frames.
-    for (ObjVarFrame** slot = fiber->callStack; slot < fiber->callStackTop; slot++) {
+    for (ObjVarFrame** slot = fiber->frameStack; slot < fiber->frameStackTop; slot++) {
         zzGrayObj(vm, (Obj*)*slot);
     }
 
@@ -245,8 +320,8 @@ static void markFiber(ZZVM* vm, ObjFiber* fiber) {
 
     // Keep track of how much memory is still in use.
     vm->bytesAllocated += sizeof(ObjFiber);
-    vm->bytesAllocated += fiber->callStackCapacity * sizeof(ObjVarFrame*);
-    vm->bytesAllocated += fiber->stackCapacity * sizeof(Value);
+    vm->bytesAllocated += vm->config.frameStackCapacity * sizeof(ObjVarFrame*);
+    vm->bytesAllocated += vm->config.valueStackCapacity * sizeof(Value);
 }
 
 static void markString(ZZVM* vm, ObjString* string)

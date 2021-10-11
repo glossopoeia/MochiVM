@@ -14,23 +14,11 @@ typedef enum
 // at one time.
 #define ZHENZHU_MAX_TEMP_ROOTS 8
 
-#define STACK_MAX 256
-#define CALL_STACK_MAX 512
-
 struct ZZVM {
     ZhenzhuConfiguration config;
 
     ObjCodeBlock* block;
-    uint8_t* ip;
     ObjFiber* fiber;
-
-    // Value stack, which all instructions that consume and produce data operate upon.
-    Value stack[STACK_MAX];
-    Value * stackTop;
-
-    // Frame stack, which variable, function, and continuation instructions operate upon.
-    ObjVarFrame* callStack[CALL_STACK_MAX];
-    ObjVarFrame** callStackTop;
 
     // Memory management data:
 
@@ -66,20 +54,11 @@ struct ZZVM {
 int addConstant(ZZVM* vm, Value value);
 void writeChunk(ZZVM* vm, uint8_t instr, int line);
 
-void pushFrame(ObjVarFrame* frame, ZZVM* vm);
-ObjVarFrame* popFrame(ZZVM* vm);
-
 // Marks [obj] as a GC root so that it doesn't get collected.
 void zzPushRoot(ZZVM* vm, Obj* obj);
 
 // Removes the most recently pushed temporary root.
 void zzPopRoot(ZZVM* vm);
-
-ObjString* takeString(char* chars, int length, ZZVM* vm);
-ObjString* copyString(const char* chars, int length, ZZVM* vm);
-
-ObjVarFrame* newVarFrame(Value* vars, int varCount, ZZVM* vm);
-ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, ZZVM* vm);
 
 // Mark [obj] as reachable and still in use. This should only be called
 // during the sweep phase of a garbage collection.

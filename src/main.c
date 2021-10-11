@@ -51,7 +51,9 @@ int main(int argc, const char * argv[]) {
 
     printf("=== BEGINNING INTERPRETATION. ===\n");
 
-    zzInterpret(vm);
+    ObjFiber* fiber = zzNewFiber(vm, vm->block->code.data, NULL, 0);
+
+    zzInterpret(vm, fiber);
     zzFreeVM(vm);
 
     return 0;

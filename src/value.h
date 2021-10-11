@@ -76,9 +76,9 @@ struct Obj {
 
 #endif
 
-DECLARE_BUFFER(Value, Value);
 DECLARE_BUFFER(Byte, uint8_t);
 DECLARE_BUFFER(Int, int);
+DECLARE_BUFFER(Value, Value);
 
 typedef struct ObjCodeBlock {
     Obj obj;
@@ -116,25 +116,21 @@ typedef struct ObjMarkFrame {
     int operationCount;
 } ObjMarkFrame;
 
-typedef struct ObjFiber {
+struct ObjFiber {
     Obj obj;
     uint8_t* ip;
     bool isRoot;
 
     // Value stack, which all instructions that consume and produce data operate upon.
-    Value* stack;
-    Value* stackTop;
-    int stackCount;
-    int stackCapacity;
+    Value* valueStack;
+    Value* valueStackTop;
 
     // Frame stack, which variable, function, and continuation instructions operate upon.
-    ObjVarFrame** callStack;
-    ObjVarFrame** callStackTop;
-    int callStackCount;
-    int callStackCapacity;
+    ObjVarFrame** frameStack;
+    ObjVarFrame** frameStackTop;
 
     struct ObjFiber* caller;
-} ObjFiber;
+};
 
 typedef struct ObjClosure {
     Obj obj;
@@ -160,6 +156,17 @@ typedef struct ObjContinuation {
 static inline bool isObjType(Value value, ObjType type) {
     return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }
+
+// Creates a new fiber object with the values from the given initial stack.
+ObjFiber* zzNewFiber(ZZVM* vm, uint8_t* first, Value* initialStack, int initialStackCount);
+
+ObjCodeBlock* zzNewCodeBlock(ZZVM* vm);
+
+ObjString* takeString(char* chars, int length, ZZVM* vm);
+ObjString* copyString(const char* chars, int length, ZZVM* vm);
+
+ObjVarFrame* newVarFrame(Value* vars, int varCount, ZZVM* vm);
+ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, ZZVM* vm);
 
 // Logs a textual representation of the given value to the output
 void printValue(Value value);

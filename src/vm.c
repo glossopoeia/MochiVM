@@ -22,18 +22,6 @@ static void* defaultReallocate(void* ptr, size_t newSize, void* _) {
     return realloc(ptr, newSize);
 }
 
-#define ALLOCATE_OBJ(type, objectType, vm) (type*)allocateObject(sizeof(type), (objectType), (vm))
-
-static Obj* allocateObject(size_t size, ObjType type, ZZVM* vm) {
-    Obj* object = (Obj*)zzReallocate(vm, NULL, 0, size);
-    memset(object, 0, size);
-    object->type = type;
-    // keep track of all allocated objects via the linked list in the vm
-    object->next = vm->objects;
-    vm->objects = object;
-    return object;
-}
-
 int zzGetVersionNumber() { 
     return ZHENZHU_VERSION_NUMBER;
 }
@@ -41,6 +29,8 @@ int zzGetVersionNumber() {
 void zzInitConfiguration(ZhenzhuConfiguration* config) {
     config->reallocateFn = defaultReallocate;
     config->errorFn = NULL;
+    config->valueStackCapacity = 128;
+    config->frameStackCapacity = 512;
     config->initialHeapSize = 1024 * 1024 * 10;
     config->minHeapSize = 1024 * 1024;
     config->heapGrowthPercent = 50;
@@ -69,13 +59,7 @@ ZZVM* zzNewVM(ZhenzhuConfiguration* config) {
         zzInitConfiguration(&vm->config);
     }
 
-    vm->block = ALLOCATE_OBJ(ObjCodeBlock, OBJ_CODE_BLOCK, vm);
-    zzValueBufferInit(&vm->block->constants);
-    zzByteBufferInit(&vm->block->code);
-    zzIntBufferInit(&vm->block->lines);
-
-    vm->stackTop = vm->stack;
-    vm->callStackTop = vm->callStack;
+    vm->block = zzNewCodeBlock(vm);
 
     // TODO: Should we allocate and free this during a GC?
     vm->grayCount = 0;
@@ -125,16 +109,6 @@ void zzCollectGarbage(ZZVM* vm) {
     // Temporary roots.
     for (int i = 0; i < vm->numTempRoots; i++) {
         zzGrayObj(vm, vm->tempRoots[i]);
-    }
-
-    // Stack variables.
-    for (Value* slot = vm->stack; slot < vm->stackTop; slot++) {
-        zzGrayValue(vm, *slot);
-    }
-
-    // Call stack frames.
-    for (ObjVarFrame** slot = vm->callStack; slot < vm->callStackTop; slot++) {
-        zzGrayObj(vm, (Obj*)*slot);
     }
 
     zzGrayObj(vm, (Obj*)vm->block);
@@ -208,23 +182,25 @@ void writeChunk(ZZVM* vm, uint8_t instr, int line) {
     zzIntBufferWrite(vm, &vm->block->lines, line);
 }
 
-//static Value peek(int distance, ZZVM * vm) {
-//    return vm->stackTop[-1 - distance];
-//}
-
 // Dispatcher function to run a particular fiber in the context of the given vm.
-static ZhenzhuInterpretResult run(ZZVM * vm) {//, register ObjFiber* fiber) {
+static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
 
     // Remember the current fiber in case of GC.
-    //vm->fiber = fiber;
-    //fiber->isRoot = true;
+    vm->fiber = fiber;
+    fiber->isRoot = true;
 
-#define PUSH_VAL(value) (*vm->stackTop++ = value)
-#define POP_VAL()       (*(--vm->stackTop))
-#define DROP_VAL()      (--vm->stackTop)
-#define PEEK_VAL(index) (*(vm->stackTop - index))
+    register uint8_t* ip = fiber->ip;
 
-#define READ_BYTE() (*vm->ip++)
+#define PUSH_VAL(value) (*fiber->valueStackTop++ = value)
+#define POP_VAL()       (*(--fiber->valueStackTop))
+#define DROP_VAL()      (--fiber->valueStackTop)
+#define PEEK_VAL(index) (*(fiber->valueStackTop - index))
+
+#define PUSH_FRAME(frame)   (*fiber->frameStackTop++ = frame)
+#define POP_FRAME()         (*(--fiber->frameStackTop))
+#define DROP_FRAME()        (--fiber->frameStackTop)
+
+#define READ_BYTE() (*ip++)
 #define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 #define READ_CONSTANT() (vm->block->constants.data[READ_BYTE()])
 #define BINARY_OP(valueType, op) \
@@ -237,18 +213,18 @@ static ZhenzhuInterpretResult run(ZZVM * vm) {//, register ObjFiber* fiber) {
 #ifdef ZHENZHU_DEBUG_TRACE_EXECUTION
     #define DEBUG_TRACE_INSTRUCTIONS() \
         do { \
-            disassembleInstruction(vm, (int)(vm->ip - vm->block->code.data)); \
+            disassembleInstruction(vm, (int)(ip - vm->block->code.data)); \
             printf("STACK:    "); \
-            if (vm->stack >= vm->stackTop) { printf("<empty>"); } \
-            for (Value * slot = vm->stack; slot < vm->stackTop; slot++) { \
+            if (fiber->valueStack >= fiber->valueStackTop) { printf("<empty>"); } \
+            for (Value * slot = fiber->valueStack; slot < fiber->valueStackTop; slot++) { \
                 printf("[ "); \
                 printValue(*slot); \
                 printf(" ]"); \
             } \
             printf("\n"); \
             printf("FRAMES:   "); \
-            if (vm->callStack >= vm->callStackTop) { printf("<empty>"); } \
-            for (ObjVarFrame** frame = vm->callStack; frame < vm->callStackTop; frame++) { \
+            if (fiber->frameStack >= fiber->frameStackTop) { printf("<empty>"); } \
+            for (ObjVarFrame** frame = fiber->frameStack; frame < fiber->frameStackTop; frame++) { \
                 printf("[ "); \
                 printObject(OBJ_VAL(*frame)); \
                 printf(" ]"); \
@@ -338,11 +314,11 @@ static ZhenzhuInterpretResult run(ZZVM * vm) {//, register ObjFiber* fiber) {
             uint8_t varCount = READ_BYTE();
             Value* vars = ALLOCATE_ARRAY(vm, Value, varCount);
             for (int i = 0; i < (int)varCount; i++) {
-                vars[i] = *(vm->stackTop - i);
+                vars[i] = *(fiber->valueStackTop - i);
             }
 
             ObjVarFrame* frame = newVarFrame(vars, varCount, vm);
-            pushFrame(frame, vm);
+            PUSH_FRAME(frame);
 
             for (int i = 0; i < (int)varCount; i++) {
                 DROP_VAL();
@@ -354,7 +330,7 @@ static ZhenzhuInterpretResult run(ZZVM * vm) {//, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(OP_FORGET): {
-            popFrame(vm);
+            DROP_FRAME();
             DISPATCH();
         }
     }
@@ -367,67 +343,21 @@ static ZhenzhuInterpretResult run(ZZVM * vm) {//, register ObjFiber* fiber) {
 #undef READ_CONSTANT
 }
 
-ZhenzhuInterpretResult zzInterpret(ZZVM * vm) {
-    vm->ip = vm->block->code.data;
-    return run(vm);
-}
-
-void pushFrame(ObjVarFrame* frame, ZZVM* vm) {
-    *vm->callStackTop = frame;
-    vm->callStackTop++;
-}
-
-ObjVarFrame* popFrame(ZZVM* vm) {
-    vm->callStackTop--;
-    return *vm->callStackTop;
+ZhenzhuInterpretResult zzInterpret(ZZVM* vm, ObjFiber* fiber) {
+    fiber->ip = vm->block->code.data;
+    return run(vm, fiber);
 }
 
 void zzPushRoot(ZZVM* vm, Obj* obj)
 {
-  ASSERT(obj != NULL, "Can't root NULL.");
-  ASSERT(vm->numTempRoots < ZHENZHU_MAX_TEMP_ROOTS, "Too many temporary roots.");
+    ASSERT(obj != NULL, "Can't root NULL.");
+    ASSERT(vm->numTempRoots < ZHENZHU_MAX_TEMP_ROOTS, "Too many temporary roots.");
 
-  vm->tempRoots[vm->numTempRoots++] = obj;
+    vm->tempRoots[vm->numTempRoots++] = obj;
 }
 
 void zzPopRoot(ZZVM* vm)
 {
-  ASSERT(vm->numTempRoots > 0, "No temporary roots to release.");
-  vm->numTempRoots--;
-}
-
-
-
-
-static ObjString* allocateString(char* chars, int length, ZZVM* vm) {
-    ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING, vm);
-    string->length = length;
-    string->chars = chars;
-    return string;
-}
-
-ObjString* takeString(char* chars, int length, ZZVM* vm) {
-    return allocateString(chars, length, vm);
-}
-
-ObjString* copyString(const char* chars, int length, ZZVM* vm) {
-    char* heapChars = ALLOCATE_ARRAY(vm, char, length + 1);
-    memcpy(heapChars, chars, length);
-    heapChars[length] = '\0';
-    return allocateString(heapChars, length, vm);
-}
-
-ObjVarFrame* newVarFrame(Value* vars, int varCount, ZZVM* vm) {
-    ObjVarFrame* frame = ALLOCATE_OBJ(ObjVarFrame, OBJ_VAR_FRAME, vm);
-    frame->slots = vars;
-    frame->slotCount = varCount;
-    return frame;
-}
-
-ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, ZZVM* vm) {
-    ObjCallFrame* frame = ALLOCATE_OBJ(ObjCallFrame, OBJ_CALL_FRAME, vm);
-    frame->vars.slots = vars;
-    frame->vars.slotCount = varCount;
-    frame->afterLocation = afterLocation;
-    return frame;
+    ASSERT(vm->numTempRoots > 0, "No temporary roots to release.");
+    vm->numTempRoots--;
 }
