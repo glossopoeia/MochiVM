@@ -48,6 +48,7 @@ typedef enum {
     OBJ_CLOSURE,
     OBJ_OP_CLOSURE,
     OBJ_CONTINUATION,
+    OBJ_FOREIGN
 } ObjType;
 
 // Base struct for all heap-allocated object types.
@@ -153,6 +154,12 @@ typedef struct ObjContinuation {
     int savedFramesCount;
 } ObjContinuation;
 
+typedef struct ObjForeign {
+    Obj obj;
+    int dataCount;
+    uint8_t data[];
+} ObjForeign;
+
 static inline bool isObjType(Value value, ObjType type) {
     return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }
@@ -167,6 +174,8 @@ ObjString* copyString(const char* chars, int length, ZZVM* vm);
 
 ObjVarFrame* newVarFrame(Value* vars, int varCount, ZZVM* vm);
 ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, ZZVM* vm);
+
+ObjForeign* wrenNewForeign(ZZVM* vm, size_t size);
 
 // Logs a textual representation of the given value to the output
 void printValue(Value value);

@@ -81,6 +81,17 @@ ObjCodeBlock* zzNewCodeBlock(ZZVM* vm) {
     return block;
 }
 
+ObjForeign* wrenNewForeign(ZZVM* vm, size_t size) {
+    ObjForeign* object = ALLOCATE_FLEX(vm, ObjForeign, uint8_t, size);
+    object->obj.type = OBJ_FOREIGN;
+    object->obj.next = vm->objects;
+    vm->objects = (Obj*)object;
+
+    // Zero out the bytes.
+    memset(object->data, 0, size);
+    return object;
+}
+
 static void freeVarFrame(ZZVM* vm, ObjVarFrame* frame) {
     DEALLOCATE(vm, frame->slots);
 }
@@ -143,6 +154,7 @@ void zzFreeObj(ZZVM* vm, Obj* object) {
             DEALLOCATE(vm, fiber->valueStack);
             DEALLOCATE(vm, fiber->frameStack);
         }
+        case OBJ_FOREIGN: break;
     }
 
     DEALLOCATE(vm, object);
@@ -195,6 +207,10 @@ void printObject(Value object) {
         }
         case OBJ_FIBER: {
             printf("fiber");
+            break;
+        }
+        case OBJ_FOREIGN: {
+            printf("foreign");
             break;
         }
     }
@@ -318,16 +334,18 @@ static void markFiber(ZZVM* vm, ObjFiber* fiber) {
     // The caller.
     zzGrayObj(vm, (Obj*)fiber->caller);
 
-    // Keep track of how much memory is still in use.
     vm->bytesAllocated += sizeof(ObjFiber);
     vm->bytesAllocated += vm->config.frameStackCapacity * sizeof(ObjVarFrame*);
     vm->bytesAllocated += vm->config.valueStackCapacity * sizeof(Value);
 }
 
-static void markString(ZZVM* vm, ObjString* string)
-{
-    // Keep track of how much memory is still in use.
+static void markString(ZZVM* vm, ObjString* string) {
     vm->bytesAllocated += sizeof(ObjString) + string->length + 1;
+}
+
+static void markForeign(ZZVM* vm, ObjForeign* foreign) {
+    vm->bytesAllocated += sizeof(Obj) + sizeof(int);
+    vm->bytesAllocated += sizeof(uint8_t) * foreign->dataCount;
 }
 
 static void blackenObject(ZZVM* vm, Obj* obj)
@@ -348,8 +366,9 @@ static void blackenObject(ZZVM* vm, Obj* obj)
         case OBJ_CLOSURE:       markClosure( vm, (ObjClosure*) obj); break;
         case OBJ_OP_CLOSURE:    markOpClosure(vm, (ObjOpClosure*)obj); break;
         case OBJ_CONTINUATION:  markContinuation(vm, (ObjContinuation*)obj); break;
-        case OBJ_FIBER:         markFiber(   vm, (ObjFiber*)   obj); break;
-        case OBJ_STRING:        markString(  vm, (ObjString*)  obj); break;
+        case OBJ_FIBER:         markFiber(vm, (ObjFiber*)obj); break;
+        case OBJ_STRING:        markString(vm, (ObjString*)obj); break;
+        case OBJ_FOREIGN:       markForeign(vm, (ObjForeign*)obj); break;
     }
 }
 

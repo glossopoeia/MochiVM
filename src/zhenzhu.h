@@ -51,8 +51,9 @@ typedef struct ObjFiber ObjFiber;
 //   zero. It should return NULL.
 typedef void* (*ZhenzhuReallocateFn)(void* memory, size_t newSize, void* userData);
 
-// A function callable from Zhenzhu code, but implemented in C.
-typedef void (*ZhenzhuForeignMethodFn)(ZZVM* vm);
+// A function callable from Zhenzhu code, but implemented in C. Passes in the fiber
+// the function was called from.
+typedef void (*ZhenzhuForeignMethodFn)(ZZVM* vm, ObjFiber* fiber);
 
 // Reports an error to the user.
 //
@@ -151,8 +152,7 @@ ZHENZHU_API void zzFreeVM(ZZVM* vm);
 // Immediately run the garbage collector to free unused memory.
 ZHENZHU_API void zzCollectGarbage(ZZVM* vm);
 
-// Runs [source], a string of Zhenzhu source code in a new fiber in [vm] in the
-// context of resolved [module].
+// Runs a fiber as the root in the context of the given VM.
 ZHENZHU_API ZhenzhuInterpretResult zzInterpret(ZZVM* vm, ObjFiber* fiber);
 
 #endif
