@@ -17,10 +17,6 @@ static int constantInstruction(const char * name, ZZVM* vm, int offset) {
 }
 
 void disassembleChunk(ZZVM* vm, const char * name) {
-    ASSERT(vm->block->code.data != NULL, "VM must have valid code before disassembling.");
-    ASSERT(vm->block->constants.data != NULL, "VM must have valid constants before disassembling.");
-    ASSERT(vm->block->lines.data != NULL, "VM must have valid lines before disassembling.");
-
     printf("== %s ==\n", name);
 
     for (int offset = 0; offset < vm->block->code.count;) {
@@ -30,9 +26,11 @@ void disassembleChunk(ZZVM* vm, const char * name) {
 }
 
 int disassembleInstruction(ZZVM* vm, int offset) {
+    ASSERT(offset < vm->block->lines.count, "No line at the specified offset!");
+    ASSERT(offset < vm->block->code.count, "No instruction at the specified offset!");
+
     printf("%04d ", offset);
-    if (offset > 0 &&
-        vm->block->lines.data[offset] == vm->block->lines.data[offset - 1]) {
+    if (offset > 0 && vm->block->lines.data[offset] == vm->block->lines.data[offset - 1]) {
         printf("   | ");
     } else {
         printf("%4d ", vm->block->lines.data[offset]);

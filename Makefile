@@ -3,7 +3,7 @@
 #
 # MODE			"debug" or "release"
 
-CFLAGS := -std=gnu99 -Wall -Wextra -Werror -Wno-unused-parameter -Ideps/libuv/include/ -Lbuild
+CFLAGS := -std=gnu99 -Wall -Wextra -Werror -Wno-unused-parameter -Ideps/libuv/include/ -Itest/ -Lbuild
 
 ifeq ($(MODE), debug)
 	CFLAGS += -O0 -DDEBUG -g
@@ -14,7 +14,7 @@ else
 endif
 
 # Files.
-HEADERS := $(wildcard src/*.h)
+HEADERS := $(wildcard src/*.h test/*.h)
 SOURCES := $(wildcard src/*.c)
 OBJECTS := $(addprefix $(BUILD_DIR)/zhenzhu/, $(notdir $(SOURCES:.c=.o)))
 LIBS := -luv_a -pthread -Wl,--no-as-needed -ldl

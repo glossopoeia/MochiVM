@@ -53,7 +53,7 @@ ZZVM* zzNewVM(ZhenzhuConfiguration* config) {
     }
     
     ZZVM* vm = (ZZVM*)reallocate(NULL, sizeof(*vm), userData);
-    //memset(vm, 0, sizeof(ZZVM));
+    memset(vm, 0, sizeof(ZZVM));
 
     // Copy the configuration if given one.
     if (config != NULL) {
@@ -66,15 +66,15 @@ ZZVM* zzNewVM(ZhenzhuConfiguration* config) {
         zzInitConfiguration(&vm->config);
     }
 
-    vm->block = zzNewCodeBlock(vm);
-    zzForeignFunctionBufferInit(&vm->foreignFns);
-
     // TODO: Should we allocate and free this during a GC?
     vm->grayCount = 0;
     // TODO: Tune this.
     vm->grayCapacity = 4;
     vm->gray = (Obj**)reallocate(NULL, vm->grayCapacity * sizeof(Obj*), userData);
     vm->nextGC = vm->config.initialHeapSize;
+
+    vm->block = zzNewCodeBlock(vm);
+    zzForeignFunctionBufferInit(&vm->foreignFns);
 
 #if ZHENZHU_BATTERY_UV
     zzAddForeign(vm, uvzzNewTimer);
@@ -85,11 +85,6 @@ ZZVM* zzNewVM(ZhenzhuConfiguration* config) {
 }
 
 void zzFreeVM(ZZVM* vm) {
-
-#if ZHENZHU_BATTERY_UV
-    printf("Terminating LibUV default loop.\n");
-    uv_loop_close(uv_default_loop());
-#endif
 
     // Free all of the GC objects.
     Obj* obj = vm->objects;
@@ -131,7 +126,9 @@ void zzCollectGarbage(ZZVM* vm) {
         zzGrayObj(vm, vm->tempRoots[i]);
     }
 
-    zzGrayObj(vm, (Obj*)vm->block);
+    if (vm->block != NULL) {
+        zzGrayObj(vm, (Obj*)vm->block);
+    }
     // The current fiber.
     if (vm->fiber != NULL) {
         zzGrayObj(vm, (Obj*)vm->fiber);
@@ -179,15 +176,6 @@ void zzCollectGarbage(ZZVM* vm) {
             (unsigned long)(before - vm->bytesAllocated),
             (unsigned long)vm->nextGC);
 #endif
-}
-
-void freeObjects(ZZVM* vm) {
-    Obj* object = vm->objects;
-    while (object != NULL) {
-        Obj* next = object->next;
-        zzFreeObj(vm, object);
-        object = next;
-    }
 }
 
 int addConstant(ZZVM* vm, Value value) {

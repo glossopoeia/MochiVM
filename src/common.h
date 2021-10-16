@@ -72,7 +72,7 @@
 // these or not. By default, they are all available. To disable one, set the
 // corresponding `ZHENZHU_BATTERY_<name>` define to `0`.
 #ifndef ZHENZHU_BATTERY_UV
-    #define ZHENZHU_BATTERY_UV 0  // LibUV included by default to support concurrent system ops
+    #define ZHENZHU_BATTERY_UV 1  // LibUV included by default to support concurrent system ops
 #endif
 
 #ifndef ZHENZHU_BATTERY_SDL

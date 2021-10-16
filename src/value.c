@@ -13,6 +13,7 @@ DEFINE_BUFFER(Value, Value);
 static Obj* allocateObject(ZZVM* vm, size_t size, ObjType type) {
     Obj* object = (Obj*)zzReallocate(vm, NULL, 0, size);
     object->type = type;
+    object->isMarked = false;
     // keep track of all allocated objects via the linked list in the vm
     object->next = vm->objects;
     vm->objects = object;
