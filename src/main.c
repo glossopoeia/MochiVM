@@ -60,8 +60,9 @@ int main(int argc, const char * argv[]) {
 
     #include "test_numerics.h"
     #include "test_strings.h"
+    #include "test_frames.h"
 #if ZHENZHU_BATTERY_UV
-    #include "test_foreign.h"
+    //#include "test_foreign.h"
 #endif
 
 #if ZHENZHU_BATTERY_UV

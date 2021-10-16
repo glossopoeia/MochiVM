@@ -198,6 +198,7 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
     fiber->isRoot = true;
 
     register uint8_t* ip = fiber->ip;
+    register uint8_t* codeStart = vm->block->code.data;
 
 #define PUSH_VAL(value) (*fiber->valueStackTop++ = value)
 #define POP_VAL()       (*(--fiber->valueStackTop))
@@ -207,9 +208,11 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
 #define PUSH_FRAME(frame)   (*fiber->frameStackTop++ = frame)
 #define POP_FRAME()         (*(--fiber->frameStackTop))
 #define DROP_FRAME()        (--fiber->frameStackTop)
+#define PEEK_FRAME(index)   (*(fiber->frameStackTop - index))
 
 #define READ_BYTE() (*ip++)
-#define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
+#define READ_SHORT() (ip += 2, (int16_t)((ip[-2] << 8) | ip[-1]))
+#define READ_USHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 #define READ_CONSTANT() (vm->block->constants.data[READ_BYTE()])
 #define BINARY_OP(valueType, op) \
     do { \
@@ -221,7 +224,7 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
 #ifdef ZHENZHU_DEBUG_TRACE_EXECUTION
     #define DEBUG_TRACE_INSTRUCTIONS() \
         do { \
-            disassembleInstruction(vm, (int)(ip - vm->block->code.data)); \
+            disassembleInstruction(vm, (int)(ip - codeStart)); \
             printf("STACK:    "); \
             if (fiber->valueStack >= fiber->valueStackTop) { printf("<empty>"); } \
             for (Value * slot = fiber->valueStack; slot < fiber->valueStackTop; slot++) { \
@@ -269,7 +272,7 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
         {                                                                        \
             DEBUG_TRACE_INSTRUCTIONS();                                          \
             UV_EVENT_LOOP();                                                     \
-            if (fiber->isSuspended) { goto CASE_CODE(OP_NOP); }                  \
+            if (fiber->isSuspended) { goto CASE_CODE(NOP); }                  \
             goto *dispatchTable[instruction = (Code)READ_BYTE()];                \
         } while (false)
 
@@ -290,39 +293,39 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
     Code instruction;
     INTERPRET_LOOP
     {
-        CASE_CODE(OP_NOP): {
+        CASE_CODE(NOP): {
             printf("NOP\n");
             DISPATCH();
         }
-        CASE_CODE(OP_ABORT): {
+        CASE_CODE(ABORT): {
             uint8_t retCode = READ_BYTE();
             return retCode;
         }
-        CASE_CODE(OP_CONSTANT): {
+        CASE_CODE(CONSTANT): {
             Value constant = READ_CONSTANT();
             PUSH_VAL(constant);
             DISPATCH();
         }
-        CASE_CODE(OP_NEGATE): {
+        CASE_CODE(NEGATE): {
             double n = AS_NUMBER(POP_VAL());
             PUSH_VAL(NUMBER_VAL(-n));
             DISPATCH();
         }
-        CASE_CODE(OP_ADD):      BINARY_OP(NUMBER_VAL, +); DISPATCH();
-        CASE_CODE(OP_SUBTRACT): BINARY_OP(NUMBER_VAL, -); DISPATCH();
-        CASE_CODE(OP_MULTIPLY): BINARY_OP(NUMBER_VAL, *); DISPATCH();
-        CASE_CODE(OP_DIVIDE):   BINARY_OP(NUMBER_VAL, /); DISPATCH();
-        CASE_CODE(OP_EQUAL):    BINARY_OP(BOOL_VAL, ==); DISPATCH();
-        CASE_CODE(OP_GREATER):  BINARY_OP(BOOL_VAL, >); DISPATCH();
-        CASE_CODE(OP_LESS):     BINARY_OP(BOOL_VAL, <); DISPATCH();
-        CASE_CODE(OP_TRUE):     PUSH_VAL(BOOL_VAL(true)); DISPATCH();
-        CASE_CODE(OP_FALSE):    PUSH_VAL(BOOL_VAL(false)); DISPATCH();
-        CASE_CODE(OP_NOT): {
+        CASE_CODE(ADD):      BINARY_OP(NUMBER_VAL, +); DISPATCH();
+        CASE_CODE(SUBTRACT): BINARY_OP(NUMBER_VAL, -); DISPATCH();
+        CASE_CODE(MULTIPLY): BINARY_OP(NUMBER_VAL, *); DISPATCH();
+        CASE_CODE(DIVIDE):   BINARY_OP(NUMBER_VAL, /); DISPATCH();
+        CASE_CODE(EQUAL):    BINARY_OP(BOOL_VAL, ==); DISPATCH();
+        CASE_CODE(GREATER):  BINARY_OP(BOOL_VAL, >); DISPATCH();
+        CASE_CODE(LESS):     BINARY_OP(BOOL_VAL, <); DISPATCH();
+        CASE_CODE(TRUE):     PUSH_VAL(BOOL_VAL(true)); DISPATCH();
+        CASE_CODE(FALSE):    PUSH_VAL(BOOL_VAL(false)); DISPATCH();
+        CASE_CODE(NOT): {
             bool b = AS_BOOL(POP_VAL());
             PUSH_VAL(BOOL_VAL(!b));
             DISPATCH();
         }
-        CASE_CODE(OP_CONCAT): {
+        CASE_CODE(CONCAT): {
             ObjString* b = AS_STRING(PEEK_VAL(1));
             ObjString* a = AS_STRING(PEEK_VAL(2));
 
@@ -338,7 +341,7 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
             PUSH_VAL(OBJ_VAL(result));
             DISPATCH();
         }
-        CASE_CODE(OP_STORE): {
+        CASE_CODE(STORE): {
             uint8_t varCount = READ_BYTE();
             Value* vars = ALLOCATE_ARRAY(vm, Value, varCount);
             for (int i = 0; i < (int)varCount; i++) {
@@ -353,17 +356,54 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
             }
             DISPATCH();
         }
-        CASE_CODE(OP_OVERWRITE): {
-            ASSERT(false, "OP_OVERWRITE not yet implemented.");
+        CASE_CODE(OVERWRITE): {
+            ASSERT(false, "OVERWRITE not yet implemented.");
             DISPATCH();
         }
-        CASE_CODE(OP_FORGET): {
+        CASE_CODE(FORGET): {
             DROP_FRAME();
             DISPATCH();
         }
-        CASE_CODE(OP_CALL_FOREIGN): {
-            ZhenzhuForeignMethodFn fn = vm->foreignFns.data[READ_BYTE()];
+
+        CASE_CODE(CALL_FOREIGN): {
+            ZhenzhuForeignMethodFn fn = vm->foreignFns.data[READ_SHORT()];
             fn(vm, fiber);
+            DISPATCH();
+        }
+        CASE_CODE(CALL): {
+            uint8_t* callPtr = codeStart + (int)READ_USHORT();
+            ObjCallFrame* frame = newCallFrame(NULL, 0, ip, vm);
+            PUSH_FRAME((ObjVarFrame*)frame);
+            ip = callPtr;
+            DISPATCH();
+        }
+        CASE_CODE(TAILCALL): {
+            ip = codeStart + (int)READ_USHORT();
+            DISPATCH();
+        }
+        CASE_CODE(CALL_CLOSURE): {
+            ObjClosure* closure = (ObjClosure*)PEEK_VAL(1);
+            ObjCallFrame* frame = newCallFrame(closure->vars, closure->varCount, ip, vm);
+            ip = closure->funcLocation;
+            DROP_VAL();
+            PUSH_FRAME((ObjVarFrame*)frame);
+            DISPATCH();
+        }
+        CASE_CODE(TAILCALL_CLOSURE): {
+            ObjClosure* closure = (ObjClosure*)POP_VAL();
+            ObjCallFrame* frame = (ObjCallFrame*)PEEK_FRAME(1);
+            frame->vars.slots = closure->vars;
+            frame->vars.slotCount = closure->varCount;
+            ip = closure->funcLocation;
+            DISPATCH();
+        }
+        CASE_CODE(OFFSET): {
+            ip = ip + (int)READ_SHORT();
+            DISPATCH();
+        }
+        CASE_CODE(RETURN): {
+            ObjCallFrame* frame = (ObjCallFrame*)POP_FRAME();
+            ip = frame->afterLocation;
             DISPATCH();
         }
     }

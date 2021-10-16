@@ -6,8 +6,8 @@ typedef struct {
     union {
         bool boolean;
         double number;
-        Obj * obj;
-    } as; 
+        Obj* obj;
+    } as;
 } Value;
 
 #define IS_OBJ(value)     ((value).isHeap)
