@@ -45,7 +45,16 @@ int main(int argc, const char * argv[]) {
     writeChunk(vm, 2, 123);
     writeChunk(vm, CODE_OP_FORGET, 123);
 
+#if ZHENZHU_BATTERY_UV
+    writeChunk(vm, CODE_OP_CALL_FOREIGN, 123);
+    writeChunk(vm, 0, 123);
+    writeChunk(vm, CODE_OP_CALL_FOREIGN, 123);
+    writeChunk(vm, 1, 123);
+#endif
+
     writeChunk(vm, CODE_OP_NOP, 123);
+    writeChunk(vm, CODE_OP_ABORT, 123);
+    writeChunk(vm, 0, 123);
 
     disassembleChunk(vm, "test chunk");
 

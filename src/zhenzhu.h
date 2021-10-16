@@ -155,4 +155,8 @@ ZHENZHU_API void zzCollectGarbage(ZZVM* vm);
 // Runs a fiber as the root in the context of the given VM.
 ZHENZHU_API ZhenzhuInterpretResult zzInterpret(ZZVM* vm, ObjFiber* fiber);
 
+// Add a foreign C function to the list of callable foreign methods, returning
+// the index assigned to the foreign method.
+ZHENZHU_API int zzAddForeign(ZZVM* vm, ZhenzhuForeignMethodFn fn);
+
 #endif

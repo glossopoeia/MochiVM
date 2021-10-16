@@ -10,6 +10,13 @@
     #include <time.h>
 #endif
 
+#if ZHENZHU_BATTERY_UV
+    #include "uv.h"
+    #include "battery_uv.h"
+#endif
+
+DEFINE_BUFFER(ForeignFunction, ZhenzhuForeignMethodFn);
+
 // The behavior of realloc() when the size is 0 is implementation defined. It
 // may return a non-NULL pointer which must not be dereferenced but nevertheless
 // should be freed. To prevent that, we avoid calling realloc() with a zero
@@ -60,6 +67,7 @@ ZZVM* zzNewVM(ZhenzhuConfiguration* config) {
     }
 
     vm->block = zzNewCodeBlock(vm);
+    zzForeignFunctionBufferInit(&vm->foreignFns);
 
     // TODO: Should we allocate and free this during a GC?
     vm->grayCount = 0;
@@ -68,10 +76,21 @@ ZZVM* zzNewVM(ZhenzhuConfiguration* config) {
     vm->gray = (Obj**)reallocate(NULL, vm->grayCapacity * sizeof(Obj*), userData);
     vm->nextGC = vm->config.initialHeapSize;
 
+#if ZHENZHU_BATTERY_UV
+    zzAddForeign(vm, uvzzNewTimer);
+    zzAddForeign(vm, uvzzCloseTimer);
+#endif
+
     return vm;
 }
 
 void zzFreeVM(ZZVM* vm) {
+
+#if ZHENZHU_BATTERY_UV
+    printf("Terminating LibUV default loop.\n");
+    uv_loop_close(uv_default_loop());
+#endif
+
     // Free all of the GC objects.
     Obj* obj = vm->objects;
     while (obj != NULL) {
@@ -83,6 +102,7 @@ void zzFreeVM(ZZVM* vm) {
     // Free up the GC gray set.
     vm->gray = (Obj**)vm->config.reallocateFn(vm->gray, 0, vm->config.userData);
 
+    zzForeignFunctionBufferClear(vm, &vm->foreignFns);
     DEALLOCATE(vm, vm);
 }
 
@@ -235,6 +255,16 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
     #define DEBUG_TRACE_INSTRUCTIONS() do { } while (false)
 #endif
 
+#if ZHENZHU_BATTERY_UV
+    #define UV_EVENT_LOOP()                                                  \
+        do {                                                                 \
+            printf("Checking for LibUV events.\n");                          \
+            uv_run(uv_default_loop(), UV_RUN_NOWAIT);                        \
+        } while (false)
+#else
+    #define UV_EVENT_LOOP() do { } while (false)
+#endif
+
 #if ZHENZHU_COMPUTED_GOTO
 
     static void* dispatchTable[] = {
@@ -250,6 +280,8 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
         do                                                                       \
         {                                                                        \
             DEBUG_TRACE_INSTRUCTIONS();                                          \
+            UV_EVENT_LOOP();                                                     \
+            if (fiber->isSuspended) { goto CASE_CODE(OP_NOP); }                  \
             goto *dispatchTable[instruction = (Code)READ_BYTE()];                \
         } while (false)
 
@@ -258,6 +290,8 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
     #define INTERPRET_LOOP                                                       \
         loop:                                                                    \
             DEBUG_TRACE_INSTRUCTIONS();                                          \
+            UV_EVENT_LOOP();                                                     \
+            if (fiber->isSuspended) { goto loop; }                               \
             switch (instruction = (Code)READ_BYTE())
 
     #define CASE_CODE(name)  case CODE_##name
@@ -268,8 +302,14 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
     Code instruction;
     INTERPRET_LOOP
     {
-        CASE_CODE(OP_NOP):
-            return ZHENZHU_RESULT_SUCCESS;
+        CASE_CODE(OP_NOP): {
+            printf("NOP\n");
+            DISPATCH();
+        }
+        CASE_CODE(OP_ABORT): {
+            uint8_t retCode = READ_BYTE();
+            return retCode;
+        }
         CASE_CODE(OP_CONSTANT): {
             Value constant = READ_CONSTANT();
             PUSH_VAL(constant);
@@ -333,6 +373,11 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
             DROP_FRAME();
             DISPATCH();
         }
+        CASE_CODE(OP_CALL_FOREIGN): {
+            ZhenzhuForeignMethodFn fn = vm->foreignFns.data[READ_BYTE()];
+            fn(vm, fiber);
+            DISPATCH();
+        }
     }
 
     UNREACHABLE();
@@ -348,16 +393,19 @@ ZhenzhuInterpretResult zzInterpret(ZZVM* vm, ObjFiber* fiber) {
     return run(vm, fiber);
 }
 
-void zzPushRoot(ZZVM* vm, Obj* obj)
-{
+void zzPushRoot(ZZVM* vm, Obj* obj) {
     ASSERT(obj != NULL, "Can't root NULL.");
     ASSERT(vm->numTempRoots < ZHENZHU_MAX_TEMP_ROOTS, "Too many temporary roots.");
 
     vm->tempRoots[vm->numTempRoots++] = obj;
 }
 
-void zzPopRoot(ZZVM* vm)
-{
+void zzPopRoot(ZZVM* vm) {
     ASSERT(vm->numTempRoots > 0, "No temporary roots to release.");
     vm->numTempRoots--;
+}
+
+int zzAddForeign(ZZVM* vm, ZhenzhuForeignMethodFn fn) {
+    zzForeignFunctionBufferWrite(vm, &vm->foreignFns, fn);
+    return vm->foreignFns.count - 1;
 }

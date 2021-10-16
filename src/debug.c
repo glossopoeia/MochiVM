@@ -42,6 +42,9 @@ int disassembleInstruction(ZZVM* vm, int offset) {
     switch (instruction) {
         case CODE_OP_NOP:
             return simpleInstruction("OP_NOP", offset);
+        case CODE_OP_ABORT:
+            printf("%s %d\n", "OP_ABORT", vm->block->code.data[offset+1]);
+            return offset + 2;
         case CODE_OP_CONSTANT:
             return constantInstruction("OP_CONSTANT", vm, offset);
         case CODE_OP_NEGATE:
@@ -73,6 +76,9 @@ int disassembleInstruction(ZZVM* vm, int offset) {
             return offset + 2;
         case CODE_OP_FORGET:
             return simpleInstruction("OP_FORGET", offset);
+        case CODE_OP_CALL_FOREIGN:
+            printf("%s %d\n", "OP_CALL_FOREIGN", vm->block->code.data[offset+1]);
+            return offset + 2;
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;

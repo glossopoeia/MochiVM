@@ -32,9 +32,9 @@
 #define AS_OP_CLOSURE(value)    ((ObjOpClosure*)AS_OBJ(value))
 #define AS_CONTINUATION(value)  ((ObjContinuation)AS_OBJ(value))
 #define AS_FIBER(v)             ((ObjFiber*)AS_OBJ(v))
+#define AS_POINTER(v)           ((ObjCPointer*)AS_OBJ(v))
 #define AS_FOREIGN(v)           ((ObjForeign*)AS_OBJ(v))
 #define AS_NUMBER(value)        (zzValueToNum(value))
-#define AS_RANGE(v)             ((ObjRange*)AS_OBJ(v))
 #define AS_STRING(v)            ((ObjString*)AS_OBJ(v))
 #define AS_CSTRING(v)           (AS_STRING(v)->chars)
 
@@ -48,7 +48,8 @@ typedef enum {
     OBJ_CLOSURE,
     OBJ_OP_CLOSURE,
     OBJ_CONTINUATION,
-    OBJ_FOREIGN
+    OBJ_FOREIGN,
+    OBJ_C_POINTER
 } ObjType;
 
 // Base struct for all heap-allocated object types.
@@ -121,6 +122,7 @@ struct ObjFiber {
     Obj obj;
     uint8_t* ip;
     bool isRoot;
+    bool isSuspended;
 
     // Value stack, which all instructions that consume and produce data operate upon.
     Value* valueStack;
@@ -154,6 +156,11 @@ typedef struct ObjContinuation {
     int savedFramesCount;
 } ObjContinuation;
 
+typedef struct ObjCPointer {
+    Obj obj;
+    void* pointer;
+} ObjCPointer;
+
 typedef struct ObjForeign {
     Obj obj;
     int dataCount;
@@ -166,6 +173,8 @@ static inline bool isObjType(Value value, ObjType type) {
 
 // Creates a new fiber object with the values from the given initial stack.
 ObjFiber* zzNewFiber(ZZVM* vm, uint8_t* first, Value* initialStack, int initialStackCount);
+void zzFiberPushValue(ObjFiber* fiber, Value v);
+Value zzFiberPopValue(ObjFiber* fiber);
 
 ObjCodeBlock* zzNewCodeBlock(ZZVM* vm);
 
@@ -174,8 +183,9 @@ ObjString* copyString(const char* chars, int length, ZZVM* vm);
 
 ObjVarFrame* newVarFrame(Value* vars, int varCount, ZZVM* vm);
 ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, ZZVM* vm);
+ObjForeign* zzNewForeign(ZZVM* vm, size_t size);
 
-ObjForeign* wrenNewForeign(ZZVM* vm, size_t size);
+ObjCPointer* zzNewCPointer(ZZVM* vm, void* pointer);
 
 // Logs a textual representation of the given value to the output
 void printValue(Value value);

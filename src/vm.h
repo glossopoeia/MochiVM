@@ -14,6 +14,8 @@ typedef enum
 // at one time.
 #define ZHENZHU_MAX_TEMP_ROOTS 8
 
+DECLARE_BUFFER(ForeignFunction, ZhenzhuForeignMethodFn);
+
 struct ZZVM {
     ZhenzhuConfiguration config;
 
@@ -49,6 +51,9 @@ struct ZZVM {
     Obj* tempRoots[ZHENZHU_MAX_TEMP_ROOTS];
 
     int numTempRoots;
+
+    // The buffer of foreign function pointers the VM knows about.
+    ForeignFunctionBuffer foreignFns;
 };
 
 int addConstant(ZZVM* vm, Value value);

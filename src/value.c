@@ -73,6 +73,14 @@ ObjFiber* zzNewFiber(ZZVM* vm, uint8_t* first, Value* initialStack, int initialS
     return fiber;
 }
 
+void zzFiberPushValue(ObjFiber* fiber, Value v) {
+    *fiber->valueStackTop++ = v;
+}
+
+Value zzFiberPopValue(ObjFiber* fiber) {
+    return *(--fiber->valueStackTop);
+}
+
 ObjCodeBlock* zzNewCodeBlock(ZZVM* vm) {
     ObjCodeBlock* block = ALLOCATE_OBJ(vm, ObjCodeBlock, OBJ_CODE_BLOCK);
     zzValueBufferInit(&block->constants);
@@ -81,7 +89,7 @@ ObjCodeBlock* zzNewCodeBlock(ZZVM* vm) {
     return block;
 }
 
-ObjForeign* wrenNewForeign(ZZVM* vm, size_t size) {
+ObjForeign* zzNewForeign(ZZVM* vm, size_t size) {
     ObjForeign* object = ALLOCATE_FLEX(vm, ObjForeign, uint8_t, size);
     object->obj.type = OBJ_FOREIGN;
     object->obj.next = vm->objects;
@@ -89,6 +97,12 @@ ObjForeign* wrenNewForeign(ZZVM* vm, size_t size) {
 
     // Zero out the bytes.
     memset(object->data, 0, size);
+    return object;
+}
+
+ObjCPointer* zzNewCPointer(ZZVM* vm, void* pointer) {
+    ObjCPointer* object = ALLOCATE_OBJ(vm, ObjCPointer, OBJ_C_POINTER);
+    object->pointer = pointer;
     return object;
 }
 
@@ -155,6 +169,7 @@ void zzFreeObj(ZZVM* vm, Obj* object) {
             DEALLOCATE(vm, fiber->frameStack);
         }
         case OBJ_FOREIGN: break;
+        case OBJ_C_POINTER: break;
     }
 
     DEALLOCATE(vm, object);
@@ -211,6 +226,10 @@ void printObject(Value object) {
         }
         case OBJ_FOREIGN: {
             printf("foreign");
+            break;
+        }
+        case OBJ_C_POINTER: {
+            printf("c_ptr");
             break;
         }
     }
@@ -348,6 +367,10 @@ static void markForeign(ZZVM* vm, ObjForeign* foreign) {
     vm->bytesAllocated += sizeof(uint8_t) * foreign->dataCount;
 }
 
+static void markCPointer(ZZVM* vm, ObjCPointer* ptr) {
+    vm->bytesAllocated += sizeof(ObjCPointer);
+}
+
 static void blackenObject(ZZVM* vm, Obj* obj)
 {
 #if ZHEnZHU_DEBUG_TRACE_MEMORY
@@ -369,6 +392,7 @@ static void blackenObject(ZZVM* vm, Obj* obj)
         case OBJ_FIBER:         markFiber(vm, (ObjFiber*)obj); break;
         case OBJ_STRING:        markString(vm, (ObjString*)obj); break;
         case OBJ_FOREIGN:       markForeign(vm, (ObjForeign*)obj); break;
+        case OBJ_C_POINTER:     markCPointer(vm, (ObjCPointer*)obj); break;
     }
 }
 
