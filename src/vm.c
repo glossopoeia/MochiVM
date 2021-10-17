@@ -413,6 +413,7 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
 
 #undef READ_BYTE
 #undef READ_SHORT
+#undef READ_USHORT
 #undef READ_CONSTANT
 }
 
