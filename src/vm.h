@@ -12,9 +12,10 @@ typedef enum
 
 // The maximum number of temporary objects that can be made visible to the GC
 // at one time.
-#define MOCHIVM_MAX_TEMP_ROOTS 8
+#define MOCHIVM_MAX_TEMP_ROOTS 512
 
-#define MOCHIVM_CALL_FRAME_MAX_SLOTS 65535
+#define MOCHIVM_MAX_CALL_FRAME_SLOTS 65535
+#define MOCHIVM_MAX_MARK_FRAME_SLOTS 256
 
 DECLARE_BUFFER(ForeignFunction, MochiVMForeignMethodFn);
 

@@ -190,6 +190,28 @@ void writeChunk(MochiVM* vm, uint8_t instr, int line) {
     mochiIntBufferWrite(vm, &vm->block->lines, line);
 }
 
+// Generic function to create a call frame from a closure based on some data known about it. Can supply a var frame
+// that will be spliced between the parameters and the captured values, but if this isn't needed, supply NULL for it.
+// Modifies the fiber stack, and expects the parameters to be in correct order at the top of the stack.
+static ObjCallFrame* callClosureFrame(MochiVM* vm, ObjFiber* fiber, ObjClosure* capture, ObjVarFrame* frameVars, uint8_t* after) {
+    ASSERT((fiber->valueStackTop - fiber->valueStack) >= capture->paramCount, "callClosureFrame: Not enough values on the value stack to call the closure.");
+
+    int varCount = capture->paramCount + capture->capturedCount + (frameVars != NULL ? frameVars->slotCount : 0);
+    Value* vars = ALLOCATE_ARRAY(vm, Value, varCount);
+
+    for (int i = 0; i < capture->paramCount; i++) {
+        vars[i] = *(--fiber->valueStackTop);
+    }
+
+    int offset = capture->paramCount;
+    if (frameVars != NULL) {
+        valueArrayCopy(vars + offset, frameVars->slots, frameVars->slotCount);
+        offset += frameVars->slotCount;
+    }
+    valueArrayCopy(vars + offset, capture->captured, capture->capturedCount);
+    return newCallFrame(vars, varCount, after, vm);
+}
+
 // Dispatcher function to run a particular fiber in the context of the given vm.
 static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
@@ -205,12 +227,14 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 #define PUSH_VAL(value)     (*fiber->valueStackTop++ = value)
 #define POP_VAL()           (*(--fiber->valueStackTop))
 #define DROP_VALS(count)    (fiber->valueStackTop = fiber->valueStackTop - (count))
-#define PEEK_VAL(index)     (*(fiber->valueStackTop - index))
+#define PEEK_VAL(index)     (*(fiber->valueStackTop - (index)))
+#define VALUE_COUNT()       (fiber->valueStackTop - fiber->valueStack)
 
 #define PUSH_FRAME(frame)   (*fiber->frameStackTop++ = (ObjVarFrame*)(frame))
 #define POP_FRAME()         (*(--fiber->frameStackTop))
 #define DROP_FRAMES(count)  (fiber->frameStackTop = fiber->frameStackTop - (count))
 #define PEEK_FRAME(index)   (*(fiber->frameStackTop - index))
+#define FRAME_COUNT()       (fiber->frameStackTop - fiber->frameStack)
 #define FIND(frame, slot)   ((*(fiber->frameStackTop - 1 - (frame)))->slots[(slot)])
 
 #define READ_BYTE() (*ip++)
@@ -298,7 +322,6 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
     INTERPRET_LOOP
     {
         CASE_CODE(NOP): {
-            printf("NOP\n");
             DISPATCH();
         }
         CASE_CODE(ABORT): {
@@ -346,6 +369,8 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         }
         CASE_CODE(STORE): {
             uint8_t varCount = READ_BYTE();
+            ASSERT(VALUE_COUNT() >= varCount, "Not enough values to store in frame in STORE");
+
             Value* vars = ALLOCATE_ARRAY(vm, Value, varCount);
             for (int i = 0; i < (int)varCount; i++) {
                 vars[i] = *(fiber->valueStackTop - i);
@@ -362,12 +387,15 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(FORGET): {
+            ASSERT(FRAME_COUNT() > 0, "FORGET expects at least one frame on the frame stack.");
             DROP_FRAMES(1);
             DISPATCH();
         }
 
         CASE_CODE(CALL_FOREIGN): {
-            MochiVMForeignMethodFn fn = vm->foreignFns.data[READ_SHORT()];
+            int16_t fnIndex = READ_SHORT();
+            ASSERT(vm->foreignFns.count > fnIndex, "CALL_FOREIGN attempted to address a method outside the bounds of the foreign function collection.");
+            MochiVMForeignMethodFn fn = vm->foreignFns.data[fnIndex];
             fn(vm, fiber);
             DISPATCH();
         }
@@ -383,42 +411,42 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(CALL_CLOSURE): {
+            ASSERT(FRAME_COUNT() > 0, "CALL_CLOSURE requires at least one frame on the frame stack.");
+            ASSERT(VALUE_COUNT() > 0, "CALL_CLOSURE requires at least one value on the value stack.");
+
             // only peek the closure to make sure it gets traced by garbage collection
-            ObjClosure* closure = (ObjClosure*)PEEK_VAL(1);
+            ObjClosure* closure = (ObjClosure*)POP_VAL();
+            uint8_t* next = closure->funcLocation;
 
             // need to populate the frame with the captured values, but also the parameters from the stack
             // top of the stack is first in the frame, next is second, etc.
             // captured are copied as they appear in the closure
-            Value* frameVars = ALLOCATE_ARRAY(vm, Value, closure->paramCount + closure->capturedCount);
-            for (int i = 0; i < closure->paramCount; i++) {
-                frameVars[i] = PEEK_VAL(i+1);
-            }
-            memcpy(frameVars + closure->paramCount, closure->captured, closure->capturedCount);
-            ObjCallFrame* frame = newCallFrame(frameVars, closure->paramCount + closure->capturedCount, ip, vm);
+            mochiPushRoot(vm, (Obj*)closure);
+            ObjCallFrame* frame = callClosureFrame(vm, fiber, closure, NULL, ip);
+            mochiPopRoot(vm);
 
-            // jump to the closure body, drop the now-stored stack values, and push the frame
-            ip = closure->funcLocation;
-            DROP_VALS(1 + closure->paramCount);
+            // jump to the closure body, drop the closure and now-stored stack values, and push the frame
+            ip = next;
             PUSH_FRAME(frame);
             DISPATCH();
         }
         CASE_CODE(TAILCALL_CLOSURE): {
+            ASSERT(FRAME_COUNT() > 0, "TAILCALL_CLOSURE requires at least one frame on the frame stack.");
+            ASSERT(VALUE_COUNT() > 0, "TAILCALL_CLOSURE requires at least one value on the value stack.");
+
             // only peek the closure to make sure it gets traced by garbage collection
-            ObjClosure* closure = (ObjClosure*)PEEK_VAL(1);
+            ObjClosure* closure = (ObjClosure*)POP_VAL();
+            uint8_t* next = closure->funcLocation;
 
             // pop the old frame and create a new frame with the new array of stored values but the same return location
             ObjCallFrame* oldFrame = (ObjCallFrame*)PEEK_FRAME(1);
-            Value* frameVars = ALLOCATE_ARRAY(vm, Value, closure->paramCount + closure->capturedCount);
-            for (int i = 0; i < closure->paramCount; i++) {
-                frameVars[i] = PEEK_VAL(i+1);
-            }
-            memcpy(frameVars + closure->paramCount, closure->captured, closure->capturedCount);
-            ObjCallFrame* frame = newCallFrame(frameVars, closure->paramCount + closure->capturedCount, oldFrame->afterLocation, vm);
+            mochiPushRoot(vm, (Obj*)closure);
+            ObjCallFrame* frame = callClosureFrame(vm, fiber, closure, NULL, oldFrame->afterLocation);
+            mochiPopRoot(vm);
 
-            // jump to the closure body, drop the old frame, drop the now-stored stack values, and push the new frame
-            ip = closure->funcLocation;
+            // jump to the closure body, drop the old frame, drop the closure and the now-stored stack values, and push the new frame
+            ip = next;
             DROP_FRAMES(1);
-            DROP_VALS(1 + closure->paramCount);
             PUSH_FRAME(frame);
             DISPATCH();
         }
@@ -427,6 +455,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(RETURN): {
+            ASSERT(FRAME_COUNT() > 0, "RETURN expects at least one frame on the stack.");
             ObjCallFrame* frame = (ObjCallFrame*)POP_FRAME();
             ip = frame->afterLocation;
             DISPATCH();
@@ -435,6 +464,8 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             uint8_t* bodyLocation = FROM_START(READ_UINT());
             uint8_t paramCount = READ_BYTE();
             uint16_t closedCount = READ_USHORT();
+            ASSERT(paramCount + closedCount <= MOCHIVM_MAX_CALL_FRAME_SLOTS, "Attempt to create closure with more slots than available.");
+
             ObjClosure* closure = mochiNewClosure(vm, bodyLocation, paramCount, closedCount);
             for (int i = 0; i < closedCount; i++) {
                 uint16_t frame = READ_USHORT();
@@ -448,6 +479,8 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             uint8_t* bodyLocation = FROM_START(READ_UINT());
             uint8_t paramCount = READ_BYTE();
             uint16_t closedCount = READ_USHORT();
+            ASSERT(paramCount + closedCount + 1 <= MOCHIVM_MAX_CALL_FRAME_SLOTS, "Attempt to create recursive closure with more slots than available.");
+
             // add one to closed count to save a slot for the closure itself
             ObjClosure* closure = mochiNewClosure(vm, bodyLocation, paramCount, closedCount + 1);
             // capture everything listed in the instruction args, saving the first spot for the closure itself
@@ -461,29 +494,90 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(MUTUAL): {
-            ASSERT(false, "MUTUAL not yet implemented.");
+            uint8_t mutualCount = READ_BYTE();
+            ASSERT(VALUE_COUNT() >= mutualCount, "MUTUAL closures attempted to be created with fewer than requested on the value stack.");
+
+            // for each soon-to-be mutually referenced closure,
+            // make a new closure with room for references to
+            // the other closures and itself
+            for (int i = 0; i < mutualCount; i++) {
+                ObjClosure* old = AS_CLOSURE(PEEK_VAL(mutualCount - i));
+                ObjClosure* closure = mochiNewClosure(vm, old->funcLocation, old->paramCount, old->capturedCount + mutualCount);
+                valueArrayCopy(closure->captured + mutualCount, old->captured, old->capturedCount);
+                // replace the old closure with the new one
+                PEEK_VAL(mutualCount - i) = OBJ_VAL((Obj*)closure);
+            }
+
+            // finally, make the closures all reference each other in the same order
+            for (int i = 0; i < mutualCount; i++) {
+                ObjClosure* closure = AS_CLOSURE(PEEK_VAL(mutualCount - i));
+                valueArrayCopy(closure->captured, fiber->valueStackTop - mutualCount, mutualCount);
+            }
+
+            DISPATCH();
         }
+
         CASE_CODE(HANDLE): {
-            ASSERT(false, "HANDLE not yet implemented.");
+            uint16_t afterOffset = READ_SHORT();
+            int markId = (int)READ_UINT();
+            uint8_t paramCount = READ_BYTE();
+            uint8_t handlerCount = READ_BYTE();
+
+            // plus one for the implicit 'after' closure that will be called by COMPLETE
+            ASSERT(VALUE_COUNT() >= handlerCount + paramCount + 1, "HANDLE did not have the required number of values on the stack.");
+
+            ObjMarkFrame* frame = mochiNewMarkFrame(vm, markId, paramCount, handlerCount, ip + afterOffset);
+            // take the handlers off the stack
+            for (int i = 0; i < handlerCount; i++) {
+                frame->handlers[i] = AS_CLOSURE(POP_VAL());
+            }
+            frame->afterClosure = AS_CLOSURE(POP_VAL());
+            // take any handle parameters off the stack
+            for (int i = 0; i < paramCount; i++) {
+                frame->call.vars.slots[i] = POP_VAL();
+            }
+
+            PUSH_FRAME(frame);
+            DISPATCH();
+        }
+        CASE_CODE(INJECT): {
+            int markId = READ_UINT();
+            ASSERT(false, "REACT not yet implemented.");
+        }
+        CASE_CODE(EJECT): {
+            int markId = READ_UINT();
+            ASSERT(false, "REACT not yet implemented.");
         }
         CASE_CODE(COMPLETE): {
+            ASSERT(FRAME_COUNT() > 0, "COMPLETE expects at least one mark frame on the frame stack.");
+
             ObjMarkFrame* frame = (ObjMarkFrame*)PEEK_FRAME(1);
-            ObjClosure* afterClosure = AS_CLOSURE(frame->afterClosure);
-            // TODO: remove this limitation
-            ASSERT(afterClosure->paramCount == 0, "After-closure parameter count must be 0 in handler completion.");
-            int varCount = frame->call.vars.slotCount + afterClosure->capturedCount;
-            Value* vars = ALLOCATE_CONCAT(vm, Value,
-                frame->call.vars.slots, frame->call.vars.slotCount,
-                afterClosure->captured, afterClosure->capturedCount);
-            ObjCallFrame* newFrame = newCallFrame(vars, varCount, frame->call.afterLocation, vm);
+
+            ObjCallFrame* newFrame = callClosureFrame(vm, fiber, frame->afterClosure, (ObjVarFrame*)frame, frame->call.afterLocation);
 
             DROP_FRAMES(1);
             PUSH_FRAME(newFrame);
-            ip = afterClosure->funcLocation;
+            ip = frame->afterClosure->funcLocation;
             DISPATCH();
         }
         CASE_CODE(ESCAPE): {
-            ASSERT(false, "ESCAPE not yet implemented.");
+            ASSERT(FRAME_COUNT() > 0, "ESCAPE expects at least one mark frame on the frame stack.");
+
+            int markId = READ_UINT();
+            uint8_t handlerIdx = READ_BYTE();
+            int frameIdx = findFreeHandler(fiber, markId);
+            ObjMarkFrame* frame = (ObjMarkFrame*)PEEK_FRAME(frameIdx + 1);
+
+            ASSERT(handlerIdx < frame->handlerCount, "ESCAPE: Requested handler index outside the bounds of the mark frame handler set.");
+            ObjClosure* handler = frame->handlers[frameIdx];
+
+            ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, frame->call.afterLocation);
+
+            ip = handler->funcLocation;
+            DROP_FRAMES(frameIdx);
+            PUSH_FRAME(newFrame);
+
+            DISPATCH();
         }
         CASE_CODE(REACT): {
             ASSERT(false, "REACT not yet implemented.");

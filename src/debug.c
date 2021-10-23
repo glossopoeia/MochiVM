@@ -139,6 +139,10 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             printf(">\n");
             return offset + 7 + code[offset+6] * 4;
         }
+        case CODE_INJECT:
+            return intArgInstruction("INJECT", vm, offset);
+        case CODE_EJECT:
+            return intArgInstruction("EJECT", vm, offset);
         case CODE_COMPLETE:
             return simpleInstruction("COMPLETE", offset);
         case CODE_ESCAPE:

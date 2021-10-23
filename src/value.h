@@ -1,6 +1,8 @@
 #ifndef mochivm_value_h
 #define mochivm_value_h
 
+#include <string.h>
+
 #include "common.h"
 #include "mochivm.h"
 
@@ -92,6 +94,20 @@ typedef struct ObjString {
     char* chars;
 } ObjString;
 
+// Represents a function combined with saved context. Arguments via [paramCount] are used to
+// inject values from the stack into the call frame at the call site, rather than at
+// closure creation time. [captured] stores the values captured from the frame stack at
+// closure creation time. [paramCount] is highly useful for passing state through when using
+// closures as action handlers, but also makes for a convenient shortcut to store function
+// parameters in the frame stack.
+typedef struct ObjClosure {
+    Obj obj;
+    uint8_t* funcLocation;
+    uint8_t paramCount;
+    uint16_t capturedCount;
+    Value captured[];
+} ObjClosure;
+
 typedef struct ObjVarFrame {
     Obj obj;
     Value* slots;
@@ -106,13 +122,14 @@ typedef struct ObjCallFrame {
 typedef struct ObjMarkFrame {
     ObjCallFrame call;
     // The identifier that will be searched for when trying to execute a particular operation. Designed to
-    // enable efficiently finding sets of related operations that all get handled by the same handler expression.
-    // Trying to execute an operation must specify the 'set' of operations the operation belongs to (markId), then
-    // the index within the set of the operation itself (operations[i]).
+    // enable efficiently finding sets of related handlers that all get handled by the same handler expression.
+    // Trying to execute an operation must specify the 'set' of handlers the operation belongs to (markId), then
+    // the index within the set of the operation itself (handlers[i]).
     int markId;
-    Value afterClosure;
-    Value* operations;
-    int operationCount;
+    int nesting;
+    ObjClosure* afterClosure;
+    ObjClosure** handlers;
+    uint8_t handlerCount;
 } ObjMarkFrame;
 
 struct ObjFiber {
@@ -131,20 +148,6 @@ struct ObjFiber {
 
     struct ObjFiber* caller;
 };
-
-// Represents a function combined with saved context. Arguments via [paramCount] are used to
-// inject values from the stack into the call frame at the call site, rather than at
-// closure creation time. [captured] stores the values captured from the frame stack at
-// closure creation time. [paramCount] is highly useful for passing state through when using
-// closures as action handlers, but also makes for a convenient shortcut to store function
-// parameters in the frame stack.
-typedef struct ObjClosure {
-    Obj obj;
-    uint8_t* funcLocation;
-    uint8_t paramCount;
-    uint16_t capturedCount;
-    Value captured[];
-} ObjClosure;
 
 typedef struct ObjContinuation {
     Obj obj;
@@ -170,6 +173,10 @@ static inline bool isObjType(Value value, ObjType type) {
     return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }
 
+static inline void valueArrayCopy(Value* src, Value* dest, int count) {
+    memcpy(src, dest, sizeof(Value) * count);
+}
+
 // Creates a new fiber object with the values from the given initial stack.
 ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int initialStackCount);
 void mochiFiberPushValue(ObjFiber* fiber, Value v);
@@ -185,6 +192,8 @@ ObjString* copyString(const char* chars, int length, MochiVM* vm);
 
 ObjVarFrame* newVarFrame(Value* vars, int varCount, MochiVM* vm);
 ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, MochiVM* vm);
+ObjMarkFrame* mochiNewMarkFrame(MochiVM* vm, int markId, uint8_t paramCount, uint8_t handlerCount, uint8_t* after);
+
 ObjForeign* mochiNewForeign(MochiVM* vm, size_t size);
 
 ObjCPointer* mochiNewCPointer(MochiVM* vm, void* pointer);

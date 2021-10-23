@@ -64,6 +64,26 @@ ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, Mo
     return frame;
 }
 
+ObjMarkFrame* mochiNewMarkFrame(MochiVM* vm, int markId, uint8_t paramCount, uint8_t handlerCount, uint8_t* after) {
+    Value* params = ALLOCATE_ARRAY(vm, Value, paramCount);
+    memset(params, 0, sizeof(Value) * paramCount);
+    ObjClosure** handlers = ALLOCATE_ARRAY(vm, ObjClosure*, handlerCount);
+    memset(handlers, 0, sizeof(ObjClosure*) * handlerCount);
+
+    ObjMarkFrame* frame = ALLOCATE(vm, ObjMarkFrame);
+    initObj(vm, (Obj*)frame, OBJ_MARK_FRAME);
+    frame->call.vars.slots = params;
+    frame->call.vars.slotCount = paramCount;
+    frame->call.afterLocation = after;
+    frame->markId = markId;
+    frame->nesting = 0;
+    frame->afterClosure = NULL;
+    frame->handlers = handlers;
+    frame->handlerCount = handlerCount;
+
+    return frame;
+}
+
 ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int initialStackCount) {
     // Allocate the arrays before the fiber in case it triggers a GC.
     Value* values = ALLOCATE_ARRAY(vm, Value, vm->config.valueStackCapacity);
@@ -171,7 +191,7 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
         case OBJ_MARK_FRAME: {
             freeVarFrame(vm, (ObjVarFrame*)object);
             ObjMarkFrame* mark = (ObjMarkFrame*)object;
-            DEALLOCATE(vm, mark->operations);
+            DEALLOCATE(vm, mark->handlers);
             break;
         }
         case OBJ_CONTINUATION: {
@@ -313,13 +333,14 @@ static void markMarkFrame(MochiVM* vm, ObjMarkFrame* frame) {
         mochiGrayValue(vm, frame->call.vars.slots[i]);
     }
 
-    for (int i = 0; i < frame->operationCount; i++) {
-        mochiGrayValue(vm, frame->operations[i]);
+    mochiGrayObj(vm, (Obj*)frame->afterClosure);
+    for (int i = 0; i < frame->handlerCount; i++) {
+        mochiGrayObj(vm, (Obj*)frame->handlers[i]);
     }
 
     vm->bytesAllocated += sizeof(ObjMarkFrame);
     vm->bytesAllocated += sizeof(Value) * frame->call.vars.slotCount;
-    vm->bytesAllocated += sizeof(Value) * frame->operationCount;
+    vm->bytesAllocated += sizeof(Value) * frame->handlerCount;
 }
 
 static void markClosure(MochiVM* vm, ObjClosure* closure) {
