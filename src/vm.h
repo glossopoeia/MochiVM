@@ -14,6 +14,8 @@ typedef enum
 // at one time.
 #define ZHENZHU_MAX_TEMP_ROOTS 8
 
+#define ZHENZHU_CALL_FRAME_MAX_SLOTS 65535
+
 DECLARE_BUFFER(ForeignFunction, ZhenzhuForeignMethodFn);
 
 struct ZZVM {

@@ -153,11 +153,7 @@ void zzFreeObj(ZZVM* vm, Obj* object) {
         case OBJ_CLOSURE: {
             freeClosure(vm, (ObjClosure*)object);
             break;
-        }
-        case OBJ_OP_CLOSURE: {
-            freeClosure(vm, (ObjClosure*)object);
-            break;
-        }
+        } 
         case OBJ_CONTINUATION: {
             ObjContinuation* cont = (ObjContinuation*)object;
             DEALLOCATE(vm, cont->savedStack);
@@ -211,10 +207,6 @@ void printObject(Value object) {
         }
         case OBJ_CLOSURE: {
             printf("closure");
-            break;
-        }
-        case OBJ_OP_CLOSURE: {
-            printf("op-closure");
             break;
         }
         case OBJ_CONTINUATION: {
@@ -316,15 +308,6 @@ static void markClosure(ZZVM* vm, ObjClosure* closure) {
 
     vm->bytesAllocated += sizeof(ObjClosure);
     vm->bytesAllocated += sizeof(Value) * closure->varCount;
-}
-
-static void markOpClosure(ZZVM* vm, ObjOpClosure* closure) {
-    for (int i = 0; i < closure->closure.varCount; i++) {
-        zzGrayValue(vm, closure->closure.vars[i]);
-    }
-
-    vm->bytesAllocated += sizeof(ObjOpClosure);
-    vm->bytesAllocated += sizeof(Value) * closure->closure.varCount;
 }
 
 static void markContinuation(ZZVM* vm, ObjContinuation* cont) {

@@ -18,7 +18,6 @@
 #define IS_MARK_FRAME(value)   isObjType(value, OBJ_MARK_FRAME)
 #define IS_STRING(value)       isObjType(value, OBJ_STRING)
 #define IS_CLOSURE(value)      isObjType(value, OBJ_CLOSURE)
-#define IS_OP_CLOSURE(value)   isObjType(value, OBJ_OP_CLOSURE)
 #define IS_CONTINUATION(value) isObjType(value, OBJ_CONTINUATION)
 
 // These macros cast a Value to one of the specific object types. These do *not*
@@ -29,7 +28,6 @@
 #define AS_CALL_FRAME(value)    ((ObjCallFrame*)AS_OBJ(value))
 #define AS_MARK_FRAME(value)    ((ObjMarkFrame*)AS_OBJ(value))
 #define AS_CLOSURE(value)       ((ObjClosure*)AS_OBJ(value))
-#define AS_OP_CLOSURE(value)    ((ObjOpClosure*)AS_OBJ(value))
 #define AS_CONTINUATION(value)  ((ObjContinuation)AS_OBJ(value))
 #define AS_FIBER(v)             ((ObjFiber*)AS_OBJ(v))
 #define AS_POINTER(v)           ((ObjCPointer*)AS_OBJ(v))
@@ -46,7 +44,6 @@ typedef enum {
     OBJ_MARK_FRAME,
     OBJ_STRING,
     OBJ_CLOSURE,
-    OBJ_OP_CLOSURE,
     OBJ_CONTINUATION,
     OBJ_FOREIGN,
     OBJ_C_POINTER
@@ -135,17 +132,18 @@ struct ObjFiber {
     struct ObjFiber* caller;
 };
 
+// Represents a function combined with saved context. Arguments via [argCount] are used to
+// inject values from the stack into the call frame at the call site, rather than at
+// closure creation time. [vars] stores the values captured from the frame stack at
+// closure creation time. [argCount] is highly useful for passing state through when using
+// closures as action handlers.
 typedef struct ObjClosure {
     Obj obj;
     uint8_t* funcLocation;
-    Value* vars;
-    int varCount;
-} ObjClosure;
-
-typedef struct ObjOpClosure {
-    ObjClosure closure;
     int argCount;
-} ObjOpClosure;
+    int varCount;
+    Value vars[];
+} ObjClosure;
 
 typedef struct ObjContinuation {
     Obj obj;

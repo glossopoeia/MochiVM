@@ -18,6 +18,9 @@
 #define ALLOCATE_ARRAY(vm, type, count)                                        \
     ((type*)zzReallocate(vm, NULL, 0, sizeof(type) * (count)))
 
+#define ALLOCATE_CONCAT(vm, type, arr1, arr1Count, arr2, arr2Count)      \
+    ((type*)zzConcat(vm, sizeof(type), arr1, arr2, arr1Count, arr2Count))
+
 // Use the VM's allocator to free the previously allocated memory at [pointer].
 #define DEALLOCATE(vm, pointer) zzReallocate(vm, pointer, 0, 0)
 
@@ -38,6 +41,10 @@
 // - To free memory, [memory] will be the memory to free and [newSize] and
 //   [oldSize] will be zero. It should return NULL.
 void* zzReallocate(ZZVM* vm, void* memory, size_t oldSize, size_t newSize);
+
+// A generic function to concatenate two arrays into a new array, with the elements
+// of [array1] appearing before the elements of [array2]. I.E. array1 ++ array2
+void* zzConcat(ZZVM* vm, size_t elemSize, void* array1, void* array2, int array1Count, int array2Count);
 
 // Returns the smallest power of two that is equal to or greater than [n].
 int zzPowerOf2Ceil(int n);

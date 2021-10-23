@@ -200,6 +200,8 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
     register uint8_t* ip = fiber->ip;
     register uint8_t* codeStart = vm->block->code.data;
 
+#define FROM_START(offset)  (codeStart + (int)(offset))
+
 #define PUSH_VAL(value) (*fiber->valueStackTop++ = value)
 #define POP_VAL()       (*(--fiber->valueStackTop))
 #define DROP_VAL()      (--fiber->valueStackTop)
@@ -213,6 +215,7 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
 #define READ_BYTE() (*ip++)
 #define READ_SHORT() (ip += 2, (int16_t)((ip[-2] << 8) | ip[-1]))
 #define READ_USHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
+#define READ_UINT() (ip += 4, (uint32_t)((ip[-4] << 24) | (ip[-3] << 16) | (ip[-2] << 8) | ip[-1]))
 #define READ_CONSTANT() (vm->block->constants.data[READ_BYTE()])
 #define BINARY_OP(valueType, op) \
     do { \
@@ -371,14 +374,14 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(CALL): {
-            uint8_t* callPtr = codeStart + (int)READ_USHORT();
+            uint8_t* callPtr = FROM_START(READ_UINT());
             ObjCallFrame* frame = newCallFrame(NULL, 0, ip, vm);
             PUSH_FRAME((ObjVarFrame*)frame);
             ip = callPtr;
             DISPATCH();
         }
         CASE_CODE(TAILCALL): {
-            ip = codeStart + (int)READ_USHORT();
+            ip = FROM_START(READ_UINT());
             DISPATCH();
         }
         CASE_CODE(CALL_CLOSURE): {
@@ -407,7 +410,13 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(CLOSURE): {
-            ASSERT(false, "CLOSRUE not yet implemented.");
+            uint8_t* bodyLocation = FROM_START(READ_UINT());
+            int closedCount = (int)READ_SHORT();
+            Value* slots = ALLOCATE_ARRAY(vm, Value, closedCount);
+            for (int i = 0; i < closedCount; i++) {
+                slots[i] = FIND(READ_SHORT(), READ_SHORT());
+            }
+            PUSH_VAL()
             DISPATCH();
         }
         CASE_CODE(RECURSIVE): {
@@ -424,7 +433,18 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
             ASSERT(false, "HANDLE not yet implemented.");
         }
         CASE_CODE(COMPLETE): {
-            ASSERT(false, "COMPLETE not yet implemented.");
+            ObjMarkFrame* frame = (ObjMarkFrame*)PEEK_FRAME(1);
+            ObjClosure* afterClosure = AS_CLOSURE(frame->afterClosure);
+            int varCount = frame->call.vars.slotCount + afterClosure->varCount;
+            Value* vars = ALLOCATE_CONCAT(vm, Value,
+                frame->call.vars.slots, frame->call.vars.slotCount,
+                afterClosure->varCount, afterClosure->vars);
+            ObjCallFrame* newFrame = newCallFrame(vars, varCount, frame->call.afterLocation, vm);
+
+            DROP_FRAME();
+            PUSH_FRAME(newFrame);
+            ip = afterClosure->funcLocation;
+            DISPATCH();
         }
         CASE_CODE(ESCAPE): {
             ASSERT(false, "ESCAPE not yet implemented.");

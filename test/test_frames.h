@@ -5,6 +5,8 @@ CONSTANT(NUMBER_VAL(1))
 
 WRITE_INST(TAILCALL, 1)
 WRITE_BYTE(0, 1)
+WRITE_BYTE(0, 1)
+WRITE_BYTE(0, 1)
 WRITE_BYTE(5, 1)
 // This push-constant instruction should get skipped by the tailcall,
 // so VERIFY_STACK(0) at the bottom verifies that the call actually moves
