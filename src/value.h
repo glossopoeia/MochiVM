@@ -132,17 +132,18 @@ struct ObjFiber {
     struct ObjFiber* caller;
 };
 
-// Represents a function combined with saved context. Arguments via [argCount] are used to
+// Represents a function combined with saved context. Arguments via [paramCount] are used to
 // inject values from the stack into the call frame at the call site, rather than at
-// closure creation time. [vars] stores the values captured from the frame stack at
-// closure creation time. [argCount] is highly useful for passing state through when using
-// closures as action handlers.
+// closure creation time. [captured] stores the values captured from the frame stack at
+// closure creation time. [paramCount] is highly useful for passing state through when using
+// closures as action handlers, but also makes for a convenient shortcut to store function
+// parameters in the frame stack.
 typedef struct ObjClosure {
     Obj obj;
     uint8_t* funcLocation;
-    int argCount;
-    int varCount;
-    Value vars[];
+    uint8_t paramCount;
+    uint16_t capturedCount;
+    Value captured[];
 } ObjClosure;
 
 typedef struct ObjContinuation {
@@ -173,6 +174,9 @@ static inline bool isObjType(Value value, ObjType type) {
 ObjFiber* zzNewFiber(ZZVM* vm, uint8_t* first, Value* initialStack, int initialStackCount);
 void zzFiberPushValue(ObjFiber* fiber, Value v);
 Value zzFiberPopValue(ObjFiber* fiber);
+
+ObjClosure* zzNewClosure(ZZVM* vm, uint8_t* body, uint8_t paramCount, uint16_t capturedCount);
+void zzClosureCapture(ObjClosure* closure, int captureIndex, Value value);
 
 ObjCodeBlock* zzNewCodeBlock(ZZVM* vm);
 

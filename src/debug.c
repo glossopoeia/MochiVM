@@ -6,6 +6,10 @@ static short getShort(uint8_t* buffer, int offset) {
     return (buffer[offset] << 8) | buffer[offset+1];
 }
 
+static uint16_t getUShort(uint8_t* buffer, int offset) {
+    return (uint16_t)((buffer[offset] << 8) | buffer[offset+1]);
+}
+
 static int getInt(uint8_t* buffer, int offset) {
     return (buffer[offset] << 24) | (buffer[offset+1] << 16) | (buffer[offset+2] << 8) | buffer[offset+3];
 }
@@ -43,8 +47,13 @@ static int constantInstruction(const char * name, ZZVM* vm, int offset) {
 
 static int closureInstruction(const char* name, ZZVM* vm, int offset) {
     uint8_t* code = vm->block->code.data;
-    printf("%-16s %8d %3d\n", name, getInt(code, offset+1), code[offset+5]);
-    return offset + 6;
+    uint16_t captureCount = getUShort(code, offset+6);
+    printf("%-16s %8d %3d %5d ( ", name, getInt(code, offset+1), code[offset+5], getShort(code, offset+6));
+    for (int i = 0; i < captureCount; i++) {
+        printf("%5d:%5d ", getShort(code, offset + captureCount + 2 +i*4), getShort(code, offset + captureCount + 2 + 2 + i*4));
+    }
+    printf(")\n");
+    return offset + captureCount + 2 + captureCount * 4;
 }
 
 void disassembleChunk(ZZVM* vm, const char * name) {
@@ -119,14 +128,6 @@ int disassembleInstruction(ZZVM* vm, int offset) {
             return closureInstruction("RECURSIVE", vm, offset);
         case CODE_MUTUAL:
             return intArgInstruction("MUTUAL", vm, offset);
-        case CODE_ACTION: {
-            uint8_t* code = vm->block->code.data;
-            int body = getInt(code, offset+1);
-            uint8_t args = code[offset+5];
-            uint8_t closed = code[offset+6];
-            printf("%-16s %8d %3d %3d\n", "ACTION", body, args, closed);
-            return offset + 7;
-        }
         case CODE_HANDLE: {
             uint8_t* code = vm->block->code.data;
             int body = getInt(code, offset+1);

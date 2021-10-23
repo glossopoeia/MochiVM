@@ -202,15 +202,16 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
 
 #define FROM_START(offset)  (codeStart + (int)(offset))
 
-#define PUSH_VAL(value) (*fiber->valueStackTop++ = value)
-#define POP_VAL()       (*(--fiber->valueStackTop))
-#define DROP_VAL()      (--fiber->valueStackTop)
-#define PEEK_VAL(index) (*(fiber->valueStackTop - index))
+#define PUSH_VAL(value)     (*fiber->valueStackTop++ = value)
+#define POP_VAL()           (*(--fiber->valueStackTop))
+#define DROP_VALS(count)    (fiber->valueStackTop = fiber->valueStackTop - (count))
+#define PEEK_VAL(index)     (*(fiber->valueStackTop - index))
 
-#define PUSH_FRAME(frame)   (*fiber->frameStackTop++ = frame)
+#define PUSH_FRAME(frame)   (*fiber->frameStackTop++ = (ObjVarFrame*)(frame))
 #define POP_FRAME()         (*(--fiber->frameStackTop))
-#define DROP_FRAME()        (--fiber->frameStackTop)
+#define DROP_FRAMES(count)  (fiber->frameStackTop = fiber->frameStackTop - (count))
 #define PEEK_FRAME(index)   (*(fiber->frameStackTop - index))
+#define FIND(frame, slot)   ((*(fiber->frameStackTop - 1 - (frame)))->slots[(slot)])
 
 #define READ_BYTE() (*ip++)
 #define READ_SHORT() (ip += 2, (int16_t)((ip[-2] << 8) | ip[-1]))
@@ -337,8 +338,7 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
             memcpy(chars, a->chars, a->length);
             memcpy(chars + a->length, b->chars, b->length);
             chars[length] = '\0';
-            DROP_VAL();
-            DROP_VAL();
+            DROP_VALS(2);
 
             ObjString* result = takeString(chars, length, vm);
             PUSH_VAL(OBJ_VAL(result));
@@ -354,9 +354,7 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
             ObjVarFrame* frame = newVarFrame(vars, varCount, vm);
             PUSH_FRAME(frame);
 
-            for (int i = 0; i < (int)varCount; i++) {
-                DROP_VAL();
-            }
+            DROP_VALS(varCount);
             DISPATCH();
         }
         CASE_CODE(OVERWRITE): {
@@ -364,7 +362,7 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(FORGET): {
-            DROP_FRAME();
+            DROP_FRAMES(1);
             DISPATCH();
         }
 
@@ -385,19 +383,43 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(CALL_CLOSURE): {
+            // only peek the closure to make sure it gets traced by garbage collection
             ObjClosure* closure = (ObjClosure*)PEEK_VAL(1);
-            ObjCallFrame* frame = newCallFrame(closure->vars, closure->varCount, ip, vm);
+
+            // need to populate the frame with the captured values, but also the parameters from the stack
+            // top of the stack is first in the frame, next is second, etc.
+            // captured are copied as they appear in the closure
+            Value* frameVars = ALLOCATE_ARRAY(vm, Value, closure->paramCount + closure->capturedCount);
+            for (int i = 0; i < closure->paramCount; i++) {
+                frameVars[i] = PEEK_VAL(i+1);
+            }
+            memcpy(frameVars + closure->paramCount, closure->captured, closure->capturedCount);
+            ObjCallFrame* frame = newCallFrame(frameVars, closure->paramCount + closure->capturedCount, ip, vm);
+
+            // jump to the closure body, drop the now-stored stack values, and push the frame
             ip = closure->funcLocation;
-            DROP_VAL();
-            PUSH_FRAME((ObjVarFrame*)frame);
+            DROP_VALS(1 + closure->paramCount);
+            PUSH_FRAME(frame);
             DISPATCH();
         }
         CASE_CODE(TAILCALL_CLOSURE): {
-            ObjClosure* closure = (ObjClosure*)POP_VAL();
-            ObjCallFrame* frame = (ObjCallFrame*)PEEK_FRAME(1);
-            frame->vars.slots = closure->vars;
-            frame->vars.slotCount = closure->varCount;
+            // only peek the closure to make sure it gets traced by garbage collection
+            ObjClosure* closure = (ObjClosure*)PEEK_VAL(1);
+
+            // pop the old frame and create a new frame with the new array of stored values but the same return location
+            ObjCallFrame* oldFrame = (ObjCallFrame*)PEEK_FRAME(1);
+            Value* frameVars = ALLOCATE_ARRAY(vm, Value, closure->paramCount + closure->capturedCount);
+            for (int i = 0; i < closure->paramCount; i++) {
+                frameVars[i] = PEEK_VAL(i+1);
+            }
+            memcpy(frameVars + closure->paramCount, closure->captured, closure->capturedCount);
+            ObjCallFrame* frame = newCallFrame(frameVars, closure->paramCount + closure->capturedCount, oldFrame->afterLocation, vm);
+
+            // jump to the closure body, drop the old frame, drop the now-stored stack values, and push the new frame
             ip = closure->funcLocation;
+            DROP_FRAMES(1);
+            DROP_VALS(1 + closure->paramCount);
+            PUSH_FRAME(frame);
             DISPATCH();
         }
         CASE_CODE(OFFSET): {
@@ -411,23 +433,35 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
         }
         CASE_CODE(CLOSURE): {
             uint8_t* bodyLocation = FROM_START(READ_UINT());
-            int closedCount = (int)READ_SHORT();
-            Value* slots = ALLOCATE_ARRAY(vm, Value, closedCount);
+            uint8_t paramCount = READ_BYTE();
+            uint16_t closedCount = READ_USHORT();
+            ObjClosure* closure = zzNewClosure(vm, bodyLocation, paramCount, closedCount);
             for (int i = 0; i < closedCount; i++) {
-                slots[i] = FIND(READ_SHORT(), READ_SHORT());
+                uint16_t frame = READ_USHORT();
+                uint16_t slot = READ_USHORT();
+                zzClosureCapture(closure, i, FIND(frame, slot));
             }
-            PUSH_VAL()
+            PUSH_VAL(OBJ_VAL(closure));
             DISPATCH();
         }
         CASE_CODE(RECURSIVE): {
-            ASSERT(false, "RECURSIVE not yet implemented.");
+            uint8_t* bodyLocation = FROM_START(READ_UINT());
+            uint8_t paramCount = READ_BYTE();
+            uint16_t closedCount = READ_USHORT();
+            // add one to closed count to save a slot for the closure itself
+            ObjClosure* closure = zzNewClosure(vm, bodyLocation, paramCount, closedCount + 1);
+            // capture everything listed in the instruction args, saving the first spot for the closure itself
+            zzClosureCapture(closure, 0, OBJ_VAL(closure));
+            for (int i = 0; i < closedCount; i++) {
+                uint16_t frame = READ_USHORT();
+                uint16_t slot = READ_USHORT();
+                zzClosureCapture(closure, i + 1, FIND(frame, slot));
+            }
+            PUSH_VAL(OBJ_VAL(closure));
             DISPATCH();
         }
         CASE_CODE(MUTUAL): {
             ASSERT(false, "MUTUAL not yet implemented.");
-        }
-        CASE_CODE(ACTION): {
-            ASSERT(false, "ACTION not yet implemented");
         }
         CASE_CODE(HANDLE): {
             ASSERT(false, "HANDLE not yet implemented.");
@@ -435,13 +469,15 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
         CASE_CODE(COMPLETE): {
             ObjMarkFrame* frame = (ObjMarkFrame*)PEEK_FRAME(1);
             ObjClosure* afterClosure = AS_CLOSURE(frame->afterClosure);
-            int varCount = frame->call.vars.slotCount + afterClosure->varCount;
+            // TODO: remove this limitation
+            ASSERT(afterClosure->paramCount == 0, "After-closure parameter count must be 0 in handler completion.");
+            int varCount = frame->call.vars.slotCount + afterClosure->capturedCount;
             Value* vars = ALLOCATE_CONCAT(vm, Value,
                 frame->call.vars.slots, frame->call.vars.slotCount,
-                afterClosure->varCount, afterClosure->vars);
+                afterClosure->captured, afterClosure->capturedCount);
             ObjCallFrame* newFrame = newCallFrame(vars, varCount, frame->call.afterLocation, vm);
 
-            DROP_FRAME();
+            DROP_FRAMES(1);
             PUSH_FRAME(newFrame);
             ip = afterClosure->funcLocation;
             DISPATCH();

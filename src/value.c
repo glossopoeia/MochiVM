@@ -10,6 +10,17 @@ DEFINE_BUFFER(Value, Value);
 
 #define ALLOCATE_OBJ(vm, type, objectType) (type*)allocateObject((vm), sizeof(type), (objectType))
 
+#define ALLOCATE_FLEX_OBJ(vm, objectType, type, elemType, elemCount)  \
+    (type*)allocateObject((vm), sizeof(type) + sizeof(elemType) * elemCount, (objectType))
+
+static void initObj(ZZVM* vm, Obj* obj, ObjType type) {
+    obj->type = type;
+    obj->isMarked = false;
+    // keep track of all allocated objects via the linked list in the vm
+    obj->next = vm->objects;
+    vm->objects = obj;
+}
+
 static Obj* allocateObject(ZZVM* vm, size_t size, ObjType type) {
     Obj* object = (Obj*)zzReallocate(vm, NULL, 0, size);
     object->type = type;
@@ -82,8 +93,25 @@ Value zzFiberPopValue(ObjFiber* fiber) {
     return *(--fiber->valueStackTop);
 }
 
+ObjClosure* zzNewClosure(ZZVM* vm, uint8_t* body, uint8_t paramCount, uint16_t capturedCount) {
+    ObjClosure* closure = ALLOCATE_FLEX(vm, ObjClosure, Value, capturedCount);
+    initObj(vm, (Obj*)closure, OBJ_CLOSURE);
+    closure->funcLocation = body;
+    closure->paramCount = paramCount;
+    closure->capturedCount = capturedCount;
+    // reset the captured array in case there is a GC in between allocating and populating it
+    memset(closure->captured, 0, sizeof(Value) * capturedCount);
+    return closure;
+}
+
+void zzClosureCapture(ObjClosure* closure, int captureIndex, Value value) {
+    ASSERT(captureIndex < closure->capturedCount, "Closure capture index outside the bounds of the captured array");
+    closure->captured[captureIndex] = value;
+}
+
 ObjCodeBlock* zzNewCodeBlock(ZZVM* vm) {
-    ObjCodeBlock* block = ALLOCATE_OBJ(vm, ObjCodeBlock, OBJ_CODE_BLOCK);
+    ObjCodeBlock* block = ALLOCATE(vm, ObjCodeBlock);
+    initObj(vm, (Obj*)block, OBJ_CODE_BLOCK);
     zzValueBufferInit(&block->constants);
     zzByteBufferInit(&block->code);
     zzIntBufferInit(&block->lines);
@@ -109,10 +137,6 @@ ObjCPointer* zzNewCPointer(ZZVM* vm, void* pointer) {
 
 static void freeVarFrame(ZZVM* vm, ObjVarFrame* frame) {
     DEALLOCATE(vm, frame->slots);
-}
-
-static void freeClosure(ZZVM* vm, ObjClosure* closure) {
-    DEALLOCATE(vm, closure->vars);
 }
 
 void zzFreeObj(ZZVM* vm, Obj* object) {
@@ -150,10 +174,6 @@ void zzFreeObj(ZZVM* vm, Obj* object) {
             DEALLOCATE(vm, mark->operations);
             break;
         }
-        case OBJ_CLOSURE: {
-            freeClosure(vm, (ObjClosure*)object);
-            break;
-        } 
         case OBJ_CONTINUATION: {
             ObjContinuation* cont = (ObjContinuation*)object;
             DEALLOCATE(vm, cont->savedStack);
@@ -165,6 +185,7 @@ void zzFreeObj(ZZVM* vm, Obj* object) {
             DEALLOCATE(vm, fiber->valueStack);
             DEALLOCATE(vm, fiber->frameStack);
         }
+        case OBJ_CLOSURE: break;
         case OBJ_FOREIGN: break;
         case OBJ_C_POINTER: break;
     }
@@ -302,12 +323,12 @@ static void markMarkFrame(ZZVM* vm, ObjMarkFrame* frame) {
 }
 
 static void markClosure(ZZVM* vm, ObjClosure* closure) {
-    for (int i = 0; i < closure->varCount; i++) {
-        zzGrayValue(vm, closure->vars[i]);
+    for (int i = 0; i < closure->capturedCount; i++) {
+        zzGrayValue(vm, closure->captured[i]);
     }
 
     vm->bytesAllocated += sizeof(ObjClosure);
-    vm->bytesAllocated += sizeof(Value) * closure->varCount;
+    vm->bytesAllocated += sizeof(Value) * closure->capturedCount;
 }
 
 static void markContinuation(ZZVM* vm, ObjContinuation* cont) {
@@ -371,7 +392,6 @@ static void blackenObject(ZZVM* vm, Obj* obj)
         case OBJ_CALL_FRAME:    markCallFrame(vm, (ObjCallFrame*)obj); break;
         case OBJ_MARK_FRAME:    markMarkFrame(vm, (ObjMarkFrame*)obj); break;
         case OBJ_CLOSURE:       markClosure( vm, (ObjClosure*) obj); break;
-        case OBJ_OP_CLOSURE:    markOpClosure(vm, (ObjOpClosure*)obj); break;
         case OBJ_CONTINUATION:  markContinuation(vm, (ObjContinuation*)obj); break;
         case OBJ_FIBER:         markFiber(vm, (ObjFiber*)obj); break;
         case OBJ_STRING:        markString(vm, (ObjString*)obj); break;
