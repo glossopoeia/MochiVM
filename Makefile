@@ -16,21 +16,21 @@ endif
 # Files.
 HEADERS := $(wildcard src/*.h test/*.h)
 SOURCES := $(wildcard src/*.c)
-OBJECTS := $(addprefix $(BUILD_DIR)/zhenzhu/, $(notdir $(SOURCES:.c=.o)))
+OBJECTS := $(addprefix $(BUILD_DIR)/mochivm/, $(notdir $(SOURCES:.c=.o)))
 LIBS := -luv_a -pthread -Wl,--no-as-needed -ldl
 
 # Targets ---------------------------------------------------------------------
 
 # Link the interpreter.
-build/zhenzhu: $(OBJECTS)
+build/mochivm: $(OBJECTS)
 	@ printf "%8s %-40s %s %s\n" $(CC) $@ "$(CFLAGS)" "$(LIBS)"
 	@ mkdir -p build
 	@ $(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
 # Compile object files.
-$(BUILD_DIR)/zhenzhu/%.o: src/%.c $(HEADERS)
+$(BUILD_DIR)/mochivm/%.o: src/%.c $(HEADERS)
 	@ printf "%8s %-40s %s\n" $(CC) $< "$(CFLAGS)"
-	@ mkdir -p $(BUILD_DIR)/zhenzhu
+	@ mkdir -p $(BUILD_DIR)/mochivm
 	@ $(CC) -c $(C_LANG) $(CFLAGS) -o $@ $<
 
 .PHONY: default
