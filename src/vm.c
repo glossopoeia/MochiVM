@@ -406,6 +406,38 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
             ip = frame->afterLocation;
             DISPATCH();
         }
+        CASE_CODE(CLOSURE): {
+            ASSERT(false, "CLOSRUE not yet implemented.");
+            DISPATCH();
+        }
+        CASE_CODE(RECURSIVE): {
+            ASSERT(false, "RECURSIVE not yet implemented.");
+            DISPATCH();
+        }
+        CASE_CODE(MUTUAL): {
+            ASSERT(false, "MUTUAL not yet implemented.");
+        }
+        CASE_CODE(ACTION): {
+            ASSERT(false, "ACTION not yet implemented");
+        }
+        CASE_CODE(HANDLE): {
+            ASSERT(false, "HANDLE not yet implemented.");
+        }
+        CASE_CODE(COMPLETE): {
+            ASSERT(false, "COMPLETE not yet implemented.");
+        }
+        CASE_CODE(ESCAPE): {
+            ASSERT(false, "ESCAPE not yet implemented.");
+        }
+        CASE_CODE(REACT): {
+            ASSERT(false, "REACT not yet implemented.");
+        }
+        CASE_CODE(CALL_CONTINUATION): {
+            ASSERT(false, "CALL_CONTINUATION not yet implemented.");
+        }
+        CASE_CODE(TAILCALL_CONTINUATION): {
+            ASSERT(false, "TAILCALL_CONTINUATION not yet implemented.");
+        }
     }
 
     UNREACHABLE();

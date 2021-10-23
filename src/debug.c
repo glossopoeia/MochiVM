@@ -2,6 +2,14 @@
 
 #include "debug.h"
 
+static short getShort(uint8_t* buffer, int offset) {
+    return (buffer[offset] << 8) | buffer[offset+1];
+}
+
+static int getInt(uint8_t* buffer, int offset) {
+    return (buffer[offset] << 24) | (buffer[offset+1] << 16) | (buffer[offset+2] << 8) | buffer[offset+3];
+}
+
 // Easy function to print out 1-byte instructions and return the new offset.
 static int simpleInstruction(const char * name, int offset) {
     printf("%s\n", name);
@@ -15,8 +23,14 @@ static int byteArgInstruction(const char* name, ZZVM* vm, int offset) {
 
 static int shortArgInstruction(const char* name, ZZVM* vm, int offset) {
     uint8_t* code = vm->block->code.data;
-    printf("%-16s %d\n", name, (code[offset+1] << 8) | code[offset+2]);
+    printf("%-16s %d\n", name, getShort(code, offset+1));
     return offset + 3;
+}
+
+static int intArgInstruction(const char* name, ZZVM* vm, int offset) {
+    uint8_t* code = vm->block->code.data;
+    printf("%-16s %d\n", name, getInt(code, offset+1));
+    return offset + 5;
 }
 
 static int constantInstruction(const char * name, ZZVM* vm, int offset) {
@@ -25,6 +39,12 @@ static int constantInstruction(const char * name, ZZVM* vm, int offset) {
     printValue(vm->block->constants.data[constant]);
     printf("'\n");
     return offset + 2;
+}
+
+static int closureInstruction(const char* name, ZZVM* vm, int offset) {
+    uint8_t* code = vm->block->code.data;
+    printf("%-16s %8d %3d\n", name, getInt(code, offset+1), code[offset+5]);
+    return offset + 6;
 }
 
 void disassembleChunk(ZZVM* vm, const char * name) {
@@ -86,13 +106,48 @@ int disassembleInstruction(ZZVM* vm, int offset) {
         case CODE_CALL_FOREIGN:
             return shortArgInstruction("CALL_FOREIGN", vm, offset);
         case CODE_CALL:
-            return shortArgInstruction("CALL", vm, offset);
+            return intArgInstruction("CALL", vm, offset);
         case CODE_TAILCALL:
-            return shortArgInstruction("TAILCALL", vm, offset);
+            return intArgInstruction("TAILCALL", vm, offset);
         case CODE_OFFSET:
-            return shortArgInstruction("OFFSET", vm, offset);
+            return intArgInstruction("OFFSET", vm, offset);
         case CODE_RETURN:
             return simpleInstruction("RETURN", offset);
+        case CODE_CLOSURE:
+            return closureInstruction("CLOSURE", vm, offset);
+        case CODE_RECURSIVE:
+            return closureInstruction("RECURSIVE", vm, offset);
+        case CODE_MUTUAL:
+            return intArgInstruction("MUTUAL", vm, offset);
+        case CODE_ACTION: {
+            uint8_t* code = vm->block->code.data;
+            int body = getInt(code, offset+1);
+            uint8_t args = code[offset+5];
+            uint8_t closed = code[offset+6];
+            printf("%-16s %8d %3d %3d\n", "ACTION", body, args, closed);
+            return offset + 7;
+        }
+        case CODE_HANDLE: {
+            uint8_t* code = vm->block->code.data;
+            int body = getInt(code, offset+1);
+            uint8_t args = code[offset+5];
+            printf("%-16s %8d %3d < ", "HANDLE", body, args);
+            for (int i = 0; i < code[offset+6]; i++) {
+                printf("%4d ", getInt(code, offset + 7 + i*4));
+            }
+            printf(">\n");
+            return offset + 7 + code[offset+6] * 4;
+        }
+        case CODE_COMPLETE:
+            return simpleInstruction("COMPLETE", offset);
+        case CODE_ESCAPE:
+            return intArgInstruction("ESCAPE", vm, offset);
+        case CODE_REACT:
+            return intArgInstruction("REACT", vm, offset);
+        case CODE_CALL_CONTINUATION:
+            return simpleInstruction("CALL_CONTINUATION", offset);
+        case CODE_TAILCALL_CONTINUATION:
+            return simpleInstruction("TAILCALL_CONTINUATION", offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;
