@@ -20,24 +20,24 @@ static int simpleInstruction(const char * name, int offset) {
     return offset + 1;
 }
 
-static int byteArgInstruction(const char* name, ZZVM* vm, int offset) {
+static int byteArgInstruction(const char* name, MochiVM* vm, int offset) {
     printf("%-16s %d\n", name, vm->block->code.data[offset + 1]);
     return offset + 2;
 }
 
-static int shortArgInstruction(const char* name, ZZVM* vm, int offset) {
+static int shortArgInstruction(const char* name, MochiVM* vm, int offset) {
     uint8_t* code = vm->block->code.data;
     printf("%-16s %d\n", name, getShort(code, offset+1));
     return offset + 3;
 }
 
-static int intArgInstruction(const char* name, ZZVM* vm, int offset) {
+static int intArgInstruction(const char* name, MochiVM* vm, int offset) {
     uint8_t* code = vm->block->code.data;
     printf("%-16s %d\n", name, getInt(code, offset+1));
     return offset + 5;
 }
 
-static int constantInstruction(const char * name, ZZVM* vm, int offset) {
+static int constantInstruction(const char * name, MochiVM* vm, int offset) {
     uint8_t constant = vm->block->code.data[offset + 1];
     printf("%-16s %4d '", name, constant);
     printValue(vm->block->constants.data[constant]);
@@ -45,7 +45,7 @@ static int constantInstruction(const char * name, ZZVM* vm, int offset) {
     return offset + 2;
 }
 
-static int closureInstruction(const char* name, ZZVM* vm, int offset) {
+static int closureInstruction(const char* name, MochiVM* vm, int offset) {
     uint8_t* code = vm->block->code.data;
     uint16_t captureCount = getUShort(code, offset+6);
     printf("%-16s %8d %3d %5d ( ", name, getInt(code, offset+1), code[offset+5], getShort(code, offset+6));
@@ -56,7 +56,7 @@ static int closureInstruction(const char* name, ZZVM* vm, int offset) {
     return offset + captureCount + 2 + captureCount * 4;
 }
 
-void disassembleChunk(ZZVM* vm, const char * name) {
+void disassembleChunk(MochiVM* vm, const char * name) {
     printf("== %s ==\n", name);
 
     for (int offset = 0; offset < vm->block->code.count;) {
@@ -65,7 +65,7 @@ void disassembleChunk(ZZVM* vm, const char * name) {
     }
 }
 
-int disassembleInstruction(ZZVM* vm, int offset) {
+int disassembleInstruction(MochiVM* vm, int offset) {
     ASSERT(offset < vm->block->lines.count, "No line at the specified offset!");
     ASSERT(offset < vm->block->code.count, "No instruction at the specified offset!");
 

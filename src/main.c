@@ -13,7 +13,7 @@
         printf(header); \
         printf("\n"); \
         printf("=============================\n"); \
-        vm = zzNewVM(NULL);     \
+        vm = mochiNewVM(NULL);     \
         assertNumber = 0;       \
         assertString = NULL;    \
         assertStack = -1;       \
@@ -23,8 +23,8 @@
 #define END_TEST() \
     do { \
         disassembleChunk(vm, "test chunk"); \
-        ObjFiber* fiber = zzNewFiber(vm, vm->block->code.data, NULL, 0); \
-        zzInterpret(vm, fiber); \
+        ObjFiber* fiber = mochiNewFiber(vm, vm->block->code.data, NULL, 0); \
+        mochiInterpret(vm, fiber); \
         if (assertStack >= 0) { \
             ASSERT(assertStack == fiber->valueStackTop - fiber->valueStack, "TEST FAILED: Unexpected stack count"); \
         } \
@@ -37,7 +37,7 @@
         if (assertNumber != 0) { \
             printf("TODO: Number verify unimplemented\n"); \
         } \
-        zzFreeVM(vm); \
+        mochiFreeVM(vm); \
         printf("TEST PASSED\n"); \
     } while (false);
 
@@ -50,9 +50,9 @@
 #define VERIFY_STRING(str)          assertString = str;
 
 int main(int argc, const char * argv[]) {
-    printf("Zhenzhu VM is under development... watch for bugs!\n");
+    printf("MochiVM is under development... watch for bugs!\n");
 
-    ZZVM* vm = NULL;
+    MochiVM* vm = NULL;
     double assertNumber = 0;
     char* assertString = NULL;
     int assertStack = -1;
@@ -61,11 +61,11 @@ int main(int argc, const char * argv[]) {
     #include "test_numerics.h"
     #include "test_strings.h"
     #include "test_frames.h"
-#if ZHENZHU_BATTERY_UV
+#if MOCHIVM_BATTERY_UV
     //#include "test_foreign.h"
 #endif
 
-#if ZHENZHU_BATTERY_UV
+#if MOCHIVM_BATTERY_UV
     printf("Terminating LibUV default loop.\n");
     uv_loop_close(uv_default_loop());
 #endif

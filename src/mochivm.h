@@ -1,41 +1,41 @@
-#ifndef zhenzhu_h
-#define zhenzhu_h
+#ifndef mochivm_h
+#define mochivm_h
 
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
-// The Zhenzhu semantic version number components.
-#define ZHENZHU_VERSION_MAJOR 0
-#define ZHENZHU_VERSION_MINOR 1
-#define ZHENZHU_VERSION_PATCH 0
+// The MochiVM semantic version number components.
+#define MOCHIVM_VERSION_MAJOR 0
+#define MOCHIVM_VERSION_MINOR 1
+#define MOCHIVM_VERSION_PATCH 0
 
 // A human-friendly string representation of the version.
-#define ZHENZHU_VERSION_STRING "0.1.0"
+#define MOCHIVM_VERSION_STRING "0.1.0"
 
 // A monotonically increasing numeric representation of the version number. Use
 // this if you want to do range checks over versions.
-#define ZHENZHU_VERSION_NUMBER (ZHENZHU_VERSION_MAJOR * 1000000 +                    \
-                                ZHENZHU_VERSION_MINOR * 1000 +                       \
-                                ZHENZHU_VERSION_PATCH)
+#define MOCHIVM_VERSION_NUMBER (MOCHIVM_VERSION_MAJOR * 1000000 +                    \
+                                MOCHIVM_VERSION_MINOR * 1000 +                       \
+                                MOCHIVM_VERSION_PATCH)
 
-#ifndef ZHENZHU_API
-  #if defined(_MSC_VER) && defined(ZHENZHU_API_DLLEXPORT)
-    #define ZHENZHU_API __declspec( dllexport )
+#ifndef MOCHIVM_API
+  #if defined(_MSC_VER) && defined(MOCHIVM_API_DLLEXPORT)
+    #define MOCHIVM_API __declspec( dllexport )
   #else
-    #define ZHENZHU_API
+    #define MOCHIVM_API
   #endif
 #endif
 
-// A single virtual machine for executing Zhenzhu byte code.
+// A single virtual machine for executing MochiVM byte code.
 //
-// Zhenzhu has no global state, so all state stored by a running interpreter lives
+// MochiVM has no global state, so all state stored by a running interpreter lives
 // here.
-typedef struct ZZVM ZZVM;
+typedef struct MochiVM MochiVM;
 typedef struct ObjFiber ObjFiber;
 
 // A generic allocation function that handles all explicit memory management
-// used by Zhenzhu. It's used like so:
+// used by MochiVM. It's used like so:
 //
 // - To allocate new memory, [memory] is NULL and [newSize] is the desired
 //   size. It should return the allocated memory or NULL on failure.
@@ -49,11 +49,11 @@ typedef struct ObjFiber ObjFiber;
 //
 // - To free memory, [memory] will be the memory to free and [newSize] will be
 //   zero. It should return NULL.
-typedef void* (*ZhenzhuReallocateFn)(void* memory, size_t newSize, void* userData);
+typedef void* (*MochiVMReallocateFn)(void* memory, size_t newSize, void* userData);
 
-// A function callable from Zhenzhu code, but implemented in C. Passes in the fiber
+// A function callable from MochiVM code, but implemented in C. Passes in the fiber
 // the function was called from.
-typedef void (*ZhenzhuForeignMethodFn)(ZZVM* vm, ObjFiber* fiber);
+typedef void (*MochiVMForeignMethodFn)(MochiVM* vm, ObjFiber* fiber);
 
 // Reports an error to the user.
 //
@@ -61,20 +61,20 @@ typedef void (*ZhenzhuForeignMethodFn)(ZZVM* vm, ObjFiber* fiber);
 // [message]. After that, a series of calls are made for each line in the stack trace. Each of those has the resolved
 // [module] and [line] where the method or function is defined and [message] is
 // the name of the method or function.
-typedef void (*ZhenzhuErrorFn)(ZZVM* vm, const char* module, int line, const char* message);
+typedef void (*MochiVMErrorFn)(MochiVM* vm, const char* module, int line, const char* message);
 
 typedef struct {
-    // The callback Zhenzhu will use to allocate, reallocate, and deallocate memory.
+    // The callback MochiVM will use to allocate, reallocate, and deallocate memory.
     //
     // If `NULL`, defaults to a built-in function that uses `realloc` and `free`.
-    ZhenzhuReallocateFn reallocateFn;
+    MochiVMReallocateFn reallocateFn;
 
-    // The callback Zhenzhu uses to report errors.
+    // The callback MochiVM uses to report errors.
     //
     // When an error occurs, this will be called with the module name, line
-    // number, and an error message. If this is `NULL`, Zhenzhu doesn't report any
+    // number, and an error message. If this is `NULL`, MochiVM doesn't report any
     // errors.
-    ZhenzhuErrorFn errorFn;
+    MochiVMErrorFn errorFn;
 
     // The maximum number of values the VM will allow in a fiber's value stack.
     // If zero, defaults to 128.
@@ -84,14 +84,14 @@ typedef struct {
     // If zero, defaults to 512.
     int frameStackCapacity;
 
-    // The number of bytes Zhenzhu will allocate before triggering the first garbage
+    // The number of bytes MochiVM will allocate before triggering the first garbage
     // collection.
     //
     // If zero, defaults to 10MB.
     size_t initialHeapSize;
 
     // After a collection occurs, the threshold for the next collection is
-    // determined based on the number of bytes remaining in use. This allows Zhenzhu
+    // determined based on the number of bytes remaining in use. This allows MochiVM
     // to shrink its memory usage automatically after reclaiming a large amount
     // of memory.
     //
@@ -102,9 +102,9 @@ typedef struct {
     // If zero, defaults to 1MB.
     size_t minHeapSize;
 
-    // Zhenzhu will resize the heap automatically as the number of bytes
+    // MochiVM will resize the heap automatically as the number of bytes
     // remaining in use after a collection changes. This number determines the
-    // amount of additional memory Zhenzhu will use after a collection, as a
+    // amount of additional memory MochiVM will use after a collection, as a
     // percentage of the current heap size.
     //
     // For example, say that this is 50. After a garbage collection, when there
@@ -121,42 +121,42 @@ typedef struct {
     // User-defined data associated with the VM.
     void* userData;
 
-} ZhenzhuConfiguration;
+} MochiVMConfiguration;
 
 typedef enum
 {
-    ZHENZHU_RESULT_SUCCESS,
-    ZHENZHU_RESULT_RUNTIME_ERROR
-} ZhenzhuInterpretResult;
+    MOCHIVM_RESULT_SUCCESS,
+    MOCHIVM_RESULT_RUNTIME_ERROR
+} MochiVMInterpretResult;
 
-// Get the current Zhenzhu version number.
+// Get the current MochiVM version number.
 //
 // Can be used to range checks over versions.
-ZHENZHU_API int zzGetVersionNumber();
+MOCHIVM_API int mochiGetVersionNumber();
 
 // Initializes [configuration] with all of its default values.
 //
 // Call this before setting the particular fields you care about.
-ZHENZHU_API void zzInitConfiguration(ZhenzhuConfiguration* configuration);
+MOCHIVM_API void mochiInitConfiguration(MochiVMConfiguration* configuration);
 
-// Creates a new Zhenzhu virtual machine using the given [configuration]. Zhenzhu
+// Creates a new MochiVM virtual machine using the given [configuration]. MochiVM
 // will copy the configuration data, so the argument passed to this can be
 // freed after calling this. If [configuration] is `NULL`, uses a default
 // configuration.
-ZHENZHU_API ZZVM* zzNewVM(ZhenzhuConfiguration* configuration);
+MOCHIVM_API MochiVM* mochiNewVM(MochiVMConfiguration* configuration);
 
 // Disposes of all resources is use by [vm], which was previously created by a
-// call to [zzNewVM].
-ZHENZHU_API void zzFreeVM(ZZVM* vm);
+// call to [mochiNewVM].
+MOCHIVM_API void mochiFreeVM(MochiVM* vm);
 
 // Immediately run the garbage collector to free unused memory.
-ZHENZHU_API void zzCollectGarbage(ZZVM* vm);
+MOCHIVM_API void mochiCollectGarbage(MochiVM* vm);
 
 // Runs a fiber as the root in the context of the given VM.
-ZHENZHU_API ZhenzhuInterpretResult zzInterpret(ZZVM* vm, ObjFiber* fiber);
+MOCHIVM_API MochiVMInterpretResult mochiInterpret(MochiVM* vm, ObjFiber* fiber);
 
 // Add a foreign C function to the list of callable foreign methods, returning
 // the index assigned to the foreign method.
-ZHENZHU_API int zzAddForeign(ZZVM* vm, ZhenzhuForeignMethodFn fn);
+MOCHIVM_API int mochiAddForeign(MochiVM* vm, MochiVMForeignMethodFn fn);
 
 #endif

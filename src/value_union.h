@@ -1,5 +1,5 @@
-#ifndef zhenzhu_value_ptr_union_h
-#define zhenzhu_value_ptr_union_h
+#ifndef mochivm_value_ptr_union_h
+#define mochivm_value_ptr_union_h
 
 typedef struct {
     bool isHeap;
@@ -23,12 +23,12 @@ typedef struct {
 #define AS_OBJ(v) ((v).as.obj)
 
 // Interprets [value] as a [double].
-static inline double zzValueToNum(Value value) {
+static inline double mochiValueToNum(Value value) {
     return value.as.number;
 }
 
 // Converts [num] to a [Value].
-static inline Value zzNumToValue(double num) {
+static inline Value mochiNumToValue(double num) {
     Value value;
     value.isHeap = false;
     value.as.number = num;
@@ -36,7 +36,7 @@ static inline Value zzNumToValue(double num) {
 }
 
 // Converts the raw object pointer [obj] to a [Value].
-static inline Value zzObjectToValue(Obj* obj) {
+static inline Value mochiObjectToValue(Obj* obj) {
     Value value;
     value.isHeap = true;
     value.as.obj = obj;

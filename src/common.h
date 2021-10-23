@@ -1,5 +1,5 @@
-#ifndef zhenzhu_common_h
-#define zhenzhu_common_h
+#ifndef mochivm_common_h
+#define mochivm_common_h
 
 // Significant portions of this header are taken from the Wren project, including
 // the well-worded comments. See here: https://github.com/wren-lang/wren
@@ -36,8 +36,8 @@
 // However, this may be less portable in the future, so we also make
 // available a version that uses standard C tagged unions. Pointer
 // tagging defaults to on for efficiency on common hardware.
-#ifndef ZHENZHU_POINTER_TAGGING
-    #define ZHENZHU_POINTER_TAGGING 0
+#ifndef MOCHIVM_POINTER_TAGGING
+    #define MOCHIVM_POINTER_TAGGING 0
 #endif
 
 // We also make available a representation for NaN tagging/boxing,
@@ -45,11 +45,11 @@
 // scenarios. For example, an application that uses lots of floating
 // point arithmetic could benefit from NaN tagging instead of pointer
 // tagging.
-#ifndef ZHENZHU_NAN_TAGGING
-    #define ZHENZHU_NAN_TAGGING 1
+#ifndef MOCHIVM_NAN_TAGGING
+    #define MOCHIVM_NAN_TAGGING 1
 #endif
 
-#if ZHENZHU_POINTER_TAGGING == 1 && ZHENZHU_NAN_TAGGING == 1
+#if MOCHIVM_POINTER_TAGGING == 1 && MOCHIVM_NAN_TAGGING == 1
     #error Pointer tagging and NaN tagging cannot both be enabled.
 #endif
 
@@ -59,43 +59,43 @@
 // support.
 // see https://bullno1.com/blog/switched-goto for alternative
 // Defaults to true on supported compilers.
-#ifndef ZHENZHU_COMPUTED_GOTO
+#ifndef MOCHIVM_COMPUTED_GOTO
     #if defined(_MSC_VER) && !defined(__clang__)
         // No computed gotos in Visual Studio.
-        #define ZHENZHU_COMPUTED_GOTO 0
+        #define MOCHIVM_COMPUTED_GOTO 0
     #else
-        #define ZHENZHU_COMPUTED_GOTO 1
+        #define MOCHIVM_COMPUTED_GOTO 1
     #endif
 #endif
 
 // The VM includes a number of optional 'batteries'. You can choose to include
 // these or not. By default, they are all available. To disable one, set the
-// corresponding `ZHENZHU_BATTERY_<name>` define to `0`.
-#ifndef ZHENZHU_BATTERY_UV
-    #define ZHENZHU_BATTERY_UV 1  // LibUV included by default to support concurrent system ops
+// corresponding `MOCHIVM_BATTERY_<name>` define to `0`.
+#ifndef MOCHIVM_BATTERY_UV
+    #define MOCHIVM_BATTERY_UV 1  // LibUV included by default to support concurrent system ops
 #endif
 
-#ifndef ZHENZHU_BATTERY_SDL
-    #define ZHENZHU_BATTERY_SDL 0   // SDL2 included by default for windowing, graphics, audio, input, etc.
+#ifndef MOCHIVM_BATTERY_SDL
+    #define MOCHIVM_BATTERY_SDL 0   // SDL2 included by default for windowing, graphics, audio, input, etc.
 #endif
 
 // These flags are useful for debugging and hacking on Zhenzhu itself. They are not
 // intended to be used for production code. They default to off.
 
 // Run garbage collection before every allocation.
-#define ZHENZHU_DEBUG_GC_STRESS 1
+#define MOCHIVM_DEBUG_GC_STRESS 1
 
 // Log all memory operations.
-#define ZHENZHU_DEBUG_TRACE_MEMORY 1
+#define MOCHIVM_DEBUG_TRACE_MEMORY 1
 
 // Log all garbage collections.
-#define ZHENZHU_DEBUG_TRACE_GC 1
+#define MOCHIVM_DEBUG_TRACE_GC 1
 
 // Display all the input bytecode before beginning execution.
-#define ZHENZHU_DEBUG_DUMP_BYTECODE 1
+#define MOCHIVM_DEBUG_DUMP_BYTECODE 1
 
 // Log VM state and current instruction before every executed instruction.
-#define ZHENZHU_DEBUG_TRACE_EXECUTION 1
+#define MOCHIVM_DEBUG_TRACE_EXECUTION 1
 
 // We need buffers of a few different types. To avoid lots of casting between
 // void* and back, we'll use the preprocessor as a poor man's generics and let
@@ -107,34 +107,34 @@
         int count;                                                             \
         int capacity;                                                          \
     } name##Buffer;                                                            \
-    void zz##name##BufferInit(name##Buffer* buffer);                           \
-    void zz##name##BufferClear(ZZVM* vm, name##Buffer* buffer);                \
-    void zz##name##BufferFill(ZZVM* vm, name##Buffer* buffer, type data,       \
+    void mochi##name##BufferInit(name##Buffer* buffer);                           \
+    void mochi##name##BufferClear(MochiVM* vm, name##Buffer* buffer);                \
+    void mochi##name##BufferFill(MochiVM* vm, name##Buffer* buffer, type data,       \
                                 int count);                                    \
-    void zz##name##BufferWrite(ZZVM* vm, name##Buffer* buffer, type data)
+    void mochi##name##BufferWrite(MochiVM* vm, name##Buffer* buffer, type data)
 
 // This should be used once for each type instantiation, somewhere in a .c file.
 #define DEFINE_BUFFER(name, type)                                              \
-    void zz##name##BufferInit(name##Buffer* buffer)                            \
+    void mochi##name##BufferInit(name##Buffer* buffer)                            \
     {                                                                          \
       buffer->data = NULL;                                                     \
       buffer->capacity = 0;                                                    \
       buffer->count = 0;                                                       \
     }                                                                          \
                                                                                \
-    void zz##name##BufferClear(ZZVM* vm, name##Buffer* buffer)                 \
+    void mochi##name##BufferClear(MochiVM* vm, name##Buffer* buffer)                 \
     {                                                                          \
-      zzReallocate(vm, buffer->data, 0, 0);                                    \
-      zz##name##BufferInit(buffer);                                            \
+      mochiReallocate(vm, buffer->data, 0, 0);                                    \
+      mochi##name##BufferInit(buffer);                                            \
     }                                                                          \
                                                                                \
-    void zz##name##BufferFill(ZZVM* vm, name##Buffer* buffer, type data,       \
+    void mochi##name##BufferFill(MochiVM* vm, name##Buffer* buffer, type data,       \
                                 int count)                                     \
     {                                                                          \
       if (buffer->capacity < buffer->count + count)                            \
       {                                                                        \
-        int capacity = zzPowerOf2Ceil(buffer->count + count);                  \
-        buffer->data = (type*)zzReallocate(vm, buffer->data,                   \
+        int capacity = mochiPowerOf2Ceil(buffer->count + count);                  \
+        buffer->data = (type*)mochiReallocate(vm, buffer->data,                   \
             buffer->capacity * sizeof(type), capacity * sizeof(type));         \
         buffer->capacity = capacity;                                           \
       }                                                                        \
@@ -145,9 +145,9 @@
       }                                                                        \
     }                                                                          \
                                                                                \
-    void zz##name##BufferWrite(ZZVM* vm, name##Buffer* buffer, type data)      \
+    void mochi##name##BufferWrite(MochiVM* vm, name##Buffer* buffer, type data)      \
     {                                                                          \
-      zz##name##BufferFill(vm, buffer, data, 1);                               \
+      mochi##name##BufferFill(vm, buffer, data, 1);                               \
     }
 
 // Assertions are used to validate program invariants. They indicate things the

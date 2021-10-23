@@ -1,16 +1,16 @@
-#ifndef zhenzhu_value_h
-#define zhenzhu_value_h
+#ifndef mochivm_value_h
+#define mochivm_value_h
 
 #include "common.h"
-#include "zhenzhu.h"
+#include "mochivm.h"
 
 #define OBJ_TYPE(value)        (AS_OBJ(value)->type)
 
 // These macros promote a primitive C value to a full Zhenzhu Value. There are
 // more defined below that are specific to the various Value representations.
 #define BOOL_VAL(boolean)   ((boolean) ? TRUE_VAL : FALSE_VAL)
-#define NUMBER_VAL(num)     (zzNumToValue(num))
-#define OBJ_VAL(obj)        (zzObjectToValue((Obj*)(obj)))
+#define NUMBER_VAL(num)     (mochiNumToValue(num))
+#define OBJ_VAL(obj)        (mochiObjectToValue((Obj*)(obj)))
 
 #define IS_FIBER(value)        isObjType(value, OBJ_FIBER)
 #define IS_VAR_FRAME(value)    isObjType(value, OBJ_VAR_FRAME)
@@ -32,7 +32,7 @@
 #define AS_FIBER(v)             ((ObjFiber*)AS_OBJ(v))
 #define AS_POINTER(v)           ((ObjCPointer*)AS_OBJ(v))
 #define AS_FOREIGN(v)           ((ObjForeign*)AS_OBJ(v))
-#define AS_NUMBER(value)        (zzValueToNum(value))
+#define AS_NUMBER(value)        (mochiValueToNum(value))
 #define AS_STRING(v)            ((ObjString*)AS_OBJ(v))
 #define AS_CSTRING(v)           (AS_STRING(v)->chars)
 
@@ -61,11 +61,11 @@ struct Obj {
     struct Obj* next;
 };
 
-#if ZHENZHU_POINTER_TAGGING
+#if MOCHIVM_POINTER_TAGGING
 
 #include "value_ptr_tagged.h"
 
-#elif ZHENZHU_NAN_TAGGING
+#elif MOCHIVM_NAN_TAGGING
 
 #include "value_nan_tagged.h"
 
@@ -171,28 +171,28 @@ static inline bool isObjType(Value value, ObjType type) {
 }
 
 // Creates a new fiber object with the values from the given initial stack.
-ObjFiber* zzNewFiber(ZZVM* vm, uint8_t* first, Value* initialStack, int initialStackCount);
-void zzFiberPushValue(ObjFiber* fiber, Value v);
-Value zzFiberPopValue(ObjFiber* fiber);
+ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int initialStackCount);
+void mochiFiberPushValue(ObjFiber* fiber, Value v);
+Value mochiFiberPopValue(ObjFiber* fiber);
 
-ObjClosure* zzNewClosure(ZZVM* vm, uint8_t* body, uint8_t paramCount, uint16_t capturedCount);
-void zzClosureCapture(ObjClosure* closure, int captureIndex, Value value);
+ObjClosure* mochiNewClosure(MochiVM* vm, uint8_t* body, uint8_t paramCount, uint16_t capturedCount);
+void mochiClosureCapture(ObjClosure* closure, int captureIndex, Value value);
 
-ObjCodeBlock* zzNewCodeBlock(ZZVM* vm);
+ObjCodeBlock* mochiNewCodeBlock(MochiVM* vm);
 
-ObjString* takeString(char* chars, int length, ZZVM* vm);
-ObjString* copyString(const char* chars, int length, ZZVM* vm);
+ObjString* takeString(char* chars, int length, MochiVM* vm);
+ObjString* copyString(const char* chars, int length, MochiVM* vm);
 
-ObjVarFrame* newVarFrame(Value* vars, int varCount, ZZVM* vm);
-ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, ZZVM* vm);
-ObjForeign* zzNewForeign(ZZVM* vm, size_t size);
+ObjVarFrame* newVarFrame(Value* vars, int varCount, MochiVM* vm);
+ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, MochiVM* vm);
+ObjForeign* mochiNewForeign(MochiVM* vm, size_t size);
 
-ObjCPointer* zzNewCPointer(ZZVM* vm, void* pointer);
+ObjCPointer* mochiNewCPointer(MochiVM* vm, void* pointer);
 
 // Logs a textual representation of the given value to the output
 void printValue(Value value);
 void printObject(Value object);
 
-void zzFreeObj(ZZVM* vm, Obj* object);
+void mochiFreeObj(MochiVM* vm, Obj* object);
 
 #endif

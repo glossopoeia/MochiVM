@@ -3,14 +3,14 @@
 
 #include "memory.h"
 
-void* zzReallocate(ZZVM* vm, void* memory, size_t oldSize, size_t newSize) {
+void* mochiReallocate(MochiVM* vm, void* memory, size_t oldSize, size_t newSize) {
     // If new bytes are being allocated, add them to the total count. If objects
     // are being completely deallocated, we don't track that (since we don't
     // track the original size). Instead, that will be handled while marking
     // during the next GC.
     size_t newHeapSize = vm->bytesAllocated + (newSize - oldSize);
 
-#if ZHENZHU_DEBUG_TRACE_MEMORY
+#if MOCHIVM_DEBUG_TRACE_MEMORY
     // Explicit cast because size_t has different sizes on 32-bit and 64-bit and
     // we need a consistent type for the format string.
     printf("reallocate %p %lu -> %lu, total %lu -> %lu\n",
@@ -19,26 +19,26 @@ void* zzReallocate(ZZVM* vm, void* memory, size_t oldSize, size_t newSize) {
 
     vm->bytesAllocated = newHeapSize;
 
-#if ZHENZHU_DEBUG_GC_STRESS
+#if MOCHIVM_DEBUG_GC_STRESS
     // Since collecting calls this function to free things, make sure we don't
     // recurse.
-    if (newSize > 0) zzCollectGarbage(vm);
+    if (newSize > 0) mochiCollectGarbage(vm);
 #else
-    if (newSize > 0 && newHeapSize > vm->nextGC) zzCollectGarbage(vm);
+    if (newSize > 0 && newHeapSize > vm->nextGC) mochiCollectGarbage(vm);
 #endif
 
     return vm->config.reallocateFn(memory, newSize, vm->config.userData);
 }
 
-void* zzConcat(ZZVM* vm, size_t elemSize, void* array1, void* array2, int array1Count, int array2Count) {
-    void* newArray = zzReallocate(vm, NULL, 0, elemSize * (array1Count + array2Count));
+void* mochiConcat(MochiVM* vm, size_t elemSize, void* array1, void* array2, int array1Count, int array2Count) {
+    void* newArray = mochiReallocate(vm, NULL, 0, elemSize * (array1Count + array2Count));
     memcpy(newArray, array1, elemSize * array1Count);
     memcpy(newArray + array1Count, array2, elemSize * array2Count);
     return newArray;
 }
 
 // From: http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2Float
-int zzPowerOf2Ceil(int n) {
+int mochiPowerOf2Ceil(int n) {
     n--;
     n |= n >> 1;
     n |= n >> 2;

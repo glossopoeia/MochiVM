@@ -1,5 +1,5 @@
-#ifndef zhenzhu_vm_h
-#define zhenzhu_vm_h
+#ifndef mochivm_vm_h
+#define mochivm_vm_h
 
 #include "value.h"
 
@@ -12,14 +12,14 @@ typedef enum
 
 // The maximum number of temporary objects that can be made visible to the GC
 // at one time.
-#define ZHENZHU_MAX_TEMP_ROOTS 8
+#define MOCHIVM_MAX_TEMP_ROOTS 8
 
-#define ZHENZHU_CALL_FRAME_MAX_SLOTS 65535
+#define MOCHIVM_CALL_FRAME_MAX_SLOTS 65535
 
-DECLARE_BUFFER(ForeignFunction, ZhenzhuForeignMethodFn);
+DECLARE_BUFFER(ForeignFunction, MochiVMForeignMethodFn);
 
-struct ZZVM {
-    ZhenzhuConfiguration config;
+struct MochiVM {
+    MochiVMConfiguration config;
 
     ObjCodeBlock* block;
     ObjFiber* fiber;
@@ -50,7 +50,7 @@ struct ZZVM {
     // They are organized as a stack of pointers stored in this array. This
     // implies that temporary roots need to have stack semantics: only the most
     // recently pushed object can be released.
-    Obj* tempRoots[ZHENZHU_MAX_TEMP_ROOTS];
+    Obj* tempRoots[MOCHIVM_MAX_TEMP_ROOTS];
 
     int numTempRoots;
 
@@ -58,30 +58,30 @@ struct ZZVM {
     ForeignFunctionBuffer foreignFns;
 };
 
-int addConstant(ZZVM* vm, Value value);
-void writeChunk(ZZVM* vm, uint8_t instr, int line);
+int addConstant(MochiVM* vm, Value value);
+void writeChunk(MochiVM* vm, uint8_t instr, int line);
 
 // Marks [obj] as a GC root so that it doesn't get collected.
-void zzPushRoot(ZZVM* vm, Obj* obj);
+void mochiPushRoot(MochiVM* vm, Obj* obj);
 
 // Removes the most recently pushed temporary root.
-void zzPopRoot(ZZVM* vm);
+void mochiPopRoot(MochiVM* vm);
 
 // Mark [obj] as reachable and still in use. This should only be called
 // during the sweep phase of a garbage collection.
-void zzGrayObj(ZZVM* vm, Obj* obj);
+void mochiGrayObj(MochiVM* vm, Obj* obj);
 
 // Mark [value] as reachable and still in use. This should only be called
 // during the sweep phase of a garbage collection.
-void zzGrayValue(ZZVM* vm, Value value);
+void mochiGrayValue(MochiVM* vm, Value value);
 
 // Mark the values in [buffer] as reachable and still in use. This should only
 // be called during the sweep phase of a garbage collection.
-void zzGrayBuffer(ZZVM* vm, ValueBuffer* buffer);
+void mochiGrayBuffer(MochiVM* vm, ValueBuffer* buffer);
 
 // Processes every object in the gray stack until all reachable objects have
 // been marked. After that, all objects are either white (freeable) or black
 // (in use and fully traversed).
-void zzBlackenObjects(ZZVM* vm);
+void mochiBlackenObjects(MochiVM* vm);
 
 #endif

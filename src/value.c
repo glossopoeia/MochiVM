@@ -13,7 +13,7 @@ DEFINE_BUFFER(Value, Value);
 #define ALLOCATE_FLEX_OBJ(vm, objectType, type, elemType, elemCount)  \
     (type*)allocateObject((vm), sizeof(type) + sizeof(elemType) * elemCount, (objectType))
 
-static void initObj(ZZVM* vm, Obj* obj, ObjType type) {
+static void initObj(MochiVM* vm, Obj* obj, ObjType type) {
     obj->type = type;
     obj->isMarked = false;
     // keep track of all allocated objects via the linked list in the vm
@@ -21,8 +21,8 @@ static void initObj(ZZVM* vm, Obj* obj, ObjType type) {
     vm->objects = obj;
 }
 
-static Obj* allocateObject(ZZVM* vm, size_t size, ObjType type) {
-    Obj* object = (Obj*)zzReallocate(vm, NULL, 0, size);
+static Obj* allocateObject(MochiVM* vm, size_t size, ObjType type) {
+    Obj* object = (Obj*)mochiReallocate(vm, NULL, 0, size);
     object->type = type;
     object->isMarked = false;
     // keep track of all allocated objects via the linked list in the vm
@@ -31,32 +31,32 @@ static Obj* allocateObject(ZZVM* vm, size_t size, ObjType type) {
     return object;
 }
 
-static ObjString* allocateString(char* chars, int length, ZZVM* vm) {
+static ObjString* allocateString(char* chars, int length, MochiVM* vm) {
     ObjString* string = ALLOCATE_OBJ(vm, ObjString, OBJ_STRING);
     string->length = length;
     string->chars = chars;
     return string;
 }
 
-ObjString* takeString(char* chars, int length, ZZVM* vm) {
+ObjString* takeString(char* chars, int length, MochiVM* vm) {
     return allocateString(chars, length, vm);
 }
 
-ObjString* copyString(const char* chars, int length, ZZVM* vm) {
+ObjString* copyString(const char* chars, int length, MochiVM* vm) {
     char* heapChars = ALLOCATE_ARRAY(vm, char, length + 1);
     memcpy(heapChars, chars, length);
     heapChars[length] = '\0';
     return allocateString(heapChars, length, vm);
 }
 
-ObjVarFrame* newVarFrame(Value* vars, int varCount, ZZVM* vm) {
+ObjVarFrame* newVarFrame(Value* vars, int varCount, MochiVM* vm) {
     ObjVarFrame* frame = ALLOCATE_OBJ(vm, ObjVarFrame, OBJ_VAR_FRAME);
     frame->slots = vars;
     frame->slotCount = varCount;
     return frame;
 }
 
-ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, ZZVM* vm) {
+ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, MochiVM* vm) {
     ObjCallFrame* frame = ALLOCATE_OBJ(vm, ObjCallFrame, OBJ_CALL_FRAME);
     frame->vars.slots = vars;
     frame->vars.slotCount = varCount;
@@ -64,7 +64,7 @@ ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, ZZ
     return frame;
 }
 
-ObjFiber* zzNewFiber(ZZVM* vm, uint8_t* first, Value* initialStack, int initialStackCount) {
+ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int initialStackCount) {
     // Allocate the arrays before the fiber in case it triggers a GC.
     Value* values = ALLOCATE_ARRAY(vm, Value, vm->config.valueStackCapacity);
     ObjVarFrame** frames = ALLOCATE_ARRAY(vm, ObjVarFrame*, vm->config.frameStackCapacity);
@@ -85,15 +85,15 @@ ObjFiber* zzNewFiber(ZZVM* vm, uint8_t* first, Value* initialStack, int initialS
     return fiber;
 }
 
-void zzFiberPushValue(ObjFiber* fiber, Value v) {
+void mochiFiberPushValue(ObjFiber* fiber, Value v) {
     *fiber->valueStackTop++ = v;
 }
 
-Value zzFiberPopValue(ObjFiber* fiber) {
+Value mochiFiberPopValue(ObjFiber* fiber) {
     return *(--fiber->valueStackTop);
 }
 
-ObjClosure* zzNewClosure(ZZVM* vm, uint8_t* body, uint8_t paramCount, uint16_t capturedCount) {
+ObjClosure* mochiNewClosure(MochiVM* vm, uint8_t* body, uint8_t paramCount, uint16_t capturedCount) {
     ObjClosure* closure = ALLOCATE_FLEX(vm, ObjClosure, Value, capturedCount);
     initObj(vm, (Obj*)closure, OBJ_CLOSURE);
     closure->funcLocation = body;
@@ -104,21 +104,21 @@ ObjClosure* zzNewClosure(ZZVM* vm, uint8_t* body, uint8_t paramCount, uint16_t c
     return closure;
 }
 
-void zzClosureCapture(ObjClosure* closure, int captureIndex, Value value) {
+void mochiClosureCapture(ObjClosure* closure, int captureIndex, Value value) {
     ASSERT(captureIndex < closure->capturedCount, "Closure capture index outside the bounds of the captured array");
     closure->captured[captureIndex] = value;
 }
 
-ObjCodeBlock* zzNewCodeBlock(ZZVM* vm) {
+ObjCodeBlock* mochiNewCodeBlock(MochiVM* vm) {
     ObjCodeBlock* block = ALLOCATE(vm, ObjCodeBlock);
     initObj(vm, (Obj*)block, OBJ_CODE_BLOCK);
-    zzValueBufferInit(&block->constants);
-    zzByteBufferInit(&block->code);
-    zzIntBufferInit(&block->lines);
+    mochiValueBufferInit(&block->constants);
+    mochiByteBufferInit(&block->code);
+    mochiIntBufferInit(&block->lines);
     return block;
 }
 
-ObjForeign* zzNewForeign(ZZVM* vm, size_t size) {
+ObjForeign* mochiNewForeign(MochiVM* vm, size_t size) {
     ObjForeign* object = ALLOCATE_FLEX(vm, ObjForeign, uint8_t, size);
     object->obj.type = OBJ_FOREIGN;
     object->obj.next = vm->objects;
@@ -129,19 +129,19 @@ ObjForeign* zzNewForeign(ZZVM* vm, size_t size) {
     return object;
 }
 
-ObjCPointer* zzNewCPointer(ZZVM* vm, void* pointer) {
+ObjCPointer* mochiNewCPointer(MochiVM* vm, void* pointer) {
     ObjCPointer* object = ALLOCATE_OBJ(vm, ObjCPointer, OBJ_C_POINTER);
     object->pointer = pointer;
     return object;
 }
 
-static void freeVarFrame(ZZVM* vm, ObjVarFrame* frame) {
+static void freeVarFrame(MochiVM* vm, ObjVarFrame* frame) {
     DEALLOCATE(vm, frame->slots);
 }
 
-void zzFreeObj(ZZVM* vm, Obj* object) {
+void mochiFreeObj(MochiVM* vm, Obj* object) {
 
-#if ZHENZHU_DEBUG_TRACE_MEMORY
+#if MOCHIVM_DEBUG_TRACE_MEMORY
     printf("free ");
     printValue(OBJ_VAL(object));
     printf(" @ %p\n", object);
@@ -150,9 +150,9 @@ void zzFreeObj(ZZVM* vm, Obj* object) {
     switch (object->type) {
         case OBJ_CODE_BLOCK: {
             ObjCodeBlock* block = (ObjCodeBlock*)object;
-            zzByteBufferClear(vm, &block->code);
-            zzValueBufferClear(vm, &block->constants);
-            zzIntBufferClear(vm, &block->lines);
+            mochiByteBufferClear(vm, &block->code);
+            mochiValueBufferClear(vm, &block->constants);
+            mochiIntBufferClear(vm, &block->lines);
             break;
         }
         case OBJ_STRING: {
@@ -249,7 +249,7 @@ void printObject(Value object) {
     }
 }
 
-void zzGrayObj(ZZVM* vm, Obj* obj) {
+void mochiGrayObj(MochiVM* vm, Obj* obj) {
     if (obj == NULL) return;
 
     // Stop if the object is already darkened so we don't get stuck in a cycle.
@@ -270,19 +270,19 @@ void zzGrayObj(ZZVM* vm, Obj* obj) {
     vm->gray[vm->grayCount++] = obj;
 }
 
-void zzGrayValue(ZZVM* vm, Value value) {
+void mochiGrayValue(MochiVM* vm, Value value) {
     if (!IS_OBJ(value)) return;
-    zzGrayObj(vm, AS_OBJ(value));
+    mochiGrayObj(vm, AS_OBJ(value));
 }
 
-void zzGrayBuffer(ZZVM* vm, ValueBuffer* buffer) {
+void mochiGrayBuffer(MochiVM* vm, ValueBuffer* buffer) {
     for (int i = 0; i < buffer->count; i++) {
-        zzGrayValue(vm, buffer->data[i]);
+        mochiGrayValue(vm, buffer->data[i]);
     }
 }
 
-static void markCodeBlock(ZZVM* vm, ObjCodeBlock* block) {
-    zzGrayBuffer(vm, &block->constants);
+static void markCodeBlock(MochiVM* vm, ObjCodeBlock* block) {
+    mochiGrayBuffer(vm, &block->constants);
 
     vm->bytesAllocated += sizeof(ObjCodeBlock);
     vm->bytesAllocated += sizeof(uint8_t) * block->code.capacity;
@@ -290,31 +290,31 @@ static void markCodeBlock(ZZVM* vm, ObjCodeBlock* block) {
     vm->bytesAllocated += sizeof(int) * block->lines.capacity;
 }
 
-static void markVarFrame(ZZVM* vm, ObjVarFrame* frame) {
+static void markVarFrame(MochiVM* vm, ObjVarFrame* frame) {
     for (int i = 0; i < frame->slotCount; i++) {
-        zzGrayValue(vm, frame->slots[i]);
+        mochiGrayValue(vm, frame->slots[i]);
     }
 
     vm->bytesAllocated += sizeof(ObjVarFrame);
     vm->bytesAllocated += sizeof(Value) * frame->slotCount;
 }
 
-static void markCallFrame(ZZVM* vm, ObjCallFrame* frame) {
+static void markCallFrame(MochiVM* vm, ObjCallFrame* frame) {
     for (int i = 0; i < frame->vars.slotCount; i++) {
-        zzGrayValue(vm, frame->vars.slots[i]);
+        mochiGrayValue(vm, frame->vars.slots[i]);
     }
 
     vm->bytesAllocated += sizeof(ObjCallFrame);
     vm->bytesAllocated += sizeof(Value) * frame->vars.slotCount;
 }
 
-static void markMarkFrame(ZZVM* vm, ObjMarkFrame* frame) {
+static void markMarkFrame(MochiVM* vm, ObjMarkFrame* frame) {
     for (int i = 0; i < frame->call.vars.slotCount; i++) {
-        zzGrayValue(vm, frame->call.vars.slots[i]);
+        mochiGrayValue(vm, frame->call.vars.slots[i]);
     }
 
     for (int i = 0; i < frame->operationCount; i++) {
-        zzGrayValue(vm, frame->operations[i]);
+        mochiGrayValue(vm, frame->operations[i]);
     }
 
     vm->bytesAllocated += sizeof(ObjMarkFrame);
@@ -322,21 +322,21 @@ static void markMarkFrame(ZZVM* vm, ObjMarkFrame* frame) {
     vm->bytesAllocated += sizeof(Value) * frame->operationCount;
 }
 
-static void markClosure(ZZVM* vm, ObjClosure* closure) {
+static void markClosure(MochiVM* vm, ObjClosure* closure) {
     for (int i = 0; i < closure->capturedCount; i++) {
-        zzGrayValue(vm, closure->captured[i]);
+        mochiGrayValue(vm, closure->captured[i]);
     }
 
     vm->bytesAllocated += sizeof(ObjClosure);
     vm->bytesAllocated += sizeof(Value) * closure->capturedCount;
 }
 
-static void markContinuation(ZZVM* vm, ObjContinuation* cont) {
+static void markContinuation(MochiVM* vm, ObjContinuation* cont) {
     for (int i = 0; i < cont->savedStackCount; i++) {
-        zzGrayValue(vm, cont->savedStack[i]);
+        mochiGrayValue(vm, cont->savedStack[i]);
     }
     for (int i = 0; i < cont->savedFramesCount; i++) {
-        zzGrayObj(vm, (Obj*)cont->savedFrames[i]);
+        mochiGrayObj(vm, (Obj*)cont->savedFrames[i]);
     }
 
     vm->bytesAllocated += sizeof(ObjContinuation);
@@ -344,39 +344,39 @@ static void markContinuation(ZZVM* vm, ObjContinuation* cont) {
     vm->bytesAllocated += sizeof(ObjVarFrame*) * cont->savedFramesCount;
 }
 
-static void markFiber(ZZVM* vm, ObjFiber* fiber) {
+static void markFiber(MochiVM* vm, ObjFiber* fiber) {
     // Stack variables.
     for (Value* slot = fiber->valueStack; slot < fiber->valueStackTop; slot++) {
-        zzGrayValue(vm, *slot);
+        mochiGrayValue(vm, *slot);
     }
 
     // Call stack frames.
     for (ObjVarFrame** slot = fiber->frameStack; slot < fiber->frameStackTop; slot++) {
-        zzGrayObj(vm, (Obj*)*slot);
+        mochiGrayObj(vm, (Obj*)*slot);
     }
 
     // The caller.
-    zzGrayObj(vm, (Obj*)fiber->caller);
+    mochiGrayObj(vm, (Obj*)fiber->caller);
 
     vm->bytesAllocated += sizeof(ObjFiber);
     vm->bytesAllocated += vm->config.frameStackCapacity * sizeof(ObjVarFrame*);
     vm->bytesAllocated += vm->config.valueStackCapacity * sizeof(Value);
 }
 
-static void markString(ZZVM* vm, ObjString* string) {
+static void markString(MochiVM* vm, ObjString* string) {
     vm->bytesAllocated += sizeof(ObjString) + string->length + 1;
 }
 
-static void markForeign(ZZVM* vm, ObjForeign* foreign) {
+static void markForeign(MochiVM* vm, ObjForeign* foreign) {
     vm->bytesAllocated += sizeof(Obj) + sizeof(int);
     vm->bytesAllocated += sizeof(uint8_t) * foreign->dataCount;
 }
 
-static void markCPointer(ZZVM* vm, ObjCPointer* ptr) {
+static void markCPointer(MochiVM* vm, ObjCPointer* ptr) {
     vm->bytesAllocated += sizeof(ObjCPointer);
 }
 
-static void blackenObject(ZZVM* vm, Obj* obj)
+static void blackenObject(MochiVM* vm, Obj* obj)
 {
 #if ZHEnZHU_DEBUG_TRACE_MEMORY
     printf("mark ");
@@ -400,7 +400,7 @@ static void blackenObject(ZZVM* vm, Obj* obj)
     }
 }
 
-void zzBlackenObjects(ZZVM* vm) {
+void mochiBlackenObjects(MochiVM* vm) {
     while (vm->grayCount > 0) {
         // Pop an item from the gray stack.
         Obj* obj = vm->gray[--vm->grayCount];

@@ -1,5 +1,5 @@
-#ifndef zhenzhu_value_ptr_tagged_h
-#define zhenzhu_value_ptr_tagged_h
+#ifndef mochivm_value_ptr_tagged_h
+#define mochivm_value_ptr_tagged_h
 
 typedef uint64_t Value;
 
@@ -17,19 +17,19 @@ typedef uint64_t Value;
 #define AS_OBJ(value)   ((Obj*)(uintptr_t)((value) & PTR_MASK))
 
 // Interprets [value] as a [double].
-static inline double zzValueToNum(Value value) {
-    ASSERT(false, "zzValueToNum not yet implemented for pointer tagging.");
+static inline double mochiValueToNum(Value value) {
+    ASSERT(false, "mochiValueToNum not yet implemented for pointer tagging.");
     return 0;
 }
 
 // Converts [num] to a [Value].
-static inline Value zzNumToValue(double num) {
-    ASSERT(false, "zzNumToValue not yet implemented for pointer tagging.");
+static inline Value mochiNumToValue(double num) {
+    ASSERT(false, "mochiNumToValue not yet implemented for pointer tagging.");
     return (Value)(uint64_t)0;
 }
 
 // Converts the raw object pointer [obj] to a [Value].
-static inline Value zzObjectToValue(Obj* obj) {
+static inline Value mochiObjectToValue(Obj* obj) {
     // The triple casting is necessary here to satisfy some compilers:
     // 1. (uintptr_t) Convert the pointer to a number of the right size.
     // 2. (uint64_t)  Pad it up to 64 bits in 32-bit builds.

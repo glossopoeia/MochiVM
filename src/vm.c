@@ -6,16 +6,16 @@
 #include "memory.h"
 #include "vm.h"
 
-#if ZHENZHU_DEBUG_TRACE_MEMORY || ZHENZHU_DEBUG_TRACE_GC
+#if MOCHIVM_DEBUG_TRACE_MEMORY || MOCHIVM_DEBUG_TRACE_GC
     #include <time.h>
 #endif
 
-#if ZHENZHU_BATTERY_UV
+#if MOCHIVM_BATTERY_UV
     #include "uv.h"
     #include "battery_uv.h"
 #endif
 
-DEFINE_BUFFER(ForeignFunction, ZhenzhuForeignMethodFn);
+DEFINE_BUFFER(ForeignFunction, MochiVMForeignMethodFn);
 
 // The behavior of realloc() when the size is 0 is implementation defined. It
 // may return a non-NULL pointer which must not be dereferenced but nevertheless
@@ -29,11 +29,11 @@ static void* defaultReallocate(void* ptr, size_t newSize, void* _) {
     return realloc(ptr, newSize);
 }
 
-int zzGetVersionNumber() { 
-    return ZHENZHU_VERSION_NUMBER;
+int mochiGetVersionNumber() { 
+    return MOCHIVM_VERSION_NUMBER;
 }
 
-void zzInitConfiguration(ZhenzhuConfiguration* config) {
+void mochiInitConfiguration(MochiVMConfiguration* config) {
     config->reallocateFn = defaultReallocate;
     config->errorFn = NULL;
     config->valueStackCapacity = 128;
@@ -44,26 +44,26 @@ void zzInitConfiguration(ZhenzhuConfiguration* config) {
     config->userData = NULL;
 }
 
-ZZVM* zzNewVM(ZhenzhuConfiguration* config) {
-    ZhenzhuReallocateFn reallocate = defaultReallocate;
+MochiVM* mochiNewVM(MochiVMConfiguration* config) {
+    MochiVMReallocateFn reallocate = defaultReallocate;
     void* userData = NULL;
     if (config != NULL) {
         userData = config->userData;
         reallocate = config->reallocateFn ? config->reallocateFn : defaultReallocate;
     }
     
-    ZZVM* vm = (ZZVM*)reallocate(NULL, sizeof(*vm), userData);
-    memset(vm, 0, sizeof(ZZVM));
+    MochiVM* vm = (MochiVM*)reallocate(NULL, sizeof(*vm), userData);
+    memset(vm, 0, sizeof(MochiVM));
 
     // Copy the configuration if given one.
     if (config != NULL) {
-        memcpy(&vm->config, config, sizeof(ZhenzhuConfiguration));
+        memcpy(&vm->config, config, sizeof(MochiVMConfiguration));
 
         // We choose to set this after copying, 
         // rather than modifying the user config pointer
         vm->config.reallocateFn = reallocate;
     } else {
-        zzInitConfiguration(&vm->config);
+        mochiInitConfiguration(&vm->config);
     }
 
     // TODO: Should we allocate and free this during a GC?
@@ -73,36 +73,36 @@ ZZVM* zzNewVM(ZhenzhuConfiguration* config) {
     vm->gray = (Obj**)reallocate(NULL, vm->grayCapacity * sizeof(Obj*), userData);
     vm->nextGC = vm->config.initialHeapSize;
 
-    vm->block = zzNewCodeBlock(vm);
-    zzForeignFunctionBufferInit(&vm->foreignFns);
+    vm->block = mochiNewCodeBlock(vm);
+    mochiForeignFunctionBufferInit(&vm->foreignFns);
 
-#if ZHENZHU_BATTERY_UV
-    zzAddForeign(vm, uvzzNewTimer);
-    zzAddForeign(vm, uvzzCloseTimer);
+#if MOCHIVM_BATTERY_UV
+    mochiAddForeign(vm, uvmochiNewTimer);
+    mochiAddForeign(vm, uvmochiCloseTimer);
 #endif
 
     return vm;
 }
 
-void zzFreeVM(ZZVM* vm) {
+void mochiFreeVM(MochiVM* vm) {
 
     // Free all of the GC objects.
     Obj* obj = vm->objects;
     while (obj != NULL) {
         Obj* next = obj->next;
-        zzFreeObj(vm, obj);
+        mochiFreeObj(vm, obj);
         obj = next;
     }
 
     // Free up the GC gray set.
     vm->gray = (Obj**)vm->config.reallocateFn(vm->gray, 0, vm->config.userData);
 
-    zzForeignFunctionBufferClear(vm, &vm->foreignFns);
+    mochiForeignFunctionBufferClear(vm, &vm->foreignFns);
     DEALLOCATE(vm, vm);
 }
 
-void zzCollectGarbage(ZZVM* vm) {
-#if ZHENZHU_DEBUG_TRACE_MEMORY || ZHENZHU_DEBUG_TRACE_GC
+void mochiCollectGarbage(MochiVM* vm) {
+#if MOCHIVM_DEBUG_TRACE_MEMORY || MOCHIVM_DEBUG_TRACE_GC
     printf("-- gc --\n");
 
     size_t before = vm->bytesAllocated;
@@ -123,20 +123,20 @@ void zzCollectGarbage(ZZVM* vm) {
 
     // Temporary roots.
     for (int i = 0; i < vm->numTempRoots; i++) {
-        zzGrayObj(vm, vm->tempRoots[i]);
+        mochiGrayObj(vm, vm->tempRoots[i]);
     }
 
     if (vm->block != NULL) {
-        zzGrayObj(vm, (Obj*)vm->block);
+        mochiGrayObj(vm, (Obj*)vm->block);
     }
     // The current fiber.
     if (vm->fiber != NULL) {
-        zzGrayObj(vm, (Obj*)vm->fiber);
+        mochiGrayObj(vm, (Obj*)vm->fiber);
     }
 
     // Now that we have grayed the roots, do a depth-first search over all of the
     // reachable objects.
-    zzBlackenObjects(vm);
+    mochiBlackenObjects(vm);
 
     // Collect the white objects.
     unsigned long freed = 0;
@@ -147,7 +147,7 @@ void zzCollectGarbage(ZZVM* vm) {
             // This object wasn't reached, so remove it from the list and free it.
             Obj* unreached = *obj;
             *obj = unreached->next;
-            zzFreeObj(vm, unreached);
+            mochiFreeObj(vm, unreached);
             freed += 1;
         } else {
             // This object was reached, so unmark it (for the next GC) and move on to
@@ -163,7 +163,7 @@ void zzCollectGarbage(ZZVM* vm) {
     vm->nextGC = vm->bytesAllocated + ((vm->bytesAllocated * vm->config.heapGrowthPercent) / 100);
     if (vm->nextGC < vm->config.minHeapSize) vm->nextGC = vm->config.minHeapSize;
 
-#if ZHENZHU_DEBUG_TRACE_MEMORY || ZHENZHU_DEBUG_TRACE_GC
+#if MOCHIVM_DEBUG_TRACE_MEMORY || MOCHIVM_DEBUG_TRACE_GC
     double elapsed = ((double)clock() / CLOCKS_PER_SEC) - startTime;
     // Explicit cast because size_t has different sizes on 32-bit and 64-bit and
     // we need a consistent type for the format string.
@@ -178,20 +178,20 @@ void zzCollectGarbage(ZZVM* vm) {
 #endif
 }
 
-int addConstant(ZZVM* vm, Value value) {
-    if (IS_OBJ(value)) { zzPushRoot(vm, AS_OBJ(value)); }
-    zzValueBufferWrite(vm, &vm->block->constants, value);
-    if (IS_OBJ(value)) { zzPopRoot(vm); }
+int addConstant(MochiVM* vm, Value value) {
+    if (IS_OBJ(value)) { mochiPushRoot(vm, AS_OBJ(value)); }
+    mochiValueBufferWrite(vm, &vm->block->constants, value);
+    if (IS_OBJ(value)) { mochiPopRoot(vm); }
     return vm->block->constants.count - 1;
 }
 
-void writeChunk(ZZVM* vm, uint8_t instr, int line) {
-    zzByteBufferWrite(vm, &vm->block->code, instr);
-    zzIntBufferWrite(vm, &vm->block->lines, line);
+void writeChunk(MochiVM* vm, uint8_t instr, int line) {
+    mochiByteBufferWrite(vm, &vm->block->code, instr);
+    mochiIntBufferWrite(vm, &vm->block->lines, line);
 }
 
 // Dispatcher function to run a particular fiber in the context of the given vm.
-static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
+static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
     // Remember the current fiber in case of GC.
     vm->fiber = fiber;
@@ -225,7 +225,7 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
         PUSH_VAL(valueType(a op b)); \
     } while (false)
 
-#ifdef ZHENZHU_DEBUG_TRACE_EXECUTION
+#ifdef MOCHIVM_DEBUG_TRACE_EXECUTION
     #define DEBUG_TRACE_INSTRUCTIONS() \
         do { \
             disassembleInstruction(vm, (int)(ip - codeStart)); \
@@ -250,7 +250,7 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
     #define DEBUG_TRACE_INSTRUCTIONS() do { } while (false)
 #endif
 
-#if ZHENZHU_BATTERY_UV
+#if MOCHIVM_BATTERY_UV
     #define UV_EVENT_LOOP()                                                  \
         do {                                                                 \
             printf("Checking for LibUV events.\n");                          \
@@ -260,7 +260,7 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
     #define UV_EVENT_LOOP() do { } while (false)
 #endif
 
-#if ZHENZHU_COMPUTED_GOTO
+#if MOCHIVM_COMPUTED_GOTO
 
     static void* dispatchTable[] = {
         #define OPCODE(name) &&code_##name,
@@ -367,7 +367,7 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
         }
 
         CASE_CODE(CALL_FOREIGN): {
-            ZhenzhuForeignMethodFn fn = vm->foreignFns.data[READ_SHORT()];
+            MochiVMForeignMethodFn fn = vm->foreignFns.data[READ_SHORT()];
             fn(vm, fiber);
             DISPATCH();
         }
@@ -435,11 +435,11 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
             uint8_t* bodyLocation = FROM_START(READ_UINT());
             uint8_t paramCount = READ_BYTE();
             uint16_t closedCount = READ_USHORT();
-            ObjClosure* closure = zzNewClosure(vm, bodyLocation, paramCount, closedCount);
+            ObjClosure* closure = mochiNewClosure(vm, bodyLocation, paramCount, closedCount);
             for (int i = 0; i < closedCount; i++) {
                 uint16_t frame = READ_USHORT();
                 uint16_t slot = READ_USHORT();
-                zzClosureCapture(closure, i, FIND(frame, slot));
+                mochiClosureCapture(closure, i, FIND(frame, slot));
             }
             PUSH_VAL(OBJ_VAL(closure));
             DISPATCH();
@@ -449,13 +449,13 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
             uint8_t paramCount = READ_BYTE();
             uint16_t closedCount = READ_USHORT();
             // add one to closed count to save a slot for the closure itself
-            ObjClosure* closure = zzNewClosure(vm, bodyLocation, paramCount, closedCount + 1);
+            ObjClosure* closure = mochiNewClosure(vm, bodyLocation, paramCount, closedCount + 1);
             // capture everything listed in the instruction args, saving the first spot for the closure itself
-            zzClosureCapture(closure, 0, OBJ_VAL(closure));
+            mochiClosureCapture(closure, 0, OBJ_VAL(closure));
             for (int i = 0; i < closedCount; i++) {
                 uint16_t frame = READ_USHORT();
                 uint16_t slot = READ_USHORT();
-                zzClosureCapture(closure, i + 1, FIND(frame, slot));
+                mochiClosureCapture(closure, i + 1, FIND(frame, slot));
             }
             PUSH_VAL(OBJ_VAL(closure));
             DISPATCH();
@@ -497,7 +497,7 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
     }
 
     UNREACHABLE();
-    return ZHENZHU_RESULT_RUNTIME_ERROR;
+    return MOCHIVM_RESULT_RUNTIME_ERROR;
 
 #undef READ_BYTE
 #undef READ_SHORT
@@ -505,24 +505,24 @@ static ZhenzhuInterpretResult run(ZZVM * vm, register ObjFiber* fiber) {
 #undef READ_CONSTANT
 }
 
-ZhenzhuInterpretResult zzInterpret(ZZVM* vm, ObjFiber* fiber) {
+MochiVMInterpretResult mochiInterpret(MochiVM* vm, ObjFiber* fiber) {
     fiber->ip = vm->block->code.data;
     return run(vm, fiber);
 }
 
-void zzPushRoot(ZZVM* vm, Obj* obj) {
+void mochiPushRoot(MochiVM* vm, Obj* obj) {
     ASSERT(obj != NULL, "Can't root NULL.");
-    ASSERT(vm->numTempRoots < ZHENZHU_MAX_TEMP_ROOTS, "Too many temporary roots.");
+    ASSERT(vm->numTempRoots < MOCHIVM_MAX_TEMP_ROOTS, "Too many temporary roots.");
 
     vm->tempRoots[vm->numTempRoots++] = obj;
 }
 
-void zzPopRoot(ZZVM* vm) {
+void mochiPopRoot(MochiVM* vm) {
     ASSERT(vm->numTempRoots > 0, "No temporary roots to release.");
     vm->numTempRoots--;
 }
 
-int zzAddForeign(ZZVM* vm, ZhenzhuForeignMethodFn fn) {
-    zzForeignFunctionBufferWrite(vm, &vm->foreignFns, fn);
+int mochiAddForeign(MochiVM* vm, MochiVMForeignMethodFn fn) {
+    mochiForeignFunctionBufferWrite(vm, &vm->foreignFns, fn);
     return vm->foreignFns.count - 1;
 }

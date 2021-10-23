@@ -1,5 +1,5 @@
-#ifndef zhenzhu_value_nan_tagged_h
-#define zhenzhu_value_nan_tagged_h
+#ifndef mochivm_value_nan_tagged_h
+#define mochivm_value_nan_tagged_h
 
 // An IEEE 754 double-precision float is a 64-bit value with bits laid out like:
 //
@@ -61,21 +61,21 @@ typedef union
     uint64_t bits64;
     uint32_t bits32[2];
     double num;
-} ZhenzhuDoubleBits;
+} MochiVMDoubleBits;
 
-#define ZHENZHU_DOUBLE_QNAN_POS_MIN_BITS (UINT64_C(0x7FF8000000000000))
-#define ZHENZHU_DOUBLE_QNAN_POS_MAX_BITS (UINT64_C(0x7FFFFFFFFFFFFFFF))
+#define MOCHIVM_DOUBLE_QNAN_POS_MIN_BITS (UINT64_C(0x7FF8000000000000))
+#define MOCHIVM_DOUBLE_QNAN_POS_MAX_BITS (UINT64_C(0x7FFFFFFFFFFFFFFF))
 
-#define ZHENZHU_DOUBLE_NAN (zzDoubleFromBits(ZHENZHU_DOUBLE_QNAN_POS_MIN_BITS))
+#define MOCHIVM_DOUBLE_NAN (mochiDoubleFromBits(MOCHIVM_DOUBLE_QNAN_POS_MIN_BITS))
 
-static inline double zzDoubleFromBits(uint64_t bits) {
-    ZhenzhuDoubleBits data;
+static inline double mochiDoubleFromBits(uint64_t bits) {
+    MochiVMDoubleBits data;
     data.bits64 = bits;
     return data.num;
 }
 
-static inline uint64_t zzDoubleToBits(double num) {
-    ZhenzhuDoubleBits data;
+static inline uint64_t mochiDoubleToBits(double num) {
+    MochiVMDoubleBits data;
     data.num = num;
     return data.bits64;
 }
@@ -100,17 +100,17 @@ static inline uint64_t zzDoubleToBits(double num) {
 #define AS_OBJ(value) ((Obj*)(uintptr_t)((value) & ~(SIGN_BIT | QNAN)))
 
 // Interprets [value] as a [double].
-static inline double zzValueToNum(Value value) {
-    return zzDoubleFromBits(value);
+static inline double mochiValueToNum(Value value) {
+    return mochiDoubleFromBits(value);
 }
 
 // Converts [num] to a [Value].
-static inline Value zzNumToValue(double num) {
-    return zzDoubleToBits(num);
+static inline Value mochiNumToValue(double num) {
+    return mochiDoubleToBits(num);
 }
 
 // Converts the raw object pointer [obj] to a [Value].
-static inline Value zzObjectToValue(Obj* obj) {
+static inline Value mochiObjectToValue(Obj* obj) {
     // The triple casting is necessary here to satisfy some compilers:
     // 1. (uintptr_t) Convert the pointer to a number of the right size.
     // 2. (uint64_t)  Pad it up to 64 bits in 32-bit builds.
