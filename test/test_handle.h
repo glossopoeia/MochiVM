@@ -1,0 +1,57 @@
+
+BEGIN_TEST("Simple handle with no handlers besides the after closure.");
+
+// main =
+//   2 handle {
+//     2 4 add-double
+//   } with {
+//     return => 1 add-double
+//   }
+//   sub-double
+
+CONSTANT(NUMBER_VAL(2));
+CONSTANT(NUMBER_VAL(4));
+CONSTANT(NUMBER_VAL(1));
+
+WRITE_INT_INST(CALL, 10, 1); // 5
+WRITE_INT_INST(TAILCALL, 41, 2); //10
+
+// main
+WRITE_INST(CONSTANT, 3);
+WRITE_BYTE(0, 3);
+
+WRITE_INT_INST(CLOSURE, 37, 4); // 17
+WRITE_BYTE(0, 4); // 18
+WRITE_SHORT(0, 4); // 20
+
+WRITE_INST(HANDLE, 5); // 21
+WRITE_SHORT(6, 5); // 23
+WRITE_INT(0, 5); // 27
+WRITE_BYTE(0, 5); // 28
+WRITE_BYTE(0, 5); // 29
+
+WRITE_INST(CONSTANT, 6); //30
+WRITE_BYTE(0, 6); // 31
+WRITE_INST(CONSTANT, 7); // 32
+WRITE_BYTE(1, 7); // 33
+WRITE_INST(ADD, 8); // 34
+
+WRITE_INST(COMPLETE, 9);
+WRITE_INST(SUBTRACT, 10);
+WRITE_INST(RETURN, 11); // 37
+
+// ret1
+WRITE_INST(CONSTANT, 12);
+WRITE_BYTE(2, 12);
+WRITE_INST(ADD, 13);
+WRITE_INST(RETURN, 14); // 41
+
+// end
+WRITE_INST(ABORT, 15);
+WRITE_BYTE(0, 15);
+
+VERIFY_FRAMES(0);
+VERIFY_STACK(1);
+VERIFY_NUMBER(5.0);
+
+END_TEST();

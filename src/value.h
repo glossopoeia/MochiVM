@@ -205,8 +205,8 @@ ObjForeign* mochiNewForeign(MochiVM* vm, size_t size);
 ObjCPointer* mochiNewCPointer(MochiVM* vm, void* pointer);
 
 // Logs a textual representation of the given value to the output
-void printValue(Value value);
-void printObject(Value object);
+void printValue(MochiVM* vm, Value value);
+void printObject(MochiVM* vm, Value object);
 
 void mochiFreeObj(MochiVM* vm, Obj* object);
 

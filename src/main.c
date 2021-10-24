@@ -35,7 +35,8 @@
             printf("TODO: String verify unimplemented\n"); \
         } \
         if (assertNumber != 0) { \
-            printf("TODO: Number verify unimplemented\n"); \
+            double num = AS_NUMBER(*(fiber->valueStackTop - 1)); \
+            ASSERT(assertNumber == num, "TEST FAILED: Unexpected number at the end of execution."); \
         } \
         mochiFreeVM(vm); \
         printf("TEST PASSED\n"); \
@@ -49,6 +50,29 @@
 #define VERIFY_NUMBER(num)          assertNumber = num;
 #define VERIFY_STRING(str)          assertString = str;
 
+#define WRITE_SHORT(val, line) \
+    do { \
+        writeChunk(vm, ((uint16_t)(val)) >> 8, (line)); \
+        writeChunk(vm, ((uint16_t)(val)), (line)); \
+    } while (false);
+
+#define WRITE_INT(val, line) \
+    do { \
+        writeChunk(vm, (val) >> 24, (line)); \
+        writeChunk(vm, (val) >> 16, (line)); \
+        writeChunk(vm, (val) >> 8, (line)); \
+        writeChunk(vm, (val), (line)); \
+    } while (false);
+
+#define WRITE_INT_INST(inst, arg, line) \
+    do { \
+        writeChunk(vm, CODE_##inst, (line)); \
+        writeChunk(vm, (arg) >> 24, (line)); \
+        writeChunk(vm, (arg) >> 16, (line)); \
+        writeChunk(vm, (arg) >> 8, (line)); \
+        writeChunk(vm, (arg), (line)); \
+    } while(false);
+
 int main(int argc, const char * argv[]) {
     printf("MochiVM is under development... watch for bugs!\n");
 
@@ -61,6 +85,7 @@ int main(int argc, const char * argv[]) {
     #include "test_numerics.h"
     #include "test_strings.h"
     #include "test_frames.h"
+    #include "test_handle.h"
 #if MOCHIVM_BATTERY_UV
     //#include "test_foreign.h"
 #endif

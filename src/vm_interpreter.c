@@ -94,8 +94,8 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 #define READ_CONSTANT() (vm->block->constants.data[READ_BYTE()])
 #define BINARY_OP(valueType, op) \
     do { \
-        double b = AS_NUMBER(POP_VAL()); \
         double a = AS_NUMBER(POP_VAL()); \
+        double b = AS_NUMBER(POP_VAL()); \
         PUSH_VAL(valueType(a op b)); \
     } while (false)
 
@@ -107,7 +107,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             if (fiber->valueStack >= fiber->valueStackTop) { printf("<empty>"); } \
             for (Value * slot = fiber->valueStack; slot < fiber->valueStackTop; slot++) { \
                 printf("[ "); \
-                printValue(*slot); \
+                printValue(vm, *slot); \
                 printf(" ]"); \
             } \
             printf("\n"); \
@@ -115,7 +115,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             if (fiber->frameStack >= fiber->frameStackTop) { printf("<empty>"); } \
             for (ObjVarFrame** frame = fiber->frameStack; frame < fiber->frameStackTop; frame++) { \
                 printf("[ "); \
-                printObject(OBJ_VAL(*frame)); \
+                printObject(vm, OBJ_VAL(*frame)); \
                 printf(" ]"); \
             } \
             printf("\n"); \
@@ -307,6 +307,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         CASE_CODE(RETURN): {
             ASSERT(FRAME_COUNT() > 0, "RETURN expects at least one frame on the stack.");
             ObjCallFrame* frame = (ObjCallFrame*)POP_FRAME();
+            ASSERT_OBJ_TYPE(frame, OBJ_CALL_FRAME, "RETURN expects a frame of type 'call frame' on the frame stack.");
             ip = frame->afterLocation;
             DISPATCH();
         }

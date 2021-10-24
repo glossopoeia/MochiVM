@@ -3,11 +3,7 @@ BEGIN_TEST("Tail call with no frames works.");
 
 CONSTANT(NUMBER_VAL(1))
 
-WRITE_INST(TAILCALL, 1)
-WRITE_BYTE(0, 1)
-WRITE_BYTE(0, 1)
-WRITE_BYTE(0, 1)
-WRITE_BYTE(7, 1)
+WRITE_INT_INST(TAILCALL, 7, 1)
 // This push-constant instruction should get skipped by the tailcall,
 // so VERIFY_STACK(0) at the bottom verifies that the call actually moves
 // the instruction pointer correctly.

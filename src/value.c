@@ -180,7 +180,7 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
 
 #if MOCHIVM_DEBUG_TRACE_MEMORY
     printf("free ");
-    printValue(OBJ_VAL(object));
+    printValue(vm, OBJ_VAL(object));
     printf(" @ %p\n", object);
 #endif
 
@@ -230,15 +230,15 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
     DEALLOCATE(vm, object);
 }
 
-void printValue(Value value) {
+void printValue(MochiVM* vm, Value value) {
     if (IS_OBJ(value)) {
-        printObject(value);
+        printObject(vm, value);
     } else {
         printf("%f", AS_NUMBER(value));
     }
 }
 
-void printObject(Value object) {
+void printObject(MochiVM* vm, Value object) {
     switch (AS_OBJ(object)->type) {
         case OBJ_CODE_BLOCK: {
             printf("code");
@@ -250,17 +250,17 @@ void printObject(Value object) {
         }
         case OBJ_VAR_FRAME: {
             ObjVarFrame* frame = AS_VAR_FRAME(object);
-            printf("frame(%d)", frame->slotCount);
+            printf("var(%d)", frame->slotCount);
             break;
         }
         case OBJ_CALL_FRAME: {
             ObjCallFrame* frame = AS_CALL_FRAME(object);
-            printf("frame(%d -> %p)", frame->vars.slotCount, (void*)frame->afterLocation);
+            printf("call(%d -> %ld)", frame->vars.slotCount, frame->afterLocation - vm->block->code.data);
             break;
         }
         case OBJ_MARK_FRAME: {
             ObjMarkFrame* frame = AS_MARK_FRAME(object);
-            printf("frame(%d: %d -> %p)", frame->markId, frame->call.vars.slotCount, (void*)frame->call.afterLocation);
+            printf("handle(%d: n(%d) %d -> %ld)", frame->markId, frame->nesting, frame->call.vars.slotCount, frame->call.afterLocation - vm->block->code.data);
             break;
         }
         case OBJ_CLOSURE: {

@@ -39,21 +39,25 @@ static int intArgInstruction(const char* name, MochiVM* vm, int offset) {
 
 static int constantInstruction(const char * name, MochiVM* vm, int offset) {
     uint8_t constant = vm->block->code.data[offset + 1];
-    printf("%-16s %4d '", name, constant);
-    printValue(vm->block->constants.data[constant]);
+    printf("%-16s %-4d '", name, constant);
+    printValue(vm, vm->block->constants.data[constant]);
     printf("'\n");
     return offset + 2;
 }
 
 static int closureInstruction(const char* name, MochiVM* vm, int offset) {
     uint8_t* code = vm->block->code.data;
-    uint16_t captureCount = getUShort(code, offset+6);
-    printf("%-16s %8d %3d %5d ( ", name, getInt(code, offset+1), code[offset+5], getShort(code, offset+6));
+    offset += 1;
+
+    int body = getInt(code, offset); offset += 4;
+    uint8_t paramCount = code[offset]; offset += 1;
+    uint16_t captureCount = getUShort(code, offset); offset += 2;
+    printf("%-16s %-8d %-3d %-5d ( ", name, body, paramCount, captureCount);
     for (int i = 0; i < captureCount; i++) {
-        printf("%5d:%5d ", getShort(code, offset + captureCount + 2 +i*4), getShort(code, offset + captureCount + 2 + 2 + i*4));
+        printf("%5d:%5d ", getShort(code, offset + i*4), getShort(code, offset + 2 + i*4));
     }
     printf(")\n");
-    return offset + captureCount + 2 + captureCount * 4;
+    return offset + captureCount * 4;
 }
 
 void disassembleChunk(MochiVM* vm, const char * name) {
@@ -130,14 +134,18 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return intArgInstruction("MUTUAL", vm, offset);
         case CODE_HANDLE: {
             uint8_t* code = vm->block->code.data;
-            int body = getInt(code, offset+1);
-            uint8_t args = code[offset+5];
-            printf("%-16s %8d %3d < ", "HANDLE", body, args);
-            for (int i = 0; i < code[offset+6]; i++) {
-                printf("%4d ", getInt(code, offset + 7 + i*4));
+            offset += 1;
+
+            int16_t after = getShort(code, offset); offset += 2;
+            int handleId = getInt(code, offset); offset += 4;
+            uint8_t params = code[offset]; offset += 1;
+            uint8_t handlers = code[offset]; offset += 1;
+            printf("%-16s %-3d %-8d %-3d < ", "HANDLE", after, handleId, params);
+            for (int i = 0; i < handlers; i++) {
+                printf("%4d ", getInt(code, offset + i*4));
             }
             printf(">\n");
-            return offset + 7 + code[offset+6] * 4;
+            return offset + handlers * 4;
         }
         case CODE_INJECT:
             return intArgInstruction("INJECT", vm, offset);
