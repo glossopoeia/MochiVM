@@ -260,7 +260,8 @@ void printObject(MochiVM* vm, Value object) {
         }
         case OBJ_MARK_FRAME: {
             ObjMarkFrame* frame = AS_MARK_FRAME(object);
-            printf("handle(%d: n(%d) %d -> %ld)", frame->markId, frame->nesting, frame->call.vars.slotCount, frame->call.afterLocation - vm->block->code.data);
+            printf("handle(%d: n(%d) %d %d -> %ld)", frame->markId, frame->nesting, frame->handlerCount,
+                    frame->call.vars.slotCount, frame->call.afterLocation - vm->block->code.data);
             break;
         }
         case OBJ_CLOSURE: {
@@ -357,7 +358,7 @@ static void markMarkFrame(MochiVM* vm, ObjMarkFrame* frame) {
 
     vm->bytesAllocated += sizeof(ObjMarkFrame);
     vm->bytesAllocated += sizeof(Value) * frame->call.vars.slotCount;
-    vm->bytesAllocated += sizeof(Value) * frame->handlerCount;
+    vm->bytesAllocated += sizeof(ObjClosure*) * frame->handlerCount;
 }
 
 static void markClosure(MochiVM* vm, ObjClosure* closure) {
@@ -374,6 +375,7 @@ static void markContinuation(MochiVM* vm, ObjContinuation* cont) {
         mochiGrayValue(vm, cont->savedStack[i]);
     }
     for (int i = 0; i < cont->savedFramesCount; i++) {
+        printf("%p\n", cont->savedFrames[i]);
         mochiGrayObj(vm, (Obj*)cont->savedFrames[i]);
     }
 

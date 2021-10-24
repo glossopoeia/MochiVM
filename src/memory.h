@@ -6,7 +6,8 @@
 
 // Use the VM's allocator to allocate an object of [type].
 #define ALLOCATE(vm, type)                                                     \
-    ((type*)mochiReallocate(vm, NULL, 0, sizeof(type)))
+    (printf("[%s:%d] ALLOCATE in %s(): ", __FILE__, __LINE__, __func__),       \
+    ((type*)mochiReallocate(vm, NULL, 0, sizeof(type))))
 
 // Use the VM's allocator to allocate an object of [mainType] containing a
 // flexible array of [count] objects of [arrayType].
@@ -16,7 +17,8 @@
 
 // Use the VM's allocator to allocate an array of [count] elements of [type].
 #define ALLOCATE_ARRAY(vm, type, count)                                        \
-    ((type*)mochiReallocate(vm, NULL, 0, sizeof(type) * (count)))
+    (printf("[%s:%d] ALLOCATE_ARRAY in %s(): ", __FILE__, __LINE__, __func__), \
+    ((type*)mochiReallocate(vm, NULL, 0, sizeof(type) * (count))))
 
 #define ALLOCATE_CONCAT(vm, type, arr1, arr1Count, arr2, arr2Count)      \
     ((type*)mochiConcat(vm, sizeof(type), arr1, arr2, arr1Count, arr2Count))

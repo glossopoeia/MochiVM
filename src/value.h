@@ -7,7 +7,7 @@
 #include "mochivm.h"
 
 #define ASSERT_OBJ_TYPE(obj, objType, message)  ASSERT(((Obj*)obj)->type == objType, message)
-#define OBJ_ARRAY_COPY(objSrc, objDest, count)  memcpy((Obj**)(objSrc), (Obj**)(objDest), sizeof(Obj*) * count)
+#define OBJ_ARRAY_COPY(objDest, objSrc, count)  memcpy((Obj**)(objDest), (Obj**)(objSrc), sizeof(Obj*) * count)
 
 #define OBJ_TYPE(value)        (AS_OBJ(value)->type)
 
@@ -177,8 +177,8 @@ static inline bool isObjType(Value value, ObjType type) {
     return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }
 
-static inline void valueArrayCopy(Value* src, Value* dest, int count) {
-    memcpy(src, dest, sizeof(Value) * count);
+static inline void valueArrayCopy(Value* dest, Value* src, int count) {
+    memcpy(dest, src, sizeof(Value) * count);
 }
 
 // Creates a new fiber object with the values from the given initial stack.

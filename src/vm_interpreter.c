@@ -32,10 +32,10 @@ static ObjCallFrame* callClosureFrame(MochiVM* vm, ObjFiber* fiber, ObjClosure* 
     offset += capture->paramCount;
 
     if (frameVars != NULL) {
-        valueArrayCopy(vars + offset, frameVars->slots, frameVars->slotCount);
+        valueArrayCopy(frameVars->slots, vars + offset, frameVars->slotCount);
         offset += frameVars->slotCount;
     }
-    valueArrayCopy(vars + offset, capture->captured, capture->capturedCount);
+    valueArrayCopy(capture->captured, vars + offset, capture->capturedCount);
     return newCallFrame(vars, varCount, after, vm);
 }
 
@@ -55,7 +55,7 @@ static int findFreeHandler(ObjFiber* fiber, int markId) {
         }
         ObjMarkFrame* mark = (ObjMarkFrame*)frame;
         if (mark->markId == markId && mark->nesting == 0) {
-            continue;
+            break;
         }
     }
     ASSERT(index < stackCount, "Could not find an unnested mark frame with the desired identifier.");
@@ -83,7 +83,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 #define PUSH_FRAME(frame)   (*fiber->frameStackTop++ = (ObjVarFrame*)(frame))
 #define POP_FRAME()         (*(--fiber->frameStackTop))
 #define DROP_FRAMES(count)  (fiber->frameStackTop = fiber->frameStackTop - (count))
-#define PEEK_FRAME(index)   (*(fiber->frameStackTop - index))
+#define PEEK_FRAME(index)   (*(fiber->frameStackTop - (index)))
 #define FRAME_COUNT()       (fiber->frameStackTop - fiber->frameStack)
 #define FIND(frame, slot)   ((*(fiber->frameStackTop - 1 - (frame)))->slots[(slot)])
 
@@ -232,6 +232,15 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DROP_VALS(varCount);
             DISPATCH();
         }
+        CASE_CODE(FIND): {
+            uint16_t frameIdx = READ_USHORT();
+            uint16_t slotIdx = READ_USHORT();
+
+            ASSERT(FRAME_COUNT() > frameIdx, "FIND tried to access a frame outside the bounds of the frame stack.");
+            ObjVarFrame* frame = PEEK_FRAME(frameIdx + 1);
+            PUSH_VAL(frame->slots[slotIdx]);
+            DISPATCH();
+        }
         CASE_CODE(OVERWRITE): {
             ASSERT(false, "OVERWRITE not yet implemented.");
             DISPATCH();
@@ -354,7 +363,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             for (int i = 0; i < mutualCount; i++) {
                 ObjClosure* old = AS_CLOSURE(PEEK_VAL(mutualCount - i));
                 ObjClosure* closure = mochiNewClosure(vm, old->funcLocation, old->paramCount, old->capturedCount + mutualCount);
-                valueArrayCopy(closure->captured + mutualCount, old->captured, old->capturedCount);
+                valueArrayCopy(old->captured, closure->captured + mutualCount, old->capturedCount);
                 // replace the old closure with the new one
                 PEEK_VAL(mutualCount - i) = OBJ_VAL((Obj*)closure);
             }
@@ -362,7 +371,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             // finally, make the closures all reference each other in the same order
             for (int i = 0; i < mutualCount; i++) {
                 ObjClosure* closure = AS_CLOSURE(PEEK_VAL(mutualCount - i));
-                valueArrayCopy(closure->captured, fiber->valueStackTop - mutualCount, mutualCount);
+                valueArrayCopy(fiber->valueStackTop - mutualCount, closure->captured, mutualCount);
             }
 
             DISPATCH();
@@ -449,9 +458,10 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             uint8_t handlerIdx = READ_BYTE();
             int frameIdx = findFreeHandler(fiber, markId);
             ObjMarkFrame* frame = (ObjMarkFrame*)PEEK_FRAME(frameIdx + 1);
+            ASSERT_OBJ_TYPE(frame, OBJ_MARK_FRAME, "ESCAPE expected to find a handle frame but found a different kind of frame..");
 
             ASSERT(handlerIdx < frame->handlerCount, "ESCAPE: Requested handler index outside the bounds of the mark frame handler set.");
-            ObjClosure* handler = frame->handlers[frameIdx];
+            ObjClosure* handler = frame->handlers[handlerIdx];
 
             ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, NULL, frame->call.afterLocation);
 
@@ -463,28 +473,31 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(REACT): {
-            ASSERT(FRAME_COUNT() > 0, "REACT expects at least one mark frame on the frame stack.");
+            ASSERT(FRAME_COUNT() > 0, "REACT expects at least one handle frame on the frame stack.");
 
             int markId = READ_UINT();
             uint8_t handlerIdx = READ_BYTE();
             int frameIdx = findFreeHandler(fiber, markId);
+            int frameCount = frameIdx + 1;
             ObjMarkFrame* frame = (ObjMarkFrame*)PEEK_FRAME(frameIdx + 1);
 
-            ASSERT(handlerIdx < frame->handlerCount, "REACT: Requested handler index outside the bounds of the mark frame handler set.");
-            ObjClosure* handler = frame->handlers[frameIdx];
+            ASSERT(handlerIdx < frame->handlerCount, "REACT: Requested handler index outside the bounds of the handle frame handler set.");
+            ObjClosure* handler = frame->handlers[handlerIdx];
 
             // the major difference between REACT and ESCAPE is that REACT saves the current continuation
-            ObjContinuation* cont = mochiNewContinuation(vm, ip, frame->call.vars.slotCount, VALUE_COUNT() - handler->paramCount, frameIdx);
+            ObjContinuation* cont = mochiNewContinuation(vm, ip, frame->call.vars.slotCount, VALUE_COUNT() - handler->paramCount, frameCount);
             // save all frames up to and including the found mark frame
-            memcpy(cont->savedFrames, fiber->frameStackTop - (frameIdx + 1), sizeof(ObjVarFrame*) * frameIdx);
-            memcpy(cont->savedStack, fiber->valueStack, sizeof(Value) * cont->savedStackCount);
+            OBJ_ARRAY_COPY(cont->savedFrames, fiber->frameStackTop - frameCount, frameCount);
+            valueArrayCopy(cont->savedStack, fiber->valueStack, cont->savedStackCount);
 
+            mochiPushRoot(vm, (Obj*)cont);
             ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, cont, frame->call.afterLocation);
+            mochiPopRoot(vm);
 
             ip = handler->funcLocation;
             fiber->valueStackTop = fiber->valueStack;
             // drop all frames up to and including the found mark frame
-            DROP_FRAMES(frameIdx + 1);
+            DROP_FRAMES(frameCount);
             PUSH_FRAME(newFrame);
 
             DISPATCH();
@@ -502,7 +515,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             // we basically copy it, but update the arguments passed along through the handling context and forget the 'return location'
             ObjMarkFrame* updated = mochiNewMarkFrame(vm, mark->markId, mark->call.vars.slotCount, mark->handlerCount, ip);
             updated->afterClosure = mark->afterClosure;
-            OBJ_ARRAY_COPY(updated->handlers, mark->handlers, mark->handlerCount);
+            OBJ_ARRAY_COPY(mark->handlers, updated->handlers, mark->handlerCount);
             // take any handle parameters off the stack
             for (int i = 0; i < mark->call.vars.slotCount; i++) {
                 updated->call.vars.slots[i] = POP_VAL();
@@ -510,13 +523,13 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
             // captured stack values go under any remaining stack values
             int remainingValues = VALUE_COUNT();
-            valueArrayCopy(fiber->valueStack, fiber->valueStack + cont->savedStackCount, remainingValues);
-            valueArrayCopy(cont->savedStack, fiber->valueStack, cont->savedStackCount);
+            valueArrayCopy(fiber->valueStack + cont->savedStackCount, fiber->valueStack, remainingValues);
+            valueArrayCopy(fiber->valueStack, cont->savedStack, cont->savedStackCount);
             fiber->valueStackTop = fiber->valueStackTop + cont->savedStackCount;
 
             // saved frames just go on top of the existing frames
             PUSH_FRAME(updated);
-            OBJ_ARRAY_COPY(fiber->frameStackTop, cont->savedFrames + 1, cont->savedFramesCount - 1);
+            OBJ_ARRAY_COPY(cont->savedFrames + 1, fiber->frameStackTop, cont->savedFramesCount - 1);
             fiber->frameStackTop = fiber->frameStackTop + (cont->savedFramesCount - 1);
             ip = cont->resumeLocation;
 
@@ -539,7 +552,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             // we basically copy it, but update the arguments passed along through the handling context and forget the 'return location'
             ObjMarkFrame* updated = mochiNewMarkFrame(vm, mark->markId, mark->call.vars.slotCount, mark->handlerCount, after);
             updated->afterClosure = mark->afterClosure;
-            OBJ_ARRAY_COPY(updated->handlers, mark->handlers, mark->handlerCount);
+            OBJ_ARRAY_COPY(mark->handlers, updated->handlers, mark->handlerCount);
             // take any handle parameters off the stack
             for (int i = 0; i < mark->call.vars.slotCount; i++) {
                 updated->call.vars.slots[i] = POP_VAL();
@@ -547,13 +560,13 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
             // captured stack values go under any remaining stack values
             int remainingValues = VALUE_COUNT();
-            valueArrayCopy(fiber->valueStack, fiber->valueStack + cont->savedStackCount, remainingValues);
-            valueArrayCopy(cont->savedStack, fiber->valueStack, cont->savedStackCount);
+            valueArrayCopy(fiber->valueStack + cont->savedStackCount, fiber->valueStack, remainingValues);
+            valueArrayCopy(fiber->valueStack, cont->savedStack, cont->savedStackCount);
             fiber->valueStackTop = fiber->valueStackTop + cont->savedStackCount;
 
             // saved frames just go on top of the existing frames
             PUSH_FRAME(updated);
-            OBJ_ARRAY_COPY(fiber->frameStackTop, cont->savedFrames + 1, cont->savedFramesCount - 1);
+            OBJ_ARRAY_COPY(cont->savedFrames + 1, fiber->frameStackTop, cont->savedFramesCount - 1);
             fiber->frameStackTop = fiber->frameStackTop + (cont->savedFramesCount - 1);
             ip = cont->resumeLocation;
 

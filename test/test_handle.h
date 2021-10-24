@@ -5,7 +5,7 @@ BEGIN_TEST("Simple handle with no handlers besides the after closure.");
 //   2 handle {
 //     2 4 add-double
 //   } with {
-//     return => 1 add-double
+//     after => 1 add-double
 //   }
 //   sub-double
 
@@ -53,5 +53,88 @@ WRITE_BYTE(0, 15);
 VERIFY_FRAMES(0);
 VERIFY_STACK(1);
 VERIFY_NUMBER(5.0);
+
+END_TEST();
+
+
+
+
+BEGIN_TEST("Handle with one single-shot resume handler and a closure with a parameter.");
+
+// main =
+//   handle {
+//     3 4 raise! 6 div
+//   } with {
+//     raise! e => 2 e sub resume
+//     after => 1 add
+//   }
+
+CONSTANT(NUMBER_VAL(3));
+CONSTANT(NUMBER_VAL(4));
+CONSTANT(NUMBER_VAL(6));
+CONSTANT(NUMBER_VAL(2));
+CONSTANT(NUMBER_VAL(1));
+
+WRITE_INT_INST(CALL, 10, 1); // 5
+WRITE_INT_INST(TAILCALL, 68, 2); //10
+
+// main
+WRITE_INT_INST(CLOSURE, 64, 4); // 15
+WRITE_BYTE(0, 4);
+WRITE_SHORT(0, 4); // 18
+
+WRITE_INT_INST(CLOSURE, 50, 5); // 23
+WRITE_BYTE(1, 5);
+WRITE_SHORT(0, 5); // 26
+
+WRITE_INST(HANDLE, 6); // 27
+WRITE_SHORT(14, 6); // 29
+WRITE_INT(0, 6); // 33
+WRITE_BYTE(0, 6); // 34
+WRITE_BYTE(1, 6); // 35
+
+WRITE_INST(CONSTANT, 7); // 36
+WRITE_BYTE(0, 7);
+WRITE_INST(CONSTANT, 7); // 38
+WRITE_BYTE(1, 7);
+
+WRITE_INST(REACT, 7); // 40
+WRITE_INT(0, 7); // 44
+WRITE_BYTE(0, 7); // 45
+
+WRITE_INST(CONSTANT, 7); // 46
+WRITE_BYTE(2, 7);
+WRITE_INST(DIVIDE, 7); // 48
+
+WRITE_INST(COMPLETE, 8);
+WRITE_INST(RETURN, 8); // 50
+
+// raise1
+WRITE_INST(CONSTANT, 9);
+WRITE_BYTE(3, 9); // 52
+
+WRITE_INST(FIND, 9); // 53
+WRITE_SHORT(0, 9); // 55
+WRITE_SHORT(1, 9); // 57
+WRITE_INST(SUBTRACT, 9); // 58
+
+WRITE_INST(FIND, 10); // 59
+WRITE_SHORT(0, 10); // 61
+WRITE_SHORT(0, 10); // 63
+WRITE_INST(TAILCALL_CONTINUATION, 10); // 64
+
+// ret1
+WRITE_INST(CONSTANT, 12); // 65
+WRITE_BYTE(4, 12);
+WRITE_INST(ADD, 13);
+WRITE_INST(RETURN, 14); // 68
+
+// end
+WRITE_INST(ABORT, 15); // 69
+WRITE_BYTE(0, 15);
+
+VERIFY_FRAMES(0);
+VERIFY_STACK(2);
+VERIFY_NUMBER(4.0);
 
 END_TEST();

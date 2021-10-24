@@ -114,6 +114,15 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("CONCAT", offset);
         case CODE_STORE:
             return byteArgInstruction("STORE", vm, offset);
+        case CODE_FIND: {
+            uint8_t* code = vm->block->code.data;
+            offset += 1;
+
+            uint16_t frameIdx = getShort(code, offset); offset += 2;
+            uint16_t varIdx = getShort(code, offset); offset += 2;
+            printf("%-16s %-5d %-5d\n", "FIND", frameIdx, varIdx);
+            return offset;
+        }
         case CODE_FORGET:
             return simpleInstruction("FORGET", offset);
         case CODE_CALL_FOREIGN:
