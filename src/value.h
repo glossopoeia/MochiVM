@@ -6,6 +6,9 @@
 #include "common.h"
 #include "mochivm.h"
 
+#define ASSERT_OBJ_TYPE(obj, objType, message)  ASSERT(((Obj*)obj)->type == objType, message)
+#define OBJ_ARRAY_COPY(objSrc, objDest, count)  memcpy((Obj**)(objSrc), (Obj**)(objDest), sizeof(Obj*) * count)
+
 #define OBJ_TYPE(value)        (AS_OBJ(value)->type)
 
 // These macros promote a primitive C value to a full Zhenzhu Value. There are
@@ -30,7 +33,7 @@
 #define AS_CALL_FRAME(value)    ((ObjCallFrame*)AS_OBJ(value))
 #define AS_MARK_FRAME(value)    ((ObjMarkFrame*)AS_OBJ(value))
 #define AS_CLOSURE(value)       ((ObjClosure*)AS_OBJ(value))
-#define AS_CONTINUATION(value)  ((ObjContinuation)AS_OBJ(value))
+#define AS_CONTINUATION(value)  ((ObjContinuation*)AS_OBJ(value))
 #define AS_FIBER(v)             ((ObjFiber*)AS_OBJ(v))
 #define AS_POINTER(v)           ((ObjCPointer*)AS_OBJ(v))
 #define AS_FOREIGN(v)           ((ObjForeign*)AS_OBJ(v))

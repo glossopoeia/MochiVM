@@ -225,8 +225,9 @@ static ObjCallFrame* callClosureFrame(MochiVM* vm, ObjFiber* fiber, ObjClosure* 
 // This function drives the actual effect of the nesting by continuing to walk down mark frames even if a
 // mark frame with the requested id is found if it is 'nested', i.e. with a nesting level greater than 0.
 static int findFreeHandler(ObjFiber* fiber, int markId) {
+    int stackCount = fiber->frameStackTop - fiber->frameStack;
     int index = 0;
-    for (; index < fiber->frameStackTop - fiber->frameStack; index++) {
+    for (; index < stackCount; index++) {
         ObjVarFrame* frame = *(fiber->frameStackTop - index - 1);
         if (frame->obj.type != OBJ_MARK_FRAME) {
             continue;
@@ -236,6 +237,7 @@ static int findFreeHandler(ObjFiber* fiber, int markId) {
             continue;
         }
     }
+    ASSERT(index < stackCount, "Could not find an unnested mark frame with the desired identifier.");
     return index;
 }
 
@@ -632,7 +634,8 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, NULL, frame->call.afterLocation);
 
             ip = handler->funcLocation;
-            DROP_FRAMES(frameIdx);
+            // drop all frames up to and including the found mark frame
+            DROP_FRAMES(frameIdx + 1);
             PUSH_FRAME(newFrame);
 
             DISPATCH();
@@ -650,22 +653,90 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
             // the major difference between REACT and ESCAPE is that REACT saves the current continuation
             ObjContinuation* cont = mochiNewContinuation(vm, ip, frame->call.vars.slotCount, VALUE_COUNT() - handler->paramCount, frameIdx);
-            memcpy(cont->savedFrames, fiber->frameStackTop - frameIdx, sizeof(ObjVarFrame*) * frameIdx);
+            // save all frames up to and including the found mark frame
+            memcpy(cont->savedFrames, fiber->frameStackTop - (frameIdx + 1), sizeof(ObjVarFrame*) * frameIdx);
             memcpy(cont->savedStack, fiber->valueStack, sizeof(Value) * cont->savedStackCount);
 
             ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, cont, frame->call.afterLocation);
 
             ip = handler->funcLocation;
-            DROP_FRAMES(frameIdx);
+            fiber->valueStackTop = fiber->valueStack;
+            // drop all frames up to and including the found mark frame
+            DROP_FRAMES(frameIdx + 1);
             PUSH_FRAME(newFrame);
 
             DISPATCH();
         }
         CASE_CODE(CALL_CONTINUATION): {
-            ASSERT(false, "CALL_CONTINUATION not yet implemented.");
+            ASSERT(VALUE_COUNT() > 0, "CALL_CONTINUATION expects at least one continuation value at the top of the value stack.");
+            ObjContinuation* cont = AS_CONTINUATION(POP_VAL());
+            mochiPushRoot(vm, (Obj*)cont);
+
+            // the last frame in the saved frame stack is always the mark frame action reacted on
+            ObjMarkFrame* mark = (ObjMarkFrame*)cont->savedFrames[0];
+            ASSERT_OBJ_TYPE(mark, OBJ_MARK_FRAME, "CALL_CONTINUATION expected a mark frame at the bottom of the continuation frame stack.");
+            ASSERT(VALUE_COUNT() > mark->call.vars.slotCount, "CALL_CONTINUATION expected more values on the value stack than were available for parameters.");
+
+            // we basically copy it, but update the arguments passed along through the handling context and forget the 'return location'
+            ObjMarkFrame* updated = mochiNewMarkFrame(vm, mark->markId, mark->call.vars.slotCount, mark->handlerCount, ip);
+            updated->afterClosure = mark->afterClosure;
+            OBJ_ARRAY_COPY(updated->handlers, mark->handlers, mark->handlerCount);
+            // take any handle parameters off the stack
+            for (int i = 0; i < mark->call.vars.slotCount; i++) {
+                updated->call.vars.slots[i] = POP_VAL();
+            }
+
+            // captured stack values go under any remaining stack values
+            int remainingValues = VALUE_COUNT();
+            valueArrayCopy(fiber->valueStack, fiber->valueStack + cont->savedStackCount, remainingValues);
+            valueArrayCopy(cont->savedStack, fiber->valueStack, cont->savedStackCount);
+            fiber->valueStackTop = fiber->valueStackTop + cont->savedStackCount;
+
+            // saved frames just go on top of the existing frames
+            PUSH_FRAME(updated);
+            OBJ_ARRAY_COPY(fiber->frameStackTop, cont->savedFrames + 1, cont->savedFramesCount - 1);
+            fiber->frameStackTop = fiber->frameStackTop + (cont->savedFramesCount - 1);
+            ip = cont->resumeLocation;
+
+            mochiPopRoot(vm);
+            DISPATCH();
         }
         CASE_CODE(TAILCALL_CONTINUATION): {
-            ASSERT(false, "TAILCALL_CONTINUATION not yet implemented.");
+            ASSERT(VALUE_COUNT() > 0, "TAILCALL_CONTINUATION expects at least one continuation value at the top of the value stack.");
+            ASSERT(FRAME_COUNT() > 0, "TAILCALL_CONTINUATION expects at least one call frame at the top of the frame stack.");
+            ObjContinuation* cont = AS_CONTINUATION(POP_VAL());
+            mochiPushRoot(vm, (Obj*)cont);
+
+            uint8_t* after = ((ObjCallFrame*)POP_FRAME())->afterLocation;
+
+            // the last frame in the saved frame stack is always the mark frame action reacted on
+            ObjMarkFrame* mark = (ObjMarkFrame*)cont->savedFrames[0];
+            ASSERT_OBJ_TYPE(mark, OBJ_MARK_FRAME, "TAILCALL_CONTINUATION expected a mark frame at the bottom of the continuation frame stack.");
+            ASSERT(VALUE_COUNT() > mark->call.vars.slotCount, "TAILCALL_CONTINUATION expected more values on the value stack than were available for parameters.");
+
+            // we basically copy it, but update the arguments passed along through the handling context and forget the 'return location'
+            ObjMarkFrame* updated = mochiNewMarkFrame(vm, mark->markId, mark->call.vars.slotCount, mark->handlerCount, after);
+            updated->afterClosure = mark->afterClosure;
+            OBJ_ARRAY_COPY(updated->handlers, mark->handlers, mark->handlerCount);
+            // take any handle parameters off the stack
+            for (int i = 0; i < mark->call.vars.slotCount; i++) {
+                updated->call.vars.slots[i] = POP_VAL();
+            }
+
+            // captured stack values go under any remaining stack values
+            int remainingValues = VALUE_COUNT();
+            valueArrayCopy(fiber->valueStack, fiber->valueStack + cont->savedStackCount, remainingValues);
+            valueArrayCopy(cont->savedStack, fiber->valueStack, cont->savedStackCount);
+            fiber->valueStackTop = fiber->valueStackTop + cont->savedStackCount;
+
+            // saved frames just go on top of the existing frames
+            PUSH_FRAME(updated);
+            OBJ_ARRAY_COPY(fiber->frameStackTop, cont->savedFrames + 1, cont->savedFramesCount - 1);
+            fiber->frameStackTop = fiber->frameStackTop + (cont->savedFramesCount - 1);
+            ip = cont->resumeLocation;
+
+            mochiPopRoot(vm);
+            DISPATCH();
         }
     }
 
@@ -675,6 +746,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 #undef READ_BYTE
 #undef READ_SHORT
 #undef READ_USHORT
+#undef READ_UINT
 #undef READ_CONSTANT
 }
 
