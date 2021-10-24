@@ -129,6 +129,23 @@ void mochiClosureCapture(ObjClosure* closure, int captureIndex, Value value) {
     closure->captured[captureIndex] = value;
 }
 
+ObjContinuation* mochiNewContinuation(MochiVM* vm, uint8_t* resume, uint8_t paramCount, int savedStackCount, int savedFramesCount) {
+    Value* savedStack = ALLOCATE_ARRAY(vm, Value, savedStackCount);
+    memset(savedStack, 0, sizeof(Value) * savedStackCount);
+    ObjVarFrame** savedFrames = ALLOCATE_ARRAY(vm, ObjVarFrame*, savedFramesCount);
+    memset(savedFrames, 0, sizeof(ObjVarFrame*) * savedFramesCount);
+
+    ObjContinuation* cont = ALLOCATE(vm, ObjContinuation);
+    initObj(vm, (Obj*)cont, OBJ_CONTINUATION);
+    cont->resumeLocation = resume;
+    cont->paramCount = paramCount;
+    cont->savedStack = savedStack;
+    cont->savedFrames = savedFrames;
+    cont->savedStackCount = savedStackCount;
+    cont->savedFramesCount = savedFramesCount;
+    return cont;
+}
+
 ObjCodeBlock* mochiNewCodeBlock(MochiVM* vm) {
     ObjCodeBlock* block = ALLOCATE(vm, ObjCodeBlock);
     initObj(vm, (Obj*)block, OBJ_CODE_BLOCK);

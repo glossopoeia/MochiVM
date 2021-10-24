@@ -152,6 +152,7 @@ struct ObjFiber {
 typedef struct ObjContinuation {
     Obj obj;
     uint8_t* resumeLocation;
+    uint8_t paramCount;
     Value* savedStack;
     int savedStackCount;
     ObjVarFrame** savedFrames;
@@ -184,6 +185,8 @@ Value mochiFiberPopValue(ObjFiber* fiber);
 
 ObjClosure* mochiNewClosure(MochiVM* vm, uint8_t* body, uint8_t paramCount, uint16_t capturedCount);
 void mochiClosureCapture(ObjClosure* closure, int captureIndex, Value value);
+
+ObjContinuation* mochiNewContinuation(MochiVM* vm, uint8_t* resume, uint8_t paramCount, int savedStack, int savedFrames);
 
 ObjCodeBlock* mochiNewCodeBlock(MochiVM* vm);
 

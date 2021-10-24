@@ -193,23 +193,50 @@ void writeChunk(MochiVM* vm, uint8_t instr, int line) {
 // Generic function to create a call frame from a closure based on some data known about it. Can supply a var frame
 // that will be spliced between the parameters and the captured values, but if this isn't needed, supply NULL for it.
 // Modifies the fiber stack, and expects the parameters to be in correct order at the top of the stack.
-static ObjCallFrame* callClosureFrame(MochiVM* vm, ObjFiber* fiber, ObjClosure* capture, ObjVarFrame* frameVars, uint8_t* after) {
+static ObjCallFrame* callClosureFrame(MochiVM* vm, ObjFiber* fiber, ObjClosure* capture, ObjVarFrame* frameVars, ObjContinuation* cont, uint8_t* after) {
     ASSERT((fiber->valueStackTop - fiber->valueStack) >= capture->paramCount, "callClosureFrame: Not enough values on the value stack to call the closure.");
 
-    int varCount = capture->paramCount + capture->capturedCount + (frameVars != NULL ? frameVars->slotCount : 0);
+    int varCount = (cont != NULL ? 1 : 0) + capture->paramCount + capture->capturedCount + (frameVars != NULL ? frameVars->slotCount : 0);
     Value* vars = ALLOCATE_ARRAY(vm, Value, varCount);
 
-    for (int i = 0; i < capture->paramCount; i++) {
-        vars[i] = *(--fiber->valueStackTop);
+    int offset = 0;
+    if (cont != NULL) {
+        vars[0] = OBJ_VAL(cont);
+        offset += 1;
     }
 
-    int offset = capture->paramCount;
+    for (int i = 0; i < capture->paramCount; i++) {
+        vars[offset + i] = *(--fiber->valueStackTop);
+    }
+    offset += capture->paramCount;
+
     if (frameVars != NULL) {
         valueArrayCopy(vars + offset, frameVars->slots, frameVars->slotCount);
         offset += frameVars->slotCount;
     }
     valueArrayCopy(vars + offset, capture->captured, capture->capturedCount);
     return newCallFrame(vars, varCount, after, vm);
+}
+
+// Walk the frame stack backwards looking for a mark frame with the given mark id that is 'unnested',
+// i.e. with a nesting level of 0. Injecting increases the nesting levels of the nearest mark frames with
+// a given mark id, while ejecting decreases the nesting level. This dual functionality allows some
+// actions to be handled by handlers 'containing' inner handlers that would otherwise have handled the action.
+// This function drives the actual effect of the nesting by continuing to walk down mark frames even if a
+// mark frame with the requested id is found if it is 'nested', i.e. with a nesting level greater than 0.
+static int findFreeHandler(ObjFiber* fiber, int markId) {
+    int index = 0;
+    for (; index < fiber->frameStackTop - fiber->frameStack; index++) {
+        ObjVarFrame* frame = *(fiber->frameStackTop - index - 1);
+        if (frame->obj.type != OBJ_MARK_FRAME) {
+            continue;
+        }
+        ObjMarkFrame* mark = (ObjMarkFrame*)frame;
+        if (mark->markId == markId && mark->nesting == 0) {
+            continue;
+        }
+    }
+    return index;
 }
 
 // Dispatcher function to run a particular fiber in the context of the given vm.
@@ -422,7 +449,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             // top of the stack is first in the frame, next is second, etc.
             // captured are copied as they appear in the closure
             mochiPushRoot(vm, (Obj*)closure);
-            ObjCallFrame* frame = callClosureFrame(vm, fiber, closure, NULL, ip);
+            ObjCallFrame* frame = callClosureFrame(vm, fiber, closure, NULL, NULL, ip);
             mochiPopRoot(vm);
 
             // jump to the closure body, drop the closure and now-stored stack values, and push the frame
@@ -441,7 +468,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             // pop the old frame and create a new frame with the new array of stored values but the same return location
             ObjCallFrame* oldFrame = (ObjCallFrame*)PEEK_FRAME(1);
             mochiPushRoot(vm, (Obj*)closure);
-            ObjCallFrame* frame = callClosureFrame(vm, fiber, closure, NULL, oldFrame->afterLocation);
+            ObjCallFrame* frame = callClosureFrame(vm, fiber, closure, NULL, NULL, oldFrame->afterLocation);
             mochiPopRoot(vm);
 
             // jump to the closure body, drop the old frame, drop the closure and the now-stored stack values, and push the new frame
@@ -542,18 +569,49 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         }
         CASE_CODE(INJECT): {
             int markId = READ_UINT();
-            ASSERT(false, "REACT not yet implemented.");
+
+            for (int i = 0; i < fiber->frameStackTop - fiber->frameStack; i++) {
+                ObjVarFrame* frame = *(fiber->frameStackTop - i - 1);
+                if (frame->obj.type != OBJ_MARK_FRAME) {
+                    continue;
+                }
+                ObjMarkFrame* mark = (ObjMarkFrame*)frame;
+                if (mark->markId == markId) {
+                    mark->nesting += 1;
+                    if (mark->nesting == 1) {
+                        break;
+                    }
+                }
+            }
+
+            DISPATCH();
         }
         CASE_CODE(EJECT): {
             int markId = READ_UINT();
-            ASSERT(false, "REACT not yet implemented.");
+            
+            for (int i = 0; i < fiber->frameStackTop - fiber->frameStack; i++) {
+                ObjVarFrame* frame = *(fiber->frameStackTop - i - 1);
+                if (frame->obj.type != OBJ_MARK_FRAME) {
+                    continue;
+                }
+                ObjMarkFrame* mark = (ObjMarkFrame*)frame;
+                if (mark->markId == markId) {
+                    mark->nesting -= 1;
+                    if (mark->nesting <= 0) {
+                        ASSERT(mark->nesting == 0, "EJECT instruction occurred without prior INJECT.");
+                        break;
+                    }
+                }
+            }
+
+            DISPATCH();
         }
         CASE_CODE(COMPLETE): {
             ASSERT(FRAME_COUNT() > 0, "COMPLETE expects at least one mark frame on the frame stack.");
 
             ObjMarkFrame* frame = (ObjMarkFrame*)PEEK_FRAME(1);
 
-            ObjCallFrame* newFrame = callClosureFrame(vm, fiber, frame->afterClosure, (ObjVarFrame*)frame, frame->call.afterLocation);
+            ObjCallFrame* newFrame = callClosureFrame(vm, fiber, frame->afterClosure, (ObjVarFrame*)frame, NULL, frame->call.afterLocation);
 
             DROP_FRAMES(1);
             PUSH_FRAME(newFrame);
@@ -571,7 +629,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             ASSERT(handlerIdx < frame->handlerCount, "ESCAPE: Requested handler index outside the bounds of the mark frame handler set.");
             ObjClosure* handler = frame->handlers[frameIdx];
 
-            ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, frame->call.afterLocation);
+            ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, NULL, frame->call.afterLocation);
 
             ip = handler->funcLocation;
             DROP_FRAMES(frameIdx);
@@ -580,7 +638,28 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(REACT): {
-            ASSERT(false, "REACT not yet implemented.");
+            ASSERT(FRAME_COUNT() > 0, "REACT expects at least one mark frame on the frame stack.");
+
+            int markId = READ_UINT();
+            uint8_t handlerIdx = READ_BYTE();
+            int frameIdx = findFreeHandler(fiber, markId);
+            ObjMarkFrame* frame = (ObjMarkFrame*)PEEK_FRAME(frameIdx + 1);
+
+            ASSERT(handlerIdx < frame->handlerCount, "REACT: Requested handler index outside the bounds of the mark frame handler set.");
+            ObjClosure* handler = frame->handlers[frameIdx];
+
+            // the major difference between REACT and ESCAPE is that REACT saves the current continuation
+            ObjContinuation* cont = mochiNewContinuation(vm, ip, frame->call.vars.slotCount, VALUE_COUNT() - handler->paramCount, frameIdx);
+            memcpy(cont->savedFrames, fiber->frameStackTop - frameIdx, sizeof(ObjVarFrame*) * frameIdx);
+            memcpy(cont->savedStack, fiber->valueStack, sizeof(Value) * cont->savedStackCount);
+
+            ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, cont, frame->call.afterLocation);
+
+            ip = handler->funcLocation;
+            DROP_FRAMES(frameIdx);
+            PUSH_FRAME(newFrame);
+
+            DISPATCH();
         }
         CASE_CODE(CALL_CONTINUATION): {
             ASSERT(false, "CALL_CONTINUATION not yet implemented.");
