@@ -149,12 +149,8 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             int handleId = getInt(code, offset); offset += 4;
             uint8_t params = code[offset]; offset += 1;
             uint8_t handlers = code[offset]; offset += 1;
-            printf("%-16s %-3d %-8d %-3d < ", "HANDLE", after, handleId, params);
-            for (int i = 0; i < handlers; i++) {
-                printf("%4d ", getInt(code, offset + i*4));
-            }
-            printf(">\n");
-            return offset + handlers * 4;
+            printf("%-16s a(%d) id(%d) p(%d) h(%d)\n", "HANDLE", after, handleId, params, handlers);
+            return offset;
         }
         case CODE_INJECT:
             return intArgInstruction("INJECT", vm, offset);
@@ -170,6 +166,14 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("CALL_CONTINUATION", offset);
         case CODE_TAILCALL_CONTINUATION:
             return simpleInstruction("TAILCALL_CONTINUATION", offset);
+        case CODE_ZAP:
+            return simpleInstruction("ZAP", offset);
+        case CODE_SWAP:
+            return simpleInstruction("SWAP", offset);
+        case CODE_LIST_NIL:
+            return simpleInstruction("LIST_NIL", offset);
+        case CODE_LIST_CONS:
+            return simpleInstruction("LIST_CONS", offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;

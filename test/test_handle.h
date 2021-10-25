@@ -138,3 +138,115 @@ VERIFY_STACK(2);
 VERIFY_NUMBER(4.0);
 
 END_TEST();
+
+
+
+
+BEGIN_TEST("Handler with parameters and two actions.");
+
+// main =
+//   let counter = get! 1 add-double put! zap get! 1 add-double put!
+//   2
+//   handle s { counter }
+//   with {
+//     get! => s s resume
+//     put! n => [] n resume
+//     after => [] swap cons s cons
+//   }
+
+CONSTANT(NUMBER_VAL(2));
+CONSTANT(NUMBER_VAL(1));
+
+WRITE_INT_INST(CALL, 10, 1); // 5
+WRITE_INT_INST(TAILCALL, 121, 2); //10
+
+// main
+WRITE_INST(CONSTANT, 3);
+WRITE_BYTE(0, 3); // 12
+
+WRITE_INT_INST(CLOSURE, 111, 3); // 17
+WRITE_BYTE(0, 3);
+WRITE_SHORT(0, 3); // 20
+
+WRITE_INT_INST(CLOSURE, 99, 3); // 25
+WRITE_BYTE(1, 3);
+WRITE_SHORT(0, 3); // 28
+
+WRITE_INT_INST(CLOSURE, 83, 3); // 33
+WRITE_BYTE(0, 3);
+WRITE_SHORT(0, 3); // 36
+
+WRITE_INST(HANDLE, 4); // 37
+WRITE_SHORT(6, 4); // 39
+WRITE_INT(0, 4); // 43
+WRITE_BYTE(1, 4); // 44
+WRITE_BYTE(2, 4); // 45
+
+WRITE_INT_INST(CALL, 52, 4); // 50
+
+WRITE_INST(COMPLETE, 5);
+WRITE_INST(RETURN, 5); // 52
+
+// counter
+WRITE_INST(REACT, 6);
+WRITE_INT(0, 6); // 57
+WRITE_BYTE(0, 6); // 58
+
+WRITE_INST(CONSTANT, 6);
+WRITE_BYTE(1, 6);
+WRITE_INST(ADD, 6); // 61
+
+WRITE_INST(REACT, 6);
+WRITE_INT(0, 6); // 66
+WRITE_BYTE(1, 6); // 65
+
+WRITE_INST(ZAP, 6);
+WRITE_INST(REACT, 6); // 69
+WRITE_INT(0, 6); // 73
+WRITE_BYTE(0, 6); // 74
+
+WRITE_INST(CONSTANT, 6);
+WRITE_BYTE(1, 6);
+WRITE_INST(ADD, 6); // 77
+
+WRITE_INST(REACT, 6);
+WRITE_INT(0, 6); // 82
+WRITE_BYTE(1, 6); // 83
+
+// get1
+WRITE_INST(FIND, 7);
+WRITE_SHORT(0, 7); // 86
+WRITE_SHORT(1, 7); // 88
+WRITE_INST(FIND, 7);
+WRITE_SHORT(0, 7); // 91
+WRITE_SHORT(1, 7); // 93
+WRITE_INST(FIND, 7);
+WRITE_SHORT(0, 7); // 96
+WRITE_SHORT(0, 7); // 98
+WRITE_INST(TAILCALL_CONTINUATION, 7); // 99
+
+// put1
+WRITE_INST(LIST_NIL, 7);
+WRITE_INST(FIND, 7); // 101
+WRITE_SHORT(0, 7); // 103
+WRITE_SHORT(1, 7); // 105
+WRITE_INST(FIND, 7);
+WRITE_SHORT(0, 7); // 108
+WRITE_SHORT(0, 7); // 110
+WRITE_INST(TAILCALL_CONTINUATION, 7); // 111
+
+// after1
+WRITE_INST(LIST_NIL, 8);
+WRITE_INST(SWAP, 8); // 113
+WRITE_INST(LIST_CONS, 8);
+WRITE_INST(FIND, 8); // 115
+WRITE_SHORT(0, 8); // 117
+WRITE_SHORT(0, 8); // 119
+WRITE_INST(LIST_CONS, 8);
+WRITE_INST(RETURN, 8); // 121
+
+// end
+WRITE_INST(ABORT, 15);
+WRITE_BYTE(0, 15);
+
+END_TEST();

@@ -37,11 +37,13 @@
 #define AS_FIBER(v)             ((ObjFiber*)AS_OBJ(v))
 #define AS_POINTER(v)           ((ObjCPointer*)AS_OBJ(v))
 #define AS_FOREIGN(v)           ((ObjForeign*)AS_OBJ(v))
+#define AS_LIST(v)              ((ObjList*)AS_OBJ(v))
 #define AS_NUMBER(value)        (mochiValueToNum(value))
 #define AS_STRING(v)            ((ObjString*)AS_OBJ(v))
 #define AS_CSTRING(v)           (AS_STRING(v)->chars)
 
 typedef enum {
+    OBJ_LIST,
     OBJ_CODE_BLOCK,
     OBJ_FIBER,
     OBJ_VAR_FRAME,
@@ -173,6 +175,13 @@ typedef struct ObjForeign {
     uint8_t data[];
 } ObjForeign;
 
+typedef struct ObjList {
+    Obj obj;
+    Value elem;
+    struct ObjList* prev;
+    struct ObjList* next;
+} ObjList;
+
 static inline bool isObjType(Value value, ObjType type) {
     return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }
@@ -203,6 +212,8 @@ ObjMarkFrame* mochiNewMarkFrame(MochiVM* vm, int markId, uint8_t paramCount, uin
 ObjForeign* mochiNewForeign(MochiVM* vm, size_t size);
 
 ObjCPointer* mochiNewCPointer(MochiVM* vm, void* pointer);
+
+ObjList* mochiListCons(MochiVM* vm, Value elem, ObjList* tail);
 
 // Logs a textual representation of the given value to the output
 void printValue(MochiVM* vm, Value value);

@@ -157,9 +157,7 @@ ObjCodeBlock* mochiNewCodeBlock(MochiVM* vm) {
 
 ObjForeign* mochiNewForeign(MochiVM* vm, size_t size) {
     ObjForeign* object = ALLOCATE_FLEX(vm, ObjForeign, uint8_t, size);
-    object->obj.type = OBJ_FOREIGN;
-    object->obj.next = vm->objects;
-    vm->objects = (Obj*)object;
+    initObj(vm, (Obj*)object, OBJ_FOREIGN);
 
     // Zero out the bytes.
     memset(object->data, 0, size);
@@ -170,6 +168,15 @@ ObjCPointer* mochiNewCPointer(MochiVM* vm, void* pointer) {
     ObjCPointer* object = ALLOCATE_OBJ(vm, ObjCPointer, OBJ_C_POINTER);
     object->pointer = pointer;
     return object;
+}
+
+ObjList* mochiListCons(MochiVM* vm, Value elem, ObjList* tail) {
+    ObjList* list = ALLOCATE(vm, ObjList);
+    initObj(vm, (Obj*)list, OBJ_LIST);
+    list->prev = NULL;
+    list->next = tail;
+    list->elem = elem;
+    return list;
 }
 
 static void freeVarFrame(MochiVM* vm, ObjVarFrame* frame) {
@@ -225,6 +232,7 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
         case OBJ_CLOSURE: break;
         case OBJ_FOREIGN: break;
         case OBJ_C_POINTER: break;
+        case OBJ_LIST: break;
     }
 
     DEALLOCATE(vm, object);
@@ -239,6 +247,11 @@ void printValue(MochiVM* vm, Value value) {
 }
 
 void printObject(MochiVM* vm, Value object) {
+    if (AS_OBJ(object) == NULL) {
+        printf("nil");
+        return;
+    }
+
     switch (AS_OBJ(object)->type) {
         case OBJ_CODE_BLOCK: {
             printf("code");
@@ -265,7 +278,8 @@ void printObject(MochiVM* vm, Value object) {
             break;
         }
         case OBJ_CLOSURE: {
-            printf("closure");
+            ObjClosure* closure = AS_CLOSURE(object);
+            printf("closure(%d: %d -> %ld)", closure->capturedCount, closure->paramCount, closure->funcLocation - vm->block->code.data);
             break;
         }
         case OBJ_CONTINUATION: {
@@ -282,6 +296,15 @@ void printObject(MochiVM* vm, Value object) {
         }
         case OBJ_C_POINTER: {
             printf("c_ptr");
+            break;
+        }
+        case OBJ_LIST: {
+            ObjList* list = AS_LIST(object);
+            printf("cons(");
+            printValue(vm, list->elem);
+            printf(",");
+            printObject(vm, OBJ_VAL(list->next));
+            printf(")");
             break;
         }
     }
@@ -416,6 +439,16 @@ static void markCPointer(MochiVM* vm, ObjCPointer* ptr) {
     vm->bytesAllocated += sizeof(ObjCPointer);
 }
 
+static void markList(MochiVM* vm, ObjList* list) {
+    if (list == NULL) { return; }
+
+    mochiGrayValue(vm, list->elem);
+    mochiGrayObj(vm, (Obj*)list->prev);
+    mochiGrayObj(vm, (Obj*)list->next);
+
+    vm->bytesAllocated += sizeof(ObjList);
+}
+
 static void blackenObject(MochiVM* vm, Obj* obj)
 {
 #if ZHEnZHU_DEBUG_TRACE_MEMORY
@@ -437,6 +470,7 @@ static void blackenObject(MochiVM* vm, Obj* obj)
         case OBJ_STRING:        markString(vm, (ObjString*)obj); break;
         case OBJ_FOREIGN:       markForeign(vm, (ObjForeign*)obj); break;
         case OBJ_C_POINTER:     markCPointer(vm, (ObjCPointer*)obj); break;
+        case OBJ_LIST:          markList(vm, (ObjList*)obj); break;
     }
 }
 

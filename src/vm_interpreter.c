@@ -32,10 +32,10 @@ static ObjCallFrame* callClosureFrame(MochiVM* vm, ObjFiber* fiber, ObjClosure* 
     offset += capture->paramCount;
 
     if (frameVars != NULL) {
-        valueArrayCopy(frameVars->slots, vars + offset, frameVars->slotCount);
+        valueArrayCopy(vars + offset, frameVars->slots, frameVars->slotCount);
         offset += frameVars->slotCount;
     }
-    valueArrayCopy(capture->captured, vars + offset, capture->capturedCount);
+    valueArrayCopy(vars + offset, capture->captured, capture->capturedCount);
     return newCallFrame(vars, varCount, after, vm);
 }
 
@@ -571,6 +571,33 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             ip = cont->resumeLocation;
 
             mochiPopRoot(vm);
+            DISPATCH();
+        }
+
+        CASE_CODE(ZAP): {
+            ASSERT(VALUE_COUNT() >= 1, "ZAP expects at least one value on the value stack.");
+            DROP_VALS(1);
+            DISPATCH();
+        }
+        CASE_CODE(SWAP): {
+            ASSERT(VALUE_COUNT() >= 2, "SWAP expects at least two values on the value stack.");
+            Value top = POP_VAL();
+            Value below = POP_VAL();
+            PUSH_VAL(top);
+            PUSH_VAL(below);
+            DISPATCH();
+        }
+        CASE_CODE(LIST_NIL): {
+            PUSH_VAL(OBJ_VAL(NULL));
+            DISPATCH();
+        }
+        CASE_CODE(LIST_CONS): {
+            ASSERT(VALUE_COUNT() >= 2, "LIST_CONS expects at least two values on the value stack.");
+            Value elem = PEEK_VAL(1);
+            ObjList* tail = AS_LIST(PEEK_VAL(2));
+            ObjList* new = mochiListCons(vm, elem, tail);
+            DROP_VALS(2);
+            PUSH_VAL(OBJ_VAL(new));
             DISPATCH();
         }
     }
