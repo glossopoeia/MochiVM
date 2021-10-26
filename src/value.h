@@ -178,7 +178,6 @@ typedef struct ObjForeign {
 typedef struct ObjList {
     Obj obj;
     Value elem;
-    struct ObjList* prev;
     struct ObjList* next;
 } ObjList;
 
@@ -213,7 +212,10 @@ ObjForeign* mochiNewForeign(MochiVM* vm, size_t size);
 
 ObjCPointer* mochiNewCPointer(MochiVM* vm, void* pointer);
 
+ObjList* mochiListNil(MochiVM* vm);
 ObjList* mochiListCons(MochiVM* vm, Value elem, ObjList* tail);
+ObjList* mochiListTail(MochiVM* vm, ObjList* list);
+Value mochiListHead(MochiVM* vm, ObjList* list);
 
 // Logs a textual representation of the given value to the output
 void printValue(MochiVM* vm, Value value);

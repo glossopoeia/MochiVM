@@ -174,6 +174,12 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("LIST_NIL", offset);
         case CODE_LIST_CONS:
             return simpleInstruction("LIST_CONS", offset);
+        case CODE_LIST_HEAD:
+            return simpleInstruction("LIST_HEAD", offset);
+        case CODE_LIST_TAIL:
+            return simpleInstruction("LIST_TAIL", offset);
+        case CODE_LIST_IS_EMPTY:
+            return simpleInstruction("LIST_IS_EMPTY", offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;

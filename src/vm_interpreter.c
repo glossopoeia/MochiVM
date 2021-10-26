@@ -600,6 +600,30 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             PUSH_VAL(OBJ_VAL(new));
             DISPATCH();
         }
+        CASE_CODE(LIST_HEAD): {
+            ASSERT(VALUE_COUNT() >= 1, "LIST_HEAD expects at least one value on the value stack.");
+            ObjList* list = AS_LIST(POP_VAL());
+            // TODO: if empty list, throw an exception here? assumes built-in or standard library exception mechanism
+            ASSERT(list != NULL, "LIST_HEAD cannot operate on an empty list.");
+            ASSERT_OBJ_TYPE(list, OBJ_LIST, "LIST_HEAD can only operate on objects of list type.");
+            PUSH_VAL(list->elem);
+            DISPATCH();
+        }
+        CASE_CODE(LIST_TAIL): {
+            ASSERT(VALUE_COUNT() >= 1, "LIST_HEAD expects at least one value on the value stack.");
+            ObjList* list = AS_LIST(POP_VAL());
+            // TODO: if empty list, throw an exception here? assumes built-in or standard library exception mechanism
+            ASSERT(list != NULL, "LIST_HEAD cannot operate on an empty list.");
+            ASSERT_OBJ_TYPE(list, OBJ_LIST, "LIST_HEAD can only operate on objects of list type.");
+            PUSH_VAL(OBJ_VAL(list->next));
+            DISPATCH();
+        }
+        CASE_CODE(LIST_IS_EMPTY): {
+            ASSERT(VALUE_COUNT() >= 1, "LIST_IS_EMPTY expects at least one value on the stack.");
+            ObjList* list = AS_LIST(POP_VAL());
+            PUSH_VAL(BOOL_VAL(list == NULL));
+            DISPATCH();
+        }
     }
 
     UNREACHABLE();

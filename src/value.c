@@ -170,13 +170,24 @@ ObjCPointer* mochiNewCPointer(MochiVM* vm, void* pointer) {
     return object;
 }
 
+ObjList* mochiListNil(MochiVM* vm) {
+    return NULL;
+}
+
 ObjList* mochiListCons(MochiVM* vm, Value elem, ObjList* tail) {
     ObjList* list = ALLOCATE(vm, ObjList);
     initObj(vm, (Obj*)list, OBJ_LIST);
-    list->prev = NULL;
     list->next = tail;
     list->elem = elem;
     return list;
+}
+
+ObjList* mochiListTail(MochiVM* vm, ObjList* list) {
+    return list->next;
+}
+
+Value mochiListHead(MochiVM* vm, ObjList* list) {
+    return list->elem;
 }
 
 static void freeVarFrame(MochiVM* vm, ObjVarFrame* frame) {
@@ -440,10 +451,7 @@ static void markCPointer(MochiVM* vm, ObjCPointer* ptr) {
 }
 
 static void markList(MochiVM* vm, ObjList* list) {
-    if (list == NULL) { return; }
-
     mochiGrayValue(vm, list->elem);
-    mochiGrayObj(vm, (Obj*)list->prev);
     mochiGrayObj(vm, (Obj*)list->next);
 
     vm->bytesAllocated += sizeof(ObjList);
