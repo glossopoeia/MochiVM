@@ -60,6 +60,16 @@ static int closureInstruction(const char* name, MochiVM* vm, int offset) {
     return offset + captureCount * 4;
 }
 
+static int actionInstruction(const char* name, MochiVM* vm, int offset) {
+    uint8_t* code = vm->block->code.data;
+    offset += 1;
+
+    int markId = getInt(code, offset); offset += 4;
+    int handlerId = code[offset]; offset += 1;
+    printf("%-16s %-8d %-3d\n", name, markId, handlerId);
+    return offset;
+}
+
 void disassembleChunk(MochiVM* vm, const char * name) {
     printf("== %s ==\n", name);
 
@@ -159,9 +169,9 @@ int disassembleInstruction(MochiVM* vm, int offset) {
         case CODE_COMPLETE:
             return simpleInstruction("COMPLETE", offset);
         case CODE_ESCAPE:
-            return intArgInstruction("ESCAPE", vm, offset);
+            return actionInstruction("ESCAPE", vm, offset);
         case CODE_REACT:
-            return intArgInstruction("REACT", vm, offset);
+            return actionInstruction("REACT", vm, offset);
         case CODE_CALL_CONTINUATION:
             return simpleInstruction("CALL_CONTINUATION", offset);
         case CODE_TAILCALL_CONTINUATION:

@@ -62,6 +62,28 @@ static int findFreeHandler(ObjFiber* fiber, int markId) {
     return index;
 }
 
+static void restoreSaved(MochiVM* vm, ObjFiber* fiber, ObjMarkFrame* mark, ObjContinuation* cont, uint8_t* after) {
+    // we basically copy it, but update the arguments passed along through the handling context and forget the 'return location'
+    ObjMarkFrame* updated = mochiNewMarkFrame(vm, mark->markId, mark->call.vars.slotCount, mark->handlerCount, after);
+    updated->afterClosure = mark->afterClosure;
+    OBJ_ARRAY_COPY(updated->handlers, mark->handlers, mark->handlerCount);
+    // take any handle parameters off the stack
+    for (int i = 0; i < mark->call.vars.slotCount; i++) {
+        updated->call.vars.slots[i] = *(--fiber->valueStackTop);
+    }
+
+    // captured stack values go under any remaining stack values
+    int remainingValues = fiber->valueStackTop - fiber->valueStack;
+    valueArrayCopy(fiber->valueStack + cont->savedStackCount, fiber->valueStack, remainingValues);
+    valueArrayCopy(fiber->valueStack, cont->savedStack, cont->savedStackCount);
+    fiber->valueStackTop = fiber->valueStackTop + cont->savedStackCount;
+
+    // saved frames just go on top of the existing frames
+    *fiber->frameStackTop++ = (ObjVarFrame*)updated;
+    OBJ_ARRAY_COPY(fiber->frameStackTop, cont->savedFrames + 1, cont->savedFramesCount - 1);
+    fiber->frameStackTop = fiber->frameStackTop + (cont->savedFramesCount - 1);
+}
+
 // Dispatcher function to run a particular fiber in the context of the given vm.
 static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
@@ -100,9 +122,14 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
     } while (false)
 
 #ifdef MOCHIVM_DEBUG_TRACE_EXECUTION
-    #define DEBUG_TRACE_INSTRUCTIONS() \
+    #define DEBUG_TRACE_INSTRUCTIONS() disassembleInstruction(vm, (int)(ip - codeStart))
+#else
+    #define DEBUG_TRACE_INSTRUCTIONS() do { } while (false)
+#endif
+
+#if MOCHIVM_DEBUG_TRACE_VALUE_STACK
+    #define DEBUG_TRACE_VALUE_STACK() \
         do { \
-            disassembleInstruction(vm, (int)(ip - codeStart)); \
             printf("STACK:    "); \
             if (fiber->valueStack >= fiber->valueStackTop) { printf("<empty>"); } \
             for (Value * slot = fiber->valueStack; slot < fiber->valueStackTop; slot++) { \
@@ -111,6 +138,14 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
                 printf(" ]"); \
             } \
             printf("\n"); \
+        } while (false)
+#else
+    #define DEBUG_TRACE_VALUE_STACK() do { } while (false)
+#endif
+
+#if MOCHIVM_DEBUG_TRACE_FRAME_STACK
+    #define DEBUG_TRACE_FRAME_STACK() \
+        do { \
             printf("FRAMES:   "); \
             if (fiber->frameStack >= fiber->frameStackTop) { printf("<empty>"); } \
             for (ObjVarFrame** frame = fiber->frameStack; frame < fiber->frameStackTop; frame++) { \
@@ -121,7 +156,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             printf("\n"); \
         } while (false)
 #else
-    #define DEBUG_TRACE_INSTRUCTIONS() do { } while (false)
+    #define DEBUG_TRACE_FRAME_STACK() do { } while (false)
 #endif
 
 #if MOCHIVM_BATTERY_UV
@@ -148,9 +183,11 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
     #define DISPATCH()                                                           \
         do                                                                       \
         {                                                                        \
+            DEBUG_TRACE_VALUE_STACK();                                           \
+            DEBUG_TRACE_FRAME_STACK();                                           \
             DEBUG_TRACE_INSTRUCTIONS();                                          \
             UV_EVENT_LOOP();                                                     \
-            if (fiber->isSuspended) { goto CASE_CODE(NOP); }                  \
+            if (fiber->isSuspended) { goto CASE_CODE(NOP); }                     \
             goto *dispatchTable[instruction = (Code)READ_BYTE()];                \
         } while (false)
 
@@ -158,6 +195,8 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
     #define INTERPRET_LOOP                                                       \
         loop:                                                                    \
+            DEBUG_TRACE_VALUE_STACK();                                           \
+            DEBUG_TRACE_FRAME_STACK();                                           \
             DEBUG_TRACE_INSTRUCTIONS();                                          \
             UV_EVENT_LOOP();                                                     \
             if (fiber->isSuspended) { goto loop; }                               \
@@ -223,7 +262,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
             Value* vars = ALLOCATE_ARRAY(vm, Value, varCount);
             for (int i = 0; i < (int)varCount; i++) {
-                vars[i] = *(fiber->valueStackTop - i);
+                vars[i] = PEEK_VAL(i + 1);
             }
 
             ObjVarFrame* frame = newVarFrame(vars, varCount, vm);
@@ -238,6 +277,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
             ASSERT(FRAME_COUNT() > frameIdx, "FIND tried to access a frame outside the bounds of the frame stack.");
             ObjVarFrame* frame = PEEK_FRAME(frameIdx + 1);
+            ASSERT(frame->slotCount > slotIdx, "FIND tried to access a slot outside the bounds of the frames slots.");
             PUSH_VAL(frame->slots[slotIdx]);
             DISPATCH();
         }
@@ -273,7 +313,6 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             ASSERT(FRAME_COUNT() > 0, "CALL_CLOSURE requires at least one frame on the frame stack.");
             ASSERT(VALUE_COUNT() > 0, "CALL_CLOSURE requires at least one value on the value stack.");
 
-            // only peek the closure to make sure it gets traced by garbage collection
             ObjClosure* closure = (ObjClosure*)POP_VAL();
             uint8_t* next = closure->funcLocation;
 
@@ -284,7 +323,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             ObjCallFrame* frame = callClosureFrame(vm, fiber, closure, NULL, NULL, ip);
             mochiPopRoot(vm);
 
-            // jump to the closure body, drop the closure and now-stored stack values, and push the frame
+            // jump to the closure body and push the frame
             ip = next;
             PUSH_FRAME(frame);
             DISPATCH();
@@ -293,17 +332,16 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             ASSERT(FRAME_COUNT() > 0, "TAILCALL_CLOSURE requires at least one frame on the frame stack.");
             ASSERT(VALUE_COUNT() > 0, "TAILCALL_CLOSURE requires at least one value on the value stack.");
 
-            // only peek the closure to make sure it gets traced by garbage collection
             ObjClosure* closure = (ObjClosure*)POP_VAL();
             uint8_t* next = closure->funcLocation;
 
-            // pop the old frame and create a new frame with the new array of stored values but the same return location
+            // create a new frame with the new array of stored values but the same return location as the previous frame
             ObjCallFrame* oldFrame = (ObjCallFrame*)PEEK_FRAME(1);
             mochiPushRoot(vm, (Obj*)closure);
             ObjCallFrame* frame = callClosureFrame(vm, fiber, closure, NULL, NULL, oldFrame->afterLocation);
             mochiPopRoot(vm);
 
-            // jump to the closure body, drop the old frame, drop the closure and the now-stored stack values, and push the new frame
+            // jump to the closure body, drop the old frame and push the new frame
             ip = next;
             DROP_FRAMES(1);
             PUSH_FRAME(frame);
@@ -328,9 +366,14 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
             ObjClosure* closure = mochiNewClosure(vm, bodyLocation, paramCount, closedCount);
             for (int i = 0; i < closedCount; i++) {
-                uint16_t frame = READ_USHORT();
-                uint16_t slot = READ_USHORT();
-                mochiClosureCapture(closure, i, FIND(frame, slot));
+                uint16_t frameIdx = READ_USHORT();
+                uint16_t slotIdx = READ_USHORT();
+
+                ASSERT(FRAME_COUNT() > frameIdx, "Frame index out of range during CLOSURE creation.");
+                ObjVarFrame* frame = PEEK_FRAME(frameIdx + 1);
+                ASSERT(frame->slotCount >= slotIdx, "Slot index out of range during CLOSURE creation.");
+
+                mochiClosureCapture(closure, i, FIND(frameIdx, slotIdx));
             }
             PUSH_VAL(OBJ_VAL(closure));
             DISPATCH();
@@ -346,9 +389,14 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             // capture everything listed in the instruction args, saving the first spot for the closure itself
             mochiClosureCapture(closure, 0, OBJ_VAL(closure));
             for (int i = 0; i < closedCount; i++) {
-                uint16_t frame = READ_USHORT();
-                uint16_t slot = READ_USHORT();
-                mochiClosureCapture(closure, i + 1, FIND(frame, slot));
+                uint16_t frameIdx = READ_USHORT();
+                uint16_t slotIdx = READ_USHORT();
+
+                ASSERT(FRAME_COUNT() > frameIdx, "Frame index out of range during CLOSURE creation.");
+                ObjVarFrame* frame = PEEK_FRAME(frameIdx + 1);
+                ASSERT(frame->slotCount >= slotIdx, "Slot index out of range during CLOSURE creation.");
+
+                mochiClosureCapture(closure, i + 1, FIND(frameIdx, slotIdx));
             }
             PUSH_VAL(OBJ_VAL(closure));
             DISPATCH();
@@ -363,7 +411,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             for (int i = 0; i < mutualCount; i++) {
                 ObjClosure* old = AS_CLOSURE(PEEK_VAL(mutualCount - i));
                 ObjClosure* closure = mochiNewClosure(vm, old->funcLocation, old->paramCount, old->capturedCount + mutualCount);
-                valueArrayCopy(old->captured, closure->captured + mutualCount, old->capturedCount);
+                valueArrayCopy(closure->captured + mutualCount, old->captured, old->capturedCount);
                 // replace the old closure with the new one
                 PEEK_VAL(mutualCount - i) = OBJ_VAL((Obj*)closure);
             }
@@ -512,25 +560,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             ASSERT_OBJ_TYPE(mark, OBJ_MARK_FRAME, "CALL_CONTINUATION expected a mark frame at the bottom of the continuation frame stack.");
             ASSERT(VALUE_COUNT() > mark->call.vars.slotCount, "CALL_CONTINUATION expected more values on the value stack than were available for parameters.");
 
-            // we basically copy it, but update the arguments passed along through the handling context and forget the 'return location'
-            ObjMarkFrame* updated = mochiNewMarkFrame(vm, mark->markId, mark->call.vars.slotCount, mark->handlerCount, ip);
-            updated->afterClosure = mark->afterClosure;
-            OBJ_ARRAY_COPY(mark->handlers, updated->handlers, mark->handlerCount);
-            // take any handle parameters off the stack
-            for (int i = 0; i < mark->call.vars.slotCount; i++) {
-                updated->call.vars.slots[i] = POP_VAL();
-            }
-
-            // captured stack values go under any remaining stack values
-            int remainingValues = VALUE_COUNT();
-            valueArrayCopy(fiber->valueStack + cont->savedStackCount, fiber->valueStack, remainingValues);
-            valueArrayCopy(fiber->valueStack, cont->savedStack, cont->savedStackCount);
-            fiber->valueStackTop = fiber->valueStackTop + cont->savedStackCount;
-
-            // saved frames just go on top of the existing frames
-            PUSH_FRAME(updated);
-            OBJ_ARRAY_COPY(cont->savedFrames + 1, fiber->frameStackTop, cont->savedFramesCount - 1);
-            fiber->frameStackTop = fiber->frameStackTop + (cont->savedFramesCount - 1);
+            restoreSaved(vm, fiber, mark, cont, ip);
             ip = cont->resumeLocation;
 
             mochiPopRoot(vm);
@@ -549,25 +579,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             ASSERT_OBJ_TYPE(mark, OBJ_MARK_FRAME, "TAILCALL_CONTINUATION expected a mark frame at the bottom of the continuation frame stack.");
             ASSERT(VALUE_COUNT() > mark->call.vars.slotCount, "TAILCALL_CONTINUATION expected more values on the value stack than were available for parameters.");
 
-            // we basically copy it, but update the arguments passed along through the handling context and forget the 'return location'
-            ObjMarkFrame* updated = mochiNewMarkFrame(vm, mark->markId, mark->call.vars.slotCount, mark->handlerCount, after);
-            updated->afterClosure = mark->afterClosure;
-            OBJ_ARRAY_COPY(mark->handlers, updated->handlers, mark->handlerCount);
-            // take any handle parameters off the stack
-            for (int i = 0; i < mark->call.vars.slotCount; i++) {
-                updated->call.vars.slots[i] = POP_VAL();
-            }
-
-            // captured stack values go under any remaining stack values
-            int remainingValues = VALUE_COUNT();
-            valueArrayCopy(fiber->valueStack + cont->savedStackCount, fiber->valueStack, remainingValues);
-            valueArrayCopy(fiber->valueStack, cont->savedStack, cont->savedStackCount);
-            fiber->valueStackTop = fiber->valueStackTop + cont->savedStackCount;
-
-            // saved frames just go on top of the existing frames
-            PUSH_FRAME(updated);
-            OBJ_ARRAY_COPY(cont->savedFrames + 1, fiber->frameStackTop, cont->savedFramesCount - 1);
-            fiber->frameStackTop = fiber->frameStackTop + (cont->savedFramesCount - 1);
+            restoreSaved(vm, fiber, mark, cont, after);
             ip = cont->resumeLocation;
 
             mochiPopRoot(vm);

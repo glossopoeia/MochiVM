@@ -294,7 +294,8 @@ void printObject(MochiVM* vm, Value object) {
             break;
         }
         case OBJ_CONTINUATION: {
-            printf("continuation");
+            ObjContinuation* cont = AS_CONTINUATION(object);
+            printf("continuation(%d: v(%d) f(%d) -> %ld)", cont->paramCount, cont->savedStackCount, cont->savedFramesCount, cont->resumeLocation - vm->block->code.data);
             break;
         }
         case OBJ_FIBER: {
@@ -409,7 +410,6 @@ static void markContinuation(MochiVM* vm, ObjContinuation* cont) {
         mochiGrayValue(vm, cont->savedStack[i]);
     }
     for (int i = 0; i < cont->savedFramesCount; i++) {
-        printf("%p\n", cont->savedFrames[i]);
         mochiGrayObj(vm, (Obj*)cont->savedFrames[i]);
     }
 

@@ -72,7 +72,7 @@
 // these or not. By default, they are all available. To disable one, set the
 // corresponding `MOCHIVM_BATTERY_<name>` define to `0`.
 #ifndef MOCHIVM_BATTERY_UV
-    #define MOCHIVM_BATTERY_UV 1  // LibUV included by default to support concurrent system ops
+    #define MOCHIVM_BATTERY_UV 0  // LibUV included by default to support concurrent system ops
 #endif
 
 #ifndef MOCHIVM_BATTERY_SDL
@@ -96,6 +96,12 @@
 
 // Log VM state and current instruction before every executed instruction.
 #define MOCHIVM_DEBUG_TRACE_EXECUTION 1
+
+// Log fiber value stack state on every instruction execution.
+#define MOCHIVM_DEBUG_TRACE_VALUE_STACK 1
+
+// Log fiber frame stack state on every instruction execution.
+#define MOCHIVM_DEBUG_TRACE_FRAME_STACK 1
 
 // We need buffers of a few different types. To avoid lots of casting between
 // void* and back, we'll use the preprocessor as a poor man's generics and let
