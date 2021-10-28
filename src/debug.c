@@ -120,6 +120,14 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("FALSE", offset);
         case CODE_NOT:
             return simpleInstruction("NOT", offset);
+        case CODE_BOOL_AND:
+            return simpleInstruction("BOOL_AND", offset);
+        case CODE_BOOL_OR:
+            return simpleInstruction("BOOL_OR", offset);
+        case CODE_BOOL_NEQ:
+            return simpleInstruction("BOOL_NEQ", offset);
+        case CODE_BOOL_EQ:
+            return simpleInstruction("BOOL_EQ", offset);
         case CODE_CONCAT:
             return simpleInstruction("CONCAT", offset);
         case CODE_STORE:

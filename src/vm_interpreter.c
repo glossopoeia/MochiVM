@@ -241,6 +241,30 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             PUSH_VAL(BOOL_VAL(!b));
             DISPATCH();
         }
+        CASE_CODE(BOOL_AND): {
+            bool a = AS_BOOL(POP_VAL());
+            bool b = AS_BOOL(POP_VAL());
+            PUSH_VAL(BOOL_VAL(a && b));
+            DISPATCH();
+        }
+        CASE_CODE(BOOL_OR): {
+            bool a = AS_BOOL(POP_VAL());
+            bool b = AS_BOOL(POP_VAL());
+            PUSH_VAL(BOOL_VAL(a || b));
+            DISPATCH();
+        }
+        CASE_CODE(BOOL_NEQ): {
+            bool a = AS_BOOL(POP_VAL());
+            bool b = AS_BOOL(POP_VAL());
+            PUSH_VAL(BOOL_VAL(a != b));
+            DISPATCH();
+        }
+        CASE_CODE(BOOL_EQ): {
+            bool a = AS_BOOL(POP_VAL());
+            bool b = AS_BOOL(POP_VAL());
+            PUSH_VAL(BOOL_VAL(a == b));
+            DISPATCH();
+        }
         CASE_CODE(CONCAT): {
             ObjString* b = AS_STRING(PEEK_VAL(1));
             ObjString* a = AS_STRING(PEEK_VAL(2));
