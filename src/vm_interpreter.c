@@ -660,6 +660,38 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             PUSH_VAL(BOOL_VAL(list == NULL));
             DISPATCH();
         }
+        CASE_CODE(LIST_APPEND): {
+            ASSERT(VALUE_COUNT() >= 2, "LIST_APPEND expects at least two list values on the stack.");
+            ObjList* prefix = AS_LIST(PEEK_VAL(1));
+            ObjList* suffix = AS_LIST(PEEK_VAL(2));
+
+            ObjList* start = NULL;
+            ObjList* iter = NULL;
+            
+            // copy the prefix (left arg) to preserve persistence
+            while (prefix != NULL) {
+                ObjList* next = mochiListCons(vm, prefix->elem, NULL);
+                if (iter != NULL) {
+                    iter->next = next;
+                }
+                if (start == NULL) {
+                    start = next;
+                }
+                iter = next;
+                prefix = prefix->next;
+            }
+
+            // tie off the end of the new left side of the appended list with the right side
+            if (start == NULL) {
+                start = suffix;
+            } else {
+                iter->next = suffix;
+            }
+
+            DROP_VALS(2);
+            PUSH_VAL(OBJ_VAL(start));
+            DISPATCH();
+        }
     }
 
     UNREACHABLE();

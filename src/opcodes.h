@@ -2,11 +2,6 @@
 // an OPCODE() macro which is expected to be defined at the point that this is
 // included. (See: http://en.wikipedia.org/wiki/X_Macro for more.)
 //
-// The first argument is the name of the opcode. The second is its "stack
-// effect" -- the amount that the op code changes the size of the stack. A
-// stack effect of 1 means it pushes a value and the stack grows one larger.
-// -2 means it pops two values, etc.
-//
 // Note that the order of instructions here affects the order of the dispatch
 // table in the VM's interpreter loop. That in turn affects caching which
 // affects overall performance. Take care to run benchmarks if you change the
@@ -71,3 +66,4 @@ OPCODE(LIST_CONS)
 OPCODE(LIST_HEAD)
 OPCODE(LIST_TAIL)
 OPCODE(LIST_IS_EMPTY)
+OPCODE(LIST_APPEND)
