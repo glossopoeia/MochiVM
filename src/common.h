@@ -86,10 +86,10 @@
 #define MOCHIVM_DEBUG_GC_STRESS 1
 
 // Log all memory operations.
-#define MOCHIVM_DEBUG_TRACE_MEMORY 1
+#define MOCHIVM_DEBUG_TRACE_MEMORY 0
 
 // Log all garbage collections.
-#define MOCHIVM_DEBUG_TRACE_GC 1
+#define MOCHIVM_DEBUG_TRACE_GC 0
 
 // Display all the input bytecode before beginning execution.
 #define MOCHIVM_DEBUG_DUMP_BYTECODE 1
