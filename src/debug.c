@@ -64,9 +64,9 @@ static int actionInstruction(const char* name, MochiVM* vm, int offset) {
     uint8_t* code = vm->block->code.data;
     offset += 1;
 
-    int markId = getInt(code, offset); offset += 4;
+    int handleId = getInt(code, offset); offset += 4;
     int handlerId = code[offset]; offset += 1;
-    printf("%-16s %-8d %-3d\n", name, markId, handlerId);
+    printf("%-16s %-8d %-3d\n", name, handleId, handlerId);
     return offset;
 }
 

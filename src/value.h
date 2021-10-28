@@ -20,7 +20,7 @@
 #define IS_FIBER(value)        isObjType(value, OBJ_FIBER)
 #define IS_VAR_FRAME(value)    isObjType(value, OBJ_VAR_FRAME)
 #define IS_CALL_FRAME(value)   isObjType(value, OBJ_CALL_FRAME)
-#define IS_MARK_FRAME(value)   isObjType(value, OBJ_MARK_FRAME)
+#define IS_HANDLE_FRAME(value)   isObjType(value, OBJ_HANDLE_FRAME)
 #define IS_STRING(value)       isObjType(value, OBJ_STRING)
 #define IS_CLOSURE(value)      isObjType(value, OBJ_CLOSURE)
 #define IS_CONTINUATION(value) isObjType(value, OBJ_CONTINUATION)
@@ -31,7 +31,7 @@
 // AS_OBJ and AS_BOOL are implementation specific.
 #define AS_VAR_FRAME(value)     ((ObjVarFrame*)AS_OBJ(value))
 #define AS_CALL_FRAME(value)    ((ObjCallFrame*)AS_OBJ(value))
-#define AS_MARK_FRAME(value)    ((ObjMarkFrame*)AS_OBJ(value))
+#define AS_HANDLE_FRAME(value)    ((ObjHandleFrame*)AS_OBJ(value))
 #define AS_CLOSURE(value)       ((ObjClosure*)AS_OBJ(value))
 #define AS_CONTINUATION(value)  ((ObjContinuation*)AS_OBJ(value))
 #define AS_FIBER(v)             ((ObjFiber*)AS_OBJ(v))
@@ -48,7 +48,7 @@ typedef enum {
     OBJ_FIBER,
     OBJ_VAR_FRAME,
     OBJ_CALL_FRAME,
-    OBJ_MARK_FRAME,
+    OBJ_HANDLE_FRAME,
     OBJ_STRING,
     OBJ_CLOSURE,
     OBJ_CONTINUATION,
@@ -124,18 +124,18 @@ typedef struct ObjCallFrame {
     uint8_t* afterLocation;
 } ObjCallFrame;
 
-typedef struct ObjMarkFrame {
+typedef struct ObjHandleFrame {
     ObjCallFrame call;
     // The identifier that will be searched for when trying to execute a particular operation. Designed to
     // enable efficiently finding sets of related handlers that all get handled by the same handler expression.
-    // Trying to execute an operation must specify the 'set' of handlers the operation belongs to (markId), then
+    // Trying to execute an operation must specify the 'set' of handlers the operation belongs to (handleId), then
     // the index within the set of the operation itself (handlers[i]).
-    int markId;
+    int handleId;
     int nesting;
     ObjClosure* afterClosure;
     ObjClosure** handlers;
     uint8_t handlerCount;
-} ObjMarkFrame;
+} ObjHandleFrame;
 
 struct ObjFiber {
     Obj obj;
@@ -206,7 +206,7 @@ ObjString* copyString(const char* chars, int length, MochiVM* vm);
 
 ObjVarFrame* newVarFrame(Value* vars, int varCount, MochiVM* vm);
 ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, MochiVM* vm);
-ObjMarkFrame* mochiNewMarkFrame(MochiVM* vm, int markId, uint8_t paramCount, uint8_t handlerCount, uint8_t* after);
+ObjHandleFrame* mochinewHandleFrame(MochiVM* vm, int handleId, uint8_t paramCount, uint8_t handlerCount, uint8_t* after);
 
 ObjForeign* mochiNewForeign(MochiVM* vm, size_t size);
 

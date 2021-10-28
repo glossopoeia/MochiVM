@@ -39,36 +39,36 @@ static ObjCallFrame* callClosureFrame(MochiVM* vm, ObjFiber* fiber, ObjClosure* 
     return newCallFrame(vars, varCount, after, vm);
 }
 
-// Walk the frame stack backwards looking for a mark frame with the given mark id that is 'unnested',
-// i.e. with a nesting level of 0. Injecting increases the nesting levels of the nearest mark frames with
-// a given mark id, while ejecting decreases the nesting level. This dual functionality allows some
+// Walk the frame stack backwards looking for a handle frame with the given handle id that is 'unnested',
+// i.e. with a nesting level of 0. Injecting increases the nesting levels of the nearest handle frames with
+// a given handle id, while ejecting decreases the nesting level. This dual functionality allows some
 // actions to be handled by handlers 'containing' inner handlers that would otherwise have handled the action.
-// This function drives the actual effect of the nesting by continuing to walk down mark frames even if a
-// mark frame with the requested id is found if it is 'nested', i.e. with a nesting level greater than 0.
-static int findFreeHandler(ObjFiber* fiber, int markId) {
+// This function drives the actual effect of the nesting by continuing to walk down handle frames even if a
+// handle frame with the requested id is found if it is 'nested', i.e. with a nesting level greater than 0.
+static int findFreeHandler(ObjFiber* fiber, int handleId) {
     int stackCount = fiber->frameStackTop - fiber->frameStack;
     int index = 0;
     for (; index < stackCount; index++) {
         ObjVarFrame* frame = *(fiber->frameStackTop - index - 1);
-        if (frame->obj.type != OBJ_MARK_FRAME) {
+        if (frame->obj.type != OBJ_HANDLE_FRAME) {
             continue;
         }
-        ObjMarkFrame* mark = (ObjMarkFrame*)frame;
-        if (mark->markId == markId && mark->nesting == 0) {
+        ObjHandleFrame* handle = (ObjHandleFrame*)frame;
+        if (handle->handleId == handleId && handle->nesting == 0) {
             break;
         }
     }
-    ASSERT(index < stackCount, "Could not find an unnested mark frame with the desired identifier.");
+    ASSERT(index < stackCount, "Could not find an unnested handle frame with the desired identifier.");
     return index;
 }
 
-static void restoreSaved(MochiVM* vm, ObjFiber* fiber, ObjMarkFrame* mark, ObjContinuation* cont, uint8_t* after) {
+static void restoreSaved(MochiVM* vm, ObjFiber* fiber, ObjHandleFrame* handle, ObjContinuation* cont, uint8_t* after) {
     // we basically copy it, but update the arguments passed along through the handling context and forget the 'return location'
-    ObjMarkFrame* updated = mochiNewMarkFrame(vm, mark->markId, mark->call.vars.slotCount, mark->handlerCount, after);
-    updated->afterClosure = mark->afterClosure;
-    OBJ_ARRAY_COPY(updated->handlers, mark->handlers, mark->handlerCount);
+    ObjHandleFrame* updated = mochinewHandleFrame(vm, handle->handleId, handle->call.vars.slotCount, handle->handlerCount, after);
+    updated->afterClosure = handle->afterClosure;
+    OBJ_ARRAY_COPY(updated->handlers, handle->handlers, handle->handlerCount);
     // take any handle parameters off the stack
-    for (int i = 0; i < mark->call.vars.slotCount; i++) {
+    for (int i = 0; i < handle->call.vars.slotCount; i++) {
         updated->call.vars.slots[i] = *(--fiber->valueStackTop);
     }
 
@@ -427,14 +427,14 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
         CASE_CODE(HANDLE): {
             uint16_t afterOffset = READ_SHORT();
-            int markId = (int)READ_UINT();
+            int handleId = (int)READ_UINT();
             uint8_t paramCount = READ_BYTE();
             uint8_t handlerCount = READ_BYTE();
 
             // plus one for the implicit 'after' closure that will be called by COMPLETE
             ASSERT(VALUE_COUNT() >= handlerCount + paramCount + 1, "HANDLE did not have the required number of values on the stack.");
 
-            ObjMarkFrame* frame = mochiNewMarkFrame(vm, markId, paramCount, handlerCount, ip + afterOffset);
+            ObjHandleFrame* frame = mochinewHandleFrame(vm, handleId, paramCount, handlerCount, ip + afterOffset);
             // take the handlers off the stack
             for (int i = 0; i < handlerCount; i++) {
                 frame->handlers[i] = AS_CLOSURE(POP_VAL());
@@ -449,17 +449,17 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(INJECT): {
-            int markId = READ_UINT();
+            int handleId = READ_UINT();
 
             for (int i = 0; i < fiber->frameStackTop - fiber->frameStack; i++) {
                 ObjVarFrame* frame = *(fiber->frameStackTop - i - 1);
-                if (frame->obj.type != OBJ_MARK_FRAME) {
+                if (frame->obj.type != OBJ_HANDLE_FRAME) {
                     continue;
                 }
-                ObjMarkFrame* mark = (ObjMarkFrame*)frame;
-                if (mark->markId == markId) {
-                    mark->nesting += 1;
-                    if (mark->nesting == 1) {
+                ObjHandleFrame* handle = (ObjHandleFrame*)frame;
+                if (handle->handleId == handleId) {
+                    handle->nesting += 1;
+                    if (handle->nesting == 1) {
                         break;
                     }
                 }
@@ -468,18 +468,18 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(EJECT): {
-            int markId = READ_UINT();
+            int handleId = READ_UINT();
             
             for (int i = 0; i < fiber->frameStackTop - fiber->frameStack; i++) {
                 ObjVarFrame* frame = *(fiber->frameStackTop - i - 1);
-                if (frame->obj.type != OBJ_MARK_FRAME) {
+                if (frame->obj.type != OBJ_HANDLE_FRAME) {
                     continue;
                 }
-                ObjMarkFrame* mark = (ObjMarkFrame*)frame;
-                if (mark->markId == markId) {
-                    mark->nesting -= 1;
-                    if (mark->nesting <= 0) {
-                        ASSERT(mark->nesting == 0, "EJECT instruction occurred without prior INJECT.");
+                ObjHandleFrame* handle = (ObjHandleFrame*)frame;
+                if (handle->handleId == handleId) {
+                    handle->nesting -= 1;
+                    if (handle->nesting <= 0) {
+                        ASSERT(handle->nesting == 0, "EJECT instruction occurred without prior INJECT.");
                         break;
                     }
                 }
@@ -488,9 +488,9 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(COMPLETE): {
-            ASSERT(FRAME_COUNT() > 0, "COMPLETE expects at least one mark frame on the frame stack.");
+            ASSERT(FRAME_COUNT() > 0, "COMPLETE expects at least one handle frame on the frame stack.");
 
-            ObjMarkFrame* frame = (ObjMarkFrame*)PEEK_FRAME(1);
+            ObjHandleFrame* frame = (ObjHandleFrame*)PEEK_FRAME(1);
 
             ObjCallFrame* newFrame = callClosureFrame(vm, fiber, frame->afterClosure, (ObjVarFrame*)frame, NULL, frame->call.afterLocation);
 
@@ -500,21 +500,21 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(ESCAPE): {
-            ASSERT(FRAME_COUNT() > 0, "ESCAPE expects at least one mark frame on the frame stack.");
+            ASSERT(FRAME_COUNT() > 0, "ESCAPE expects at least one handle frame on the frame stack.");
 
-            int markId = READ_UINT();
+            int handleId = READ_UINT();
             uint8_t handlerIdx = READ_BYTE();
-            int frameIdx = findFreeHandler(fiber, markId);
-            ObjMarkFrame* frame = (ObjMarkFrame*)PEEK_FRAME(frameIdx + 1);
-            ASSERT_OBJ_TYPE(frame, OBJ_MARK_FRAME, "ESCAPE expected to find a handle frame but found a different kind of frame..");
+            int frameIdx = findFreeHandler(fiber, handleId);
+            ObjHandleFrame* frame = (ObjHandleFrame*)PEEK_FRAME(frameIdx + 1);
+            ASSERT_OBJ_TYPE(frame, OBJ_HANDLE_FRAME, "ESCAPE expected to find a handle frame but found a different kind of frame..");
 
-            ASSERT(handlerIdx < frame->handlerCount, "ESCAPE: Requested handler index outside the bounds of the mark frame handler set.");
+            ASSERT(handlerIdx < frame->handlerCount, "ESCAPE: Requested handler index outside the bounds of the handle frame handler set.");
             ObjClosure* handler = frame->handlers[handlerIdx];
 
             ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, NULL, frame->call.afterLocation);
 
             ip = handler->funcLocation;
-            // drop all frames up to and including the found mark frame
+            // drop all frames up to and including the found handle frame
             DROP_FRAMES(frameIdx + 1);
             PUSH_FRAME(newFrame);
 
@@ -523,18 +523,18 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         CASE_CODE(REACT): {
             ASSERT(FRAME_COUNT() > 0, "REACT expects at least one handle frame on the frame stack.");
 
-            int markId = READ_UINT();
+            int handleId = READ_UINT();
             uint8_t handlerIdx = READ_BYTE();
-            int frameIdx = findFreeHandler(fiber, markId);
+            int frameIdx = findFreeHandler(fiber, handleId);
             int frameCount = frameIdx + 1;
-            ObjMarkFrame* frame = (ObjMarkFrame*)PEEK_FRAME(frameIdx + 1);
+            ObjHandleFrame* frame = (ObjHandleFrame*)PEEK_FRAME(frameIdx + 1);
 
             ASSERT(handlerIdx < frame->handlerCount, "REACT: Requested handler index outside the bounds of the handle frame handler set.");
             ObjClosure* handler = frame->handlers[handlerIdx];
 
             // the major difference between REACT and ESCAPE is that REACT saves the current continuation
             ObjContinuation* cont = mochiNewContinuation(vm, ip, frame->call.vars.slotCount, VALUE_COUNT() - handler->paramCount, frameCount);
-            // save all frames up to and including the found mark frame
+            // save all frames up to and including the found handle frame
             OBJ_ARRAY_COPY(cont->savedFrames, fiber->frameStackTop - frameCount, frameCount);
             valueArrayCopy(cont->savedStack, fiber->valueStack, cont->savedStackCount);
 
@@ -544,7 +544,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
             ip = handler->funcLocation;
             fiber->valueStackTop = fiber->valueStack;
-            // drop all frames up to and including the found mark frame
+            // drop all frames up to and including the found handle frame
             DROP_FRAMES(frameCount);
             PUSH_FRAME(newFrame);
 
@@ -555,12 +555,12 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             ObjContinuation* cont = AS_CONTINUATION(POP_VAL());
             mochiPushRoot(vm, (Obj*)cont);
 
-            // the last frame in the saved frame stack is always the mark frame action reacted on
-            ObjMarkFrame* mark = (ObjMarkFrame*)cont->savedFrames[0];
-            ASSERT_OBJ_TYPE(mark, OBJ_MARK_FRAME, "CALL_CONTINUATION expected a mark frame at the bottom of the continuation frame stack.");
-            ASSERT(VALUE_COUNT() > mark->call.vars.slotCount, "CALL_CONTINUATION expected more values on the value stack than were available for parameters.");
+            // the last frame in the saved frame stack is always the handle frame action reacted on
+            ObjHandleFrame* handle = (ObjHandleFrame*)cont->savedFrames[0];
+            ASSERT_OBJ_TYPE(handle, OBJ_HANDLE_FRAME, "CALL_CONTINUATION expected a handle frame at the bottom of the continuation frame stack.");
+            ASSERT(VALUE_COUNT() > handle->call.vars.slotCount, "CALL_CONTINUATION expected more values on the value stack than were available for parameters.");
 
-            restoreSaved(vm, fiber, mark, cont, ip);
+            restoreSaved(vm, fiber, handle, cont, ip);
             ip = cont->resumeLocation;
 
             mochiPopRoot(vm);
@@ -574,12 +574,12 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
             uint8_t* after = ((ObjCallFrame*)POP_FRAME())->afterLocation;
 
-            // the last frame in the saved frame stack is always the mark frame action reacted on
-            ObjMarkFrame* mark = (ObjMarkFrame*)cont->savedFrames[0];
-            ASSERT_OBJ_TYPE(mark, OBJ_MARK_FRAME, "TAILCALL_CONTINUATION expected a mark frame at the bottom of the continuation frame stack.");
-            ASSERT(VALUE_COUNT() > mark->call.vars.slotCount, "TAILCALL_CONTINUATION expected more values on the value stack than were available for parameters.");
+            // the last frame in the saved frame stack is always the handle frame action reacted on
+            ObjHandleFrame* handle = (ObjHandleFrame*)cont->savedFrames[0];
+            ASSERT_OBJ_TYPE(handle, OBJ_HANDLE_FRAME, "TAILCALL_CONTINUATION expected a handle frame at the bottom of the continuation frame stack.");
+            ASSERT(VALUE_COUNT() > handle->call.vars.slotCount, "TAILCALL_CONTINUATION expected more values on the value stack than were available for parameters.");
 
-            restoreSaved(vm, fiber, mark, cont, after);
+            restoreSaved(vm, fiber, handle, cont, after);
             ip = cont->resumeLocation;
 
             mochiPopRoot(vm);

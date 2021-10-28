@@ -64,18 +64,18 @@ ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, Mo
     return frame;
 }
 
-ObjMarkFrame* mochiNewMarkFrame(MochiVM* vm, int markId, uint8_t paramCount, uint8_t handlerCount, uint8_t* after) {
+ObjHandleFrame* mochinewHandleFrame(MochiVM* vm, int handleId, uint8_t paramCount, uint8_t handlerCount, uint8_t* after) {
     Value* params = ALLOCATE_ARRAY(vm, Value, paramCount);
     memset(params, 0, sizeof(Value) * paramCount);
     ObjClosure** handlers = ALLOCATE_ARRAY(vm, ObjClosure*, handlerCount);
     memset(handlers, 0, sizeof(ObjClosure*) * handlerCount);
 
-    ObjMarkFrame* frame = ALLOCATE(vm, ObjMarkFrame);
-    initObj(vm, (Obj*)frame, OBJ_MARK_FRAME);
+    ObjHandleFrame* frame = ALLOCATE(vm, ObjHandleFrame);
+    initObj(vm, (Obj*)frame, OBJ_HANDLE_FRAME);
     frame->call.vars.slots = params;
     frame->call.vars.slotCount = paramCount;
     frame->call.afterLocation = after;
-    frame->markId = markId;
+    frame->handleId = handleId;
     frame->nesting = 0;
     frame->afterClosure = NULL;
     frame->handlers = handlers;
@@ -223,10 +223,10 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
             freeVarFrame(vm, (ObjVarFrame*)object);
             break;
         }
-        case OBJ_MARK_FRAME: {
+        case OBJ_HANDLE_FRAME: {
             freeVarFrame(vm, (ObjVarFrame*)object);
-            ObjMarkFrame* mark = (ObjMarkFrame*)object;
-            DEALLOCATE(vm, mark->handlers);
+            ObjHandleFrame* handle = (ObjHandleFrame*)object;
+            DEALLOCATE(vm, handle->handlers);
             break;
         }
         case OBJ_CONTINUATION: {
@@ -282,9 +282,9 @@ void printObject(MochiVM* vm, Value object) {
             printf("call(%d -> %ld)", frame->vars.slotCount, frame->afterLocation - vm->block->code.data);
             break;
         }
-        case OBJ_MARK_FRAME: {
-            ObjMarkFrame* frame = AS_MARK_FRAME(object);
-            printf("handle(%d: n(%d) %d %d -> %ld)", frame->markId, frame->nesting, frame->handlerCount,
+        case OBJ_HANDLE_FRAME: {
+            ObjHandleFrame* frame = AS_HANDLE_FRAME(object);
+            printf("handle(%d: n(%d) %d %d -> %ld)", frame->handleId, frame->nesting, frame->handlerCount,
                     frame->call.vars.slotCount, frame->call.afterLocation - vm->block->code.data);
             break;
         }
@@ -381,7 +381,7 @@ static void markCallFrame(MochiVM* vm, ObjCallFrame* frame) {
     vm->bytesAllocated += sizeof(Value) * frame->vars.slotCount;
 }
 
-static void markMarkFrame(MochiVM* vm, ObjMarkFrame* frame) {
+static void markHandleFrame(MochiVM* vm, ObjHandleFrame* frame) {
     for (int i = 0; i < frame->call.vars.slotCount; i++) {
         mochiGrayValue(vm, frame->call.vars.slots[i]);
     }
@@ -391,7 +391,7 @@ static void markMarkFrame(MochiVM* vm, ObjMarkFrame* frame) {
         mochiGrayObj(vm, (Obj*)frame->handlers[i]);
     }
 
-    vm->bytesAllocated += sizeof(ObjMarkFrame);
+    vm->bytesAllocated += sizeof(ObjHandleFrame);
     vm->bytesAllocated += sizeof(Value) * frame->call.vars.slotCount;
     vm->bytesAllocated += sizeof(ObjClosure*) * frame->handlerCount;
 }
@@ -471,7 +471,7 @@ static void blackenObject(MochiVM* vm, Obj* obj)
         case OBJ_CODE_BLOCK:    markCodeBlock(vm, (ObjCodeBlock*)obj); break;
         case OBJ_VAR_FRAME:     markVarFrame(vm, (ObjVarFrame*)obj); break;
         case OBJ_CALL_FRAME:    markCallFrame(vm, (ObjCallFrame*)obj); break;
-        case OBJ_MARK_FRAME:    markMarkFrame(vm, (ObjMarkFrame*)obj); break;
+        case OBJ_HANDLE_FRAME:  markHandleFrame(vm, (ObjHandleFrame*)obj); break;
         case OBJ_CLOSURE:       markClosure( vm, (ObjClosure*) obj); break;
         case OBJ_CONTINUATION:  markContinuation(vm, (ObjContinuation*)obj); break;
         case OBJ_FIBER:         markFiber(vm, (ObjFiber*)obj); break;
