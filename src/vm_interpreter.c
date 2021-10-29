@@ -670,14 +670,15 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             
             // copy the prefix (left arg) to preserve persistence
             while (prefix != NULL) {
-                ObjList* next = mochiListCons(vm, prefix->elem, NULL);
+                ObjList* new = mochiListCons(vm, prefix->elem, NULL);
                 if (iter != NULL) {
-                    iter->next = next;
+                    iter->next = new;
                 }
                 if (start == NULL) {
-                    start = next;
+                    start = new;
+                    mochiPushRoot(vm, (Obj*)start);
                 }
-                iter = next;
+                iter = new;
                 prefix = prefix->next;
             }
 
@@ -685,6 +686,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             if (start == NULL) {
                 start = suffix;
             } else {
+                mochiPopRoot(vm);
                 iter->next = suffix;
             }
 

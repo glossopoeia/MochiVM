@@ -182,12 +182,21 @@ ObjList* mochiListCons(MochiVM* vm, Value elem, ObjList* tail) {
     return list;
 }
 
-ObjList* mochiListTail(MochiVM* vm, ObjList* list) {
+ObjList* mochiListTail(ObjList* list) {
     return list->next;
 }
 
-Value mochiListHead(MochiVM* vm, ObjList* list) {
+Value mochiListHead(ObjList* list) {
     return list->elem;
+}
+
+int mochiListLength(ObjList* list) {
+    int count = 0;
+    while (list != NULL) {
+        list = list->next;
+        count++;
+    }
+    return count;
 }
 
 static void freeVarFrame(MochiVM* vm, ObjVarFrame* frame) {

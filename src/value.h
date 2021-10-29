@@ -214,8 +214,9 @@ ObjCPointer* mochiNewCPointer(MochiVM* vm, void* pointer);
 
 ObjList* mochiListNil(MochiVM* vm);
 ObjList* mochiListCons(MochiVM* vm, Value elem, ObjList* tail);
-ObjList* mochiListTail(MochiVM* vm, ObjList* list);
-Value mochiListHead(MochiVM* vm, ObjList* list);
+ObjList* mochiListTail(ObjList* list);
+Value mochiListHead(ObjList* list);
+int mochiListLength(ObjList* list);
 
 // Logs a textual representation of the given value to the output
 void printValue(MochiVM* vm, Value value);
