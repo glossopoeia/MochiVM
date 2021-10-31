@@ -45,28 +45,12 @@ struct MochiVM {
     int grayCount;
     int grayCapacity;
 
-    // The list of temporary roots. This is for temporary or new objects that are
-    // not otherwise reachable but should not be collected.
-    //
-    // They are organized as a stack of pointers stored in this array. This
-    // implies that temporary roots need to have stack semantics: only the most
-    // recently pushed object can be released.
-    Obj* tempRoots[MOCHIVM_MAX_TEMP_ROOTS];
-
-    int numTempRoots;
-
     // The buffer of foreign function pointers the VM knows about.
     ForeignFunctionBuffer foreignFns;
 };
 
 int addConstant(MochiVM* vm, Value value);
 void writeChunk(MochiVM* vm, uint8_t instr, int line);
-
-// Marks [obj] as a GC root so that it doesn't get collected.
-void mochiPushRoot(MochiVM* vm, Obj* obj);
-
-// Removes the most recently pushed temporary root.
-void mochiPopRoot(MochiVM* vm);
 
 // Mark [obj] as reachable and still in use. This should only be called
 // during the sweep phase of a garbage collection.

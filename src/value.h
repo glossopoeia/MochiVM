@@ -143,13 +143,17 @@ struct ObjFiber {
     bool isRoot;
     bool isSuspended;
 
-    // Value stack, which all instructions that consume and produce data operate upon.
+    // Value stack, upon which all instructions that consume and produce data operate.
     Value* valueStack;
     Value* valueStackTop;
 
-    // Frame stack, which variable, function, and continuation instructions operate upon.
+    // Frame stack, upon which variable, function, and continuation instructions operate.
     ObjVarFrame** frameStack;
     ObjVarFrame** frameStackTop;
+
+    // Root stack, a smaller Object stack used to temporarily store data so it doesn't get GC'ed.
+    Obj** rootStack;
+    Obj** rootStackTop;
 
     struct ObjFiber* caller;
 };
@@ -193,6 +197,8 @@ static inline void valueArrayCopy(Value* dest, Value* src, int count) {
 ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int initialStackCount);
 void mochiFiberPushValue(ObjFiber* fiber, Value v);
 Value mochiFiberPopValue(ObjFiber* fiber);
+void mochiFiberPushRoot(ObjFiber* fiber, Obj* root);
+void mochiFiberPopRoot(ObjFiber* fiber);
 
 ObjClosure* mochiNewClosure(MochiVM* vm, uint8_t* body, uint8_t paramCount, uint16_t capturedCount);
 void mochiClosureCapture(ObjClosure* closure, int captureIndex, Value value);

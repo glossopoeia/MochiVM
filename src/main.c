@@ -14,6 +14,8 @@
         printf("\n"); \
         printf("=============================\n"); \
         vm = mochiNewVM(NULL);     \
+        fiber = mochiNewFiber(vm, vm->block->code.data, NULL, 0); \
+        vm->fiber = fiber; \
         assertNumber = 0;       \
         assertString = NULL;    \
         assertStack = -1;       \
@@ -23,7 +25,6 @@
 #define END_TEST() \
     do { \
         disassembleChunk(vm, "test chunk"); \
-        ObjFiber* fiber = mochiNewFiber(vm, vm->block->code.data, NULL, 0); \
         mochiInterpret(vm, fiber); \
         if (assertStack >= 0) { \
             ASSERT(assertStack == fiber->valueStackTop - fiber->valueStack, "TEST FAILED: Unexpected stack count"); \
@@ -77,6 +78,7 @@ int main(int argc, const char * argv[]) {
     printf("MochiVM is under development... watch for bugs!\n");
 
     MochiVM* vm = NULL;
+    ObjFiber* fiber = NULL;
     double assertNumber = 0;
     char* assertString = NULL;
     int assertStack = -1;

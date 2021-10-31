@@ -343,9 +343,9 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             // need to populate the frame with the captured values, but also the parameters from the stack
             // top of the stack is first in the frame, next is second, etc.
             // captured are copied as they appear in the closure
-            mochiPushRoot(vm, (Obj*)closure);
+            mochiFiberPushRoot(fiber, (Obj*)closure);
             ObjCallFrame* frame = callClosureFrame(vm, fiber, closure, NULL, NULL, ip);
-            mochiPopRoot(vm);
+            mochiFiberPopRoot(fiber);
 
             // jump to the closure body and push the frame
             ip = next;
@@ -361,9 +361,9 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
             // create a new frame with the new array of stored values but the same return location as the previous frame
             ObjCallFrame* oldFrame = (ObjCallFrame*)PEEK_FRAME(1);
-            mochiPushRoot(vm, (Obj*)closure);
+            mochiFiberPushRoot(fiber, (Obj*)closure);
             ObjCallFrame* frame = callClosureFrame(vm, fiber, closure, NULL, NULL, oldFrame->afterLocation);
-            mochiPopRoot(vm);
+            mochiFiberPopRoot(fiber);
 
             // jump to the closure body, drop the old frame and push the new frame
             ip = next;
@@ -562,9 +562,9 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             OBJ_ARRAY_COPY(cont->savedFrames, fiber->frameStackTop - frameCount, frameCount);
             valueArrayCopy(cont->savedStack, fiber->valueStack, cont->savedStackCount);
 
-            mochiPushRoot(vm, (Obj*)cont);
+            mochiFiberPushRoot(fiber, (Obj*)cont);
             ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, cont, frame->call.afterLocation);
-            mochiPopRoot(vm);
+            mochiFiberPopRoot(fiber);
 
             ip = handler->funcLocation;
             fiber->valueStackTop = fiber->valueStack;
@@ -577,7 +577,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         CASE_CODE(CALL_CONTINUATION): {
             ASSERT(VALUE_COUNT() > 0, "CALL_CONTINUATION expects at least one continuation value at the top of the value stack.");
             ObjContinuation* cont = AS_CONTINUATION(POP_VAL());
-            mochiPushRoot(vm, (Obj*)cont);
+            mochiFiberPushRoot(fiber, (Obj*)cont);
 
             // the last frame in the saved frame stack is always the handle frame action reacted on
             ObjHandleFrame* handle = (ObjHandleFrame*)cont->savedFrames[0];
@@ -587,14 +587,14 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             restoreSaved(vm, fiber, handle, cont, ip);
             ip = cont->resumeLocation;
 
-            mochiPopRoot(vm);
+            mochiFiberPopRoot(fiber);
             DISPATCH();
         }
         CASE_CODE(TAILCALL_CONTINUATION): {
             ASSERT(VALUE_COUNT() > 0, "TAILCALL_CONTINUATION expects at least one continuation value at the top of the value stack.");
             ASSERT(FRAME_COUNT() > 0, "TAILCALL_CONTINUATION expects at least one call frame at the top of the frame stack.");
             ObjContinuation* cont = AS_CONTINUATION(POP_VAL());
-            mochiPushRoot(vm, (Obj*)cont);
+            mochiFiberPushRoot(fiber, (Obj*)cont);
 
             uint8_t* after = ((ObjCallFrame*)POP_FRAME())->afterLocation;
 
@@ -606,7 +606,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             restoreSaved(vm, fiber, handle, cont, after);
             ip = cont->resumeLocation;
 
-            mochiPopRoot(vm);
+            mochiFiberPopRoot(fiber);
             DISPATCH();
         }
 
@@ -675,14 +675,14 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
                 ObjList* iter = start;
                 prefix = prefix->next;
 
-                mochiPushRoot(vm, (Obj*)start);
+                mochiFiberPushRoot(fiber, (Obj*)start);
                 while (prefix != NULL) {
                     iter->next = mochiListCons(vm, prefix->elem, NULL);
                     iter = iter->next;
                     prefix = prefix->next;
                 }
                 iter->next = suffix;
-                mochiPopRoot(vm);
+                mochiFiberPopRoot(fiber);
 
                 DROP_VALS(2);
                 PUSH_VAL(OBJ_VAL(start));

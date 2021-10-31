@@ -20,11 +20,11 @@
                                 MOCHIVM_VERSION_PATCH)
 
 #ifndef MOCHIVM_API
-  #if defined(_MSC_VER) && defined(MOCHIVM_API_DLLEXPORT)
-    #define MOCHIVM_API __declspec( dllexport )
-  #else
-    #define MOCHIVM_API
-  #endif
+    #if defined(_MSC_VER) && defined(MOCHIVM_API_DLLEXPORT)
+        #define MOCHIVM_API __declspec( dllexport )
+    #else
+        #define MOCHIVM_API
+    #endif
 #endif
 
 // A single virtual machine for executing MochiVM byte code.
@@ -83,6 +83,10 @@ typedef struct {
     // The maximum number of frames the VM will allow in a fiber's frame stack.
     // If zero, defaults to 512.
     int frameStackCapacity;
+
+    // The maximum number of objects the VM will allow in a fiber's root stack.
+    // If zero, defaults to 16.
+    int rootStackCapacity;
 
     // The number of bytes MochiVM will allocate before triggering the first garbage
     // collection.

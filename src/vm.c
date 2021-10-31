@@ -38,6 +38,7 @@ void mochiInitConfiguration(MochiVMConfiguration* config) {
     config->errorFn = NULL;
     config->valueStackCapacity = 128;
     config->frameStackCapacity = 512;
+    config->rootStackCapacity = 16;
     config->initialHeapSize = 1024 * 1024 * 10;
     config->minHeapSize = 1024 * 1024;
     config->heapGrowthPercent = 50;
@@ -121,11 +122,6 @@ void mochiCollectGarbage(MochiVM* vm) {
     // already been freed.
     vm->bytesAllocated = 0;
 
-    // Temporary roots.
-    for (int i = 0; i < vm->numTempRoots; i++) {
-        mochiGrayObj(vm, vm->tempRoots[i]);
-    }
-
     if (vm->block != NULL) {
         mochiGrayObj(vm, (Obj*)vm->block);
     }
@@ -179,27 +175,16 @@ void mochiCollectGarbage(MochiVM* vm) {
 }
 
 int addConstant(MochiVM* vm, Value value) {
-    if (IS_OBJ(value)) { mochiPushRoot(vm, AS_OBJ(value)); }
+    ASSERT(vm->fiber != NULL, "Cannot add a constant without a fiber already assigned to the VM.");
+    if (IS_OBJ(value)) { mochiFiberPushRoot(vm->fiber, AS_OBJ(value)); }
     mochiValueBufferWrite(vm, &vm->block->constants, value);
-    if (IS_OBJ(value)) { mochiPopRoot(vm); }
+    if (IS_OBJ(value)) { mochiFiberPopRoot(vm->fiber); }
     return vm->block->constants.count - 1;
 }
 
 void writeChunk(MochiVM* vm, uint8_t instr, int line) {
     mochiByteBufferWrite(vm, &vm->block->code, instr);
     mochiIntBufferWrite(vm, &vm->block->lines, line);
-}
-
-void mochiPushRoot(MochiVM* vm, Obj* obj) {
-    ASSERT(obj != NULL, "Can't root NULL.");
-    ASSERT(vm->numTempRoots < MOCHIVM_MAX_TEMP_ROOTS, "Too many temporary roots.");
-
-    vm->tempRoots[vm->numTempRoots++] = obj;
-}
-
-void mochiPopRoot(MochiVM* vm) {
-    ASSERT(vm->numTempRoots > 0, "No temporary roots to release.");
-    vm->numTempRoots--;
 }
 
 int mochiAddForeign(MochiVM* vm, MochiVMForeignMethodFn fn) {

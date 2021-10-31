@@ -88,12 +88,15 @@ ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int in
     // Allocate the arrays before the fiber in case it triggers a GC.
     Value* values = ALLOCATE_ARRAY(vm, Value, vm->config.valueStackCapacity);
     ObjVarFrame** frames = ALLOCATE_ARRAY(vm, ObjVarFrame*, vm->config.frameStackCapacity);
+    Obj** roots = ALLOCATE_ARRAY(vm, Obj*, vm->config.rootStackCapacity);
     
     ObjFiber* fiber = ALLOCATE_OBJ(vm, ObjFiber, OBJ_FIBER);
     fiber->valueStack = values;
-    fiber->frameStack = frames;
     fiber->valueStackTop = values;
+    fiber->frameStack = frames;
     fiber->frameStackTop = frames;
+    fiber->rootStack = roots;
+    fiber->rootStackTop = roots;
 
     for (int i = 0; i < initialStackCount; i++) {
         values[i] = initialStack[i];
@@ -111,6 +114,14 @@ void mochiFiberPushValue(ObjFiber* fiber, Value v) {
 
 Value mochiFiberPopValue(ObjFiber* fiber) {
     return *(--fiber->valueStackTop);
+}
+
+void mochiFiberPushRoot(ObjFiber* fiber, Obj* root) {
+    *fiber->rootStackTop++ = root;
+}
+
+void mochiFiberPopRoot(ObjFiber* fiber) {
+    fiber->rootStackTop--;
 }
 
 ObjClosure* mochiNewClosure(MochiVM* vm, uint8_t* body, uint8_t paramCount, uint16_t capturedCount) {
@@ -248,6 +259,7 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
             ObjFiber* fiber = (ObjFiber*)object;
             DEALLOCATE(vm, fiber->valueStack);
             DEALLOCATE(vm, fiber->frameStack);
+            DEALLOCATE(vm, fiber->rootStack);
         }
         case OBJ_CLOSURE: break;
         case OBJ_FOREIGN: break;
@@ -438,12 +450,18 @@ static void markFiber(MochiVM* vm, ObjFiber* fiber) {
         mochiGrayObj(vm, (Obj*)*slot);
     }
 
+    // Root stack.
+    for (Obj** slot = fiber->rootStack; slot < fiber->rootStackTop; slot++) {
+        mochiGrayObj(vm, *slot);
+    }
+
     // The caller.
     mochiGrayObj(vm, (Obj*)fiber->caller);
 
     vm->bytesAllocated += sizeof(ObjFiber);
     vm->bytesAllocated += vm->config.frameStackCapacity * sizeof(ObjVarFrame*);
     vm->bytesAllocated += vm->config.valueStackCapacity * sizeof(Value);
+    vm->bytesAllocated += vm->config.rootStackCapacity * sizeof(Obj*);
 }
 
 static void markString(MochiVM* vm, ObjString* string) {
