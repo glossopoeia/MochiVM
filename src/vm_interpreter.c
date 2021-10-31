@@ -436,6 +436,24 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
             DISPATCH();
         }
+        CASE_CODE(CLOSURE_ONCE): {
+            ASSERT(VALUE_COUNT() > 0, "CLOSURE_ONCE expects at least one closure on the value stack.");
+            ObjClosure* closure = AS_CLOSURE(PEEK_VAL(1));
+            closure->resumeLimit = RESUME_ONCE;
+            DISPATCH();
+        }
+        CASE_CODE(CLOSURE_ONCE_TAIL): {
+            ASSERT(VALUE_COUNT() > 0, "CLOSURE_ONCE_TAIL expects at least one closure on the value stack.");
+            ObjClosure* closure = AS_CLOSURE(PEEK_VAL(1));
+            closure->resumeLimit = RESUME_ONCE_TAIL;
+            DISPATCH();
+        }
+        CASE_CODE(CLOSURE_MANY): {
+            ASSERT(VALUE_COUNT() > 0, "CLOSURE_MANY expects at least one closure on the value stack.");
+            ObjClosure* closure = AS_CLOSURE(PEEK_VAL(1));
+            closure->resumeLimit = RESUME_MANY;
+            DISPATCH();
+        }
 
         CASE_CODE(HANDLE): {
             uint16_t afterOffset = READ_SHORT();
@@ -517,48 +535,40 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             int handleId = READ_UINT();
             uint8_t handlerIdx = READ_BYTE();
             int frameIdx = findFreeHandler(fiber, handleId);
+            int frameCount = frameIdx + 1;
             ObjHandleFrame* frame = (ObjHandleFrame*)PEEK_FRAME(frameIdx + 1);
-            ASSERT_OBJ_TYPE(frame, OBJ_HANDLE_FRAME, "ESCAPE expected to find a handle frame but found a different kind of frame..");
 
             ASSERT(handlerIdx < frame->handlerCount, "ESCAPE: Requested handler index outside the bounds of the handle frame handler set.");
             ObjClosure* handler = frame->handlers[handlerIdx];
 
-            ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, NULL, frame->call.afterLocation);
+            if (handler->resumeLimit == RESUME_NONE) {
+                ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, NULL, frame->call.afterLocation);
+
+                fiber->valueStackTop = fiber->valueStack;
+                // drop all frames up to and including the found handle frame
+                DROP_FRAMES(frameCount);
+                PUSH_FRAME(newFrame);
+            } else if (handler->resumeLimit == RESUME_ONCE_TAIL && frame->call.vars.slotCount == 0) {
+                // TODO: does the condition for a handle context with no variables actually matter?
+                ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, NULL, NULL, ip);
+                PUSH_FRAME(newFrame);
+            } else {
+                ObjContinuation* cont = mochiNewContinuation(vm, ip, frame->call.vars.slotCount, VALUE_COUNT() - handler->paramCount, frameCount);
+                // save all frames up to and including the found handle frame
+                OBJ_ARRAY_COPY(cont->savedFrames, fiber->frameStackTop - frameCount, frameCount);
+                valueArrayCopy(cont->savedStack, fiber->valueStack, cont->savedStackCount);
+
+                mochiFiberPushRoot(fiber, (Obj*)cont);
+                ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, cont, frame->call.afterLocation);
+                mochiFiberPopRoot(fiber);
+
+                fiber->valueStackTop = fiber->valueStack;
+                // drop all frames up to and including the found handle frame
+                DROP_FRAMES(frameCount);
+                PUSH_FRAME(newFrame);
+            }            
 
             ip = handler->funcLocation;
-            // drop all frames up to and including the found handle frame
-            DROP_FRAMES(frameIdx + 1);
-            PUSH_FRAME(newFrame);
-
-            DISPATCH();
-        }
-        CASE_CODE(REACT): {
-            ASSERT(FRAME_COUNT() > 0, "REACT expects at least one handle frame on the frame stack.");
-
-            int handleId = READ_UINT();
-            uint8_t handlerIdx = READ_BYTE();
-            int frameIdx = findFreeHandler(fiber, handleId);
-            int frameCount = frameIdx + 1;
-            ObjHandleFrame* frame = (ObjHandleFrame*)PEEK_FRAME(frameIdx + 1);
-
-            ASSERT(handlerIdx < frame->handlerCount, "REACT: Requested handler index outside the bounds of the handle frame handler set.");
-            ObjClosure* handler = frame->handlers[handlerIdx];
-
-            // the major difference between REACT and ESCAPE is that REACT saves the current continuation
-            ObjContinuation* cont = mochiNewContinuation(vm, ip, frame->call.vars.slotCount, VALUE_COUNT() - handler->paramCount, frameCount);
-            // save all frames up to and including the found handle frame
-            OBJ_ARRAY_COPY(cont->savedFrames, fiber->frameStackTop - frameCount, frameCount);
-            valueArrayCopy(cont->savedStack, fiber->valueStack, cont->savedStackCount);
-
-            mochiFiberPushRoot(fiber, (Obj*)cont);
-            ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, cont, frame->call.afterLocation);
-            mochiFiberPopRoot(fiber);
-
-            ip = handler->funcLocation;
-            fiber->valueStackTop = fiber->valueStack;
-            // drop all frames up to and including the found handle frame
-            DROP_FRAMES(frameCount);
-            PUSH_FRAME(newFrame);
 
             DISPATCH();
         }

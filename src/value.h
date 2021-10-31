@@ -99,17 +99,34 @@ typedef struct ObjString {
     char* chars;
 } ObjString;
 
+// This enum provides a way for compiler writers to specify that some closures-as-handlers have
+// certain assumptions guaranteed that allow more efficient operation. For instance, RESUME_NONE
+// will prevent a handler closure from capturing the continuation, since it is never resumed anyway,
+// saving a potentially large allocation and copy. RESUME_ONCE_TAIL treats a handler closure call
+// just like any other closure call. The most general option, but the least efficient, is RESUME_MANY,
+// which can be thought of as the default for handler closures. The default for all closures is
+// RESUME_MANY, even those which are never used as handlers, because continuation saving is only done
+// during the ESCAPE instruction and so RESUME_MANY is never acted upon for the majority of closures.
+typedef enum {
+    RESUME_NONE,
+    RESUME_ONCE,
+    RESUME_ONCE_TAIL,
+    RESUME_MANY
+} ResumeLimit;
+
 // Represents a function combined with saved context. Arguments via [paramCount] are used to
 // inject values from the stack into the call frame at the call site, rather than at
 // closure creation time. [captured] stores the values captured from the frame stack at
 // closure creation time. [paramCount] is highly useful for passing state through when using
 // closures as action handlers, but also makes for a convenient shortcut to store function
-// parameters in the frame stack.
+// parameters in the frame stack. [resumeLimit] is a way for the runtime to specify how many times
+// a closure-as-handler can resume in a handle context.
 typedef struct ObjClosure {
     Obj obj;
     uint8_t* funcLocation;
     uint8_t paramCount;
     uint16_t capturedCount;
+    ResumeLimit resumeLimit;
     Value captured[];
 } ObjClosure;
 

@@ -130,6 +130,11 @@ ObjClosure* mochiNewClosure(MochiVM* vm, uint8_t* body, uint8_t paramCount, uint
     closure->funcLocation = body;
     closure->paramCount = paramCount;
     closure->capturedCount = capturedCount;
+    // Resume many is the default because multiple resumptions are the most general. Most closures
+    // will not actually contain/perform continuation saving or restoring, this default is simply
+    // provided so that the safest before for handler closures is assumed by default. Closures which
+    // are not used as handlers will ignore this field anyway.
+    closure->resumeLimit = RESUME_MANY;
     // reset the captured array in case there is a GC in between allocating and populating it
     memset(closure->captured, 0, sizeof(Value) * capturedCount);
     return closure;

@@ -159,6 +159,12 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return closureInstruction("RECURSIVE", vm, offset);
         case CODE_MUTUAL:
             return intArgInstruction("MUTUAL", vm, offset);
+        case CODE_CLOSURE_ONCE:
+            return simpleInstruction("CLOSURE_ONCE", offset);
+        case CODE_CLOSURE_ONCE_TAIL:
+            return simpleInstruction("CLOSURE_ONCE_TAIL", offset);
+        case CODE_CLOSURE_MANY:
+            return simpleInstruction("CLOSURE_MANY", offset);
         case CODE_HANDLE: {
             uint8_t* code = vm->block->code.data;
             offset += 1;
@@ -178,8 +184,6 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("COMPLETE", offset);
         case CODE_ESCAPE:
             return actionInstruction("ESCAPE", vm, offset);
-        case CODE_REACT:
-            return actionInstruction("REACT", vm, offset);
         case CODE_CALL_CONTINUATION:
             return simpleInstruction("CALL_CONTINUATION", offset);
         case CODE_TAILCALL_CONTINUATION:
