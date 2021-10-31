@@ -20,7 +20,7 @@
 #define IS_FIBER(value)        isObjType(value, OBJ_FIBER)
 #define IS_VAR_FRAME(value)    isObjType(value, OBJ_VAR_FRAME)
 #define IS_CALL_FRAME(value)   isObjType(value, OBJ_CALL_FRAME)
-#define IS_HANDLE_FRAME(value)   isObjType(value, OBJ_HANDLE_FRAME)
+#define IS_HANDLE_FRAME(value) isObjType(value, OBJ_HANDLE_FRAME)
 #define IS_STRING(value)       isObjType(value, OBJ_STRING)
 #define IS_CLOSURE(value)      isObjType(value, OBJ_CLOSURE)
 #define IS_CONTINUATION(value) isObjType(value, OBJ_CONTINUATION)
@@ -31,7 +31,7 @@
 // AS_OBJ and AS_BOOL are implementation specific.
 #define AS_VAR_FRAME(value)     ((ObjVarFrame*)AS_OBJ(value))
 #define AS_CALL_FRAME(value)    ((ObjCallFrame*)AS_OBJ(value))
-#define AS_HANDLE_FRAME(value)    ((ObjHandleFrame*)AS_OBJ(value))
+#define AS_HANDLE_FRAME(value)  ((ObjHandleFrame*)AS_OBJ(value))
 #define AS_CLOSURE(value)       ((ObjClosure*)AS_OBJ(value))
 #define AS_CONTINUATION(value)  ((ObjContinuation*)AS_OBJ(value))
 #define AS_FIBER(v)             ((ObjFiber*)AS_OBJ(v))

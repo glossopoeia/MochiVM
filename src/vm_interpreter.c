@@ -665,33 +665,28 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             ObjList* prefix = AS_LIST(PEEK_VAL(1));
             ObjList* suffix = AS_LIST(PEEK_VAL(2));
 
-            ObjList* start = NULL;
-            ObjList* iter = NULL;
-            
-            // copy the prefix (left arg) to preserve persistence
-            while (prefix != NULL) {
-                ObjList* new = mochiListCons(vm, prefix->elem, NULL);
-                if (iter != NULL) {
-                    iter->next = new;
-                }
-                if (start == NULL) {
-                    start = new;
-                    mochiPushRoot(vm, (Obj*)start);
-                }
-                iter = new;
-                prefix = prefix->next;
-            }
-
-            // tie off the end of the new left side of the appended list with the right side
-            if (start == NULL) {
-                start = suffix;
+            if (suffix == NULL) {
+                DROP_VALS(2);
+                PUSH_VAL(OBJ_VAL(prefix));
+            } else if (prefix == NULL) {
+                DROP_VALS(1);
             } else {
-                mochiPopRoot(vm);
-                iter->next = suffix;
-            }
+                ObjList* start = mochiListCons(vm, prefix->elem, NULL);
+                ObjList* iter = start;
+                prefix = prefix->next;
 
-            DROP_VALS(2);
-            PUSH_VAL(OBJ_VAL(start));
+                mochiPushRoot(vm, (Obj*)start);
+                while (prefix != NULL) {
+                    iter->next = mochiListCons(vm, prefix->elem, NULL);
+                    iter = iter->next;
+                    prefix = prefix->next;
+                }
+                iter->next = suffix;
+                mochiPopRoot(vm);
+
+                DROP_VALS(2);
+                PUSH_VAL(OBJ_VAL(start));
+            }
             DISPATCH();
         }
     }
