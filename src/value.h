@@ -53,7 +53,8 @@ typedef enum {
     OBJ_CLOSURE,
     OBJ_CONTINUATION,
     OBJ_FOREIGN,
-    OBJ_C_POINTER
+    OBJ_C_POINTER,
+    OBJ_FOREIGN_RESUME
 } ObjType;
 
 // Base struct for all heap-allocated object types.
@@ -196,6 +197,15 @@ typedef struct ObjForeign {
     uint8_t data[];
 } ObjForeign;
 
+// A C-function which takes a Mochi closure as a callback is tricky to implement. This structure is
+// also passed in where closures are expected so that the C-callback which calls the Mochi callback
+// can remember where it was to call the Mochi callback properly.
+typedef struct ForeignResume {
+    Obj obj;
+    MochiVM* vm;
+    ObjFiber* fiber;
+} ForeignResume;
+
 typedef struct ObjList {
     Obj obj;
     Value elem;
@@ -214,8 +224,10 @@ static inline void valueArrayCopy(Value* dest, Value* src, int count) {
 ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int initialStackCount);
 void mochiFiberPushValue(ObjFiber* fiber, Value v);
 Value mochiFiberPopValue(ObjFiber* fiber);
+void mochiFiberPushFrame(ObjFiber* fiber, ObjVarFrame* frame);
+ObjVarFrame* mochiFiberPopFrame(ObjFiber* fiber);
 void mochiFiberPushRoot(ObjFiber* fiber, Obj* root);
-void mochiFiberPopRoot(ObjFiber* fiber);
+Obj* mochiFiberPopRoot(ObjFiber* fiber);
 
 ObjClosure* mochiNewClosure(MochiVM* vm, uint8_t* body, uint8_t paramCount, uint16_t capturedCount);
 void mochiClosureCapture(ObjClosure* closure, int captureIndex, Value value);
@@ -232,8 +244,8 @@ ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, Mo
 ObjHandleFrame* mochinewHandleFrame(MochiVM* vm, int handleId, uint8_t paramCount, uint8_t handlerCount, uint8_t* after);
 
 ObjForeign* mochiNewForeign(MochiVM* vm, size_t size);
-
 ObjCPointer* mochiNewCPointer(MochiVM* vm, void* pointer);
+ForeignResume* mochiNewResume(MochiVM* vm, ObjFiber* fiber);
 
 ObjList* mochiListNil(MochiVM* vm);
 ObjList* mochiListCons(MochiVM* vm, Value elem, ObjList* tail);

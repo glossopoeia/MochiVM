@@ -80,6 +80,7 @@ MochiVM* mochiNewVM(MochiVMConfiguration* config) {
 #if MOCHIVM_BATTERY_UV
     mochiAddForeign(vm, uvmochiNewTimer);
     mochiAddForeign(vm, uvmochiCloseTimer);
+    mochiAddForeign(vm, uvmochiTimerStart);
 #endif
 
     return vm;

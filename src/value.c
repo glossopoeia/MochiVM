@@ -116,12 +116,20 @@ Value mochiFiberPopValue(ObjFiber* fiber) {
     return *(--fiber->valueStackTop);
 }
 
+void mochiFiberPushFrame(ObjFiber* fiber, ObjVarFrame* frame) {
+    *fiber->frameStackTop++ = frame;
+}
+
+ObjVarFrame* mochiFiberPopFrame(ObjFiber* fiber) {
+    return *(--fiber->frameStackTop);
+}
+
 void mochiFiberPushRoot(ObjFiber* fiber, Obj* root) {
     *fiber->rootStackTop++ = root;
 }
 
-void mochiFiberPopRoot(ObjFiber* fiber) {
-    fiber->rootStackTop--;
+Obj* mochiFiberPopRoot(ObjFiber* fiber) {
+    return *(--fiber->rootStackTop);
 }
 
 ObjClosure* mochiNewClosure(MochiVM* vm, uint8_t* body, uint8_t paramCount, uint16_t capturedCount) {
@@ -184,6 +192,14 @@ ObjCPointer* mochiNewCPointer(MochiVM* vm, void* pointer) {
     ObjCPointer* object = ALLOCATE_OBJ(vm, ObjCPointer, OBJ_C_POINTER);
     object->pointer = pointer;
     return object;
+}
+
+ForeignResume* mochiNewResume(MochiVM* vm, ObjFiber* fiber) {
+    ForeignResume* res = ALLOCATE(vm, ForeignResume);
+    initObj(vm, (Obj*)res, OBJ_FOREIGN_RESUME);
+    res->vm = vm;
+    res->fiber = fiber;
+    return res;
 }
 
 ObjList* mochiListNil(MochiVM* vm) {
@@ -270,6 +286,7 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
         case OBJ_FOREIGN: break;
         case OBJ_C_POINTER: break;
         case OBJ_LIST: break;
+        case OBJ_FOREIGN_RESUME: break;
     }
 
     DEALLOCATE(vm, object);
@@ -343,6 +360,14 @@ void printObject(MochiVM* vm, Value object) {
             printf(",");
             printObject(vm, OBJ_VAL(list->next));
             printf(")");
+            break;
+        }
+        case OBJ_FOREIGN_RESUME: {
+            printf("foreign_resume");
+            break;
+        }
+        default: {
+            printf("unknown(%d)", AS_OBJ(object)->type);
             break;
         }
     }
@@ -444,6 +469,8 @@ static void markContinuation(MochiVM* vm, ObjContinuation* cont) {
     vm->bytesAllocated += sizeof(ObjVarFrame*) * cont->savedFramesCount;
 }
 
+#include "debug.h"
+
 static void markFiber(MochiVM* vm, ObjFiber* fiber) {
     // Stack variables.
     for (Value* slot = fiber->valueStack; slot < fiber->valueStackTop; slot++) {
@@ -456,7 +483,9 @@ static void markFiber(MochiVM* vm, ObjFiber* fiber) {
     }
 
     // Root stack.
+    printFiberRootStack(vm, fiber);
     for (Obj** slot = fiber->rootStack; slot < fiber->rootStackTop; slot++) {
+        printf("Graying root.\n");
         mochiGrayObj(vm, *slot);
     }
 
@@ -489,6 +518,12 @@ static void markList(MochiVM* vm, ObjList* list) {
     vm->bytesAllocated += sizeof(ObjList);
 }
 
+static void markForeignResume(MochiVM* vm, ForeignResume* resume) {
+    mochiGrayObj(vm, (Obj*)resume->fiber);
+
+    vm->bytesAllocated += sizeof(ForeignResume);
+}
+
 static void blackenObject(MochiVM* vm, Obj* obj)
 {
 #if ZHEnZHU_DEBUG_TRACE_MEMORY
@@ -500,17 +535,18 @@ static void blackenObject(MochiVM* vm, Obj* obj)
     // Traverse the object's fields.
     switch (obj->type)
     {
-        case OBJ_CODE_BLOCK:    markCodeBlock(vm, (ObjCodeBlock*)obj); break;
-        case OBJ_VAR_FRAME:     markVarFrame(vm, (ObjVarFrame*)obj); break;
-        case OBJ_CALL_FRAME:    markCallFrame(vm, (ObjCallFrame*)obj); break;
-        case OBJ_HANDLE_FRAME:  markHandleFrame(vm, (ObjHandleFrame*)obj); break;
-        case OBJ_CLOSURE:       markClosure( vm, (ObjClosure*) obj); break;
-        case OBJ_CONTINUATION:  markContinuation(vm, (ObjContinuation*)obj); break;
-        case OBJ_FIBER:         markFiber(vm, (ObjFiber*)obj); break;
-        case OBJ_STRING:        markString(vm, (ObjString*)obj); break;
-        case OBJ_FOREIGN:       markForeign(vm, (ObjForeign*)obj); break;
-        case OBJ_C_POINTER:     markCPointer(vm, (ObjCPointer*)obj); break;
-        case OBJ_LIST:          markList(vm, (ObjList*)obj); break;
+        case OBJ_CODE_BLOCK:        markCodeBlock(vm, (ObjCodeBlock*)obj); break;
+        case OBJ_VAR_FRAME:         markVarFrame(vm, (ObjVarFrame*)obj); break;
+        case OBJ_CALL_FRAME:        markCallFrame(vm, (ObjCallFrame*)obj); break;
+        case OBJ_HANDLE_FRAME:      markHandleFrame(vm, (ObjHandleFrame*)obj); break;
+        case OBJ_CLOSURE:           markClosure( vm, (ObjClosure*) obj); break;
+        case OBJ_CONTINUATION:      markContinuation(vm, (ObjContinuation*)obj); break;
+        case OBJ_FIBER:             markFiber(vm, (ObjFiber*)obj); break;
+        case OBJ_STRING:            markString(vm, (ObjString*)obj); break;
+        case OBJ_FOREIGN:           markForeign(vm, (ObjForeign*)obj); break;
+        case OBJ_C_POINTER:         markCPointer(vm, (ObjCPointer*)obj); break;
+        case OBJ_LIST:              markList(vm, (ObjList*)obj); break;
+        case OBJ_FOREIGN_RESUME:    markForeignResume(vm, (ForeignResume*)obj); break;
     }
 }
 

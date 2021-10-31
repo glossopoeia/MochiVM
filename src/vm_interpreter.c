@@ -85,13 +85,12 @@ static void restoreSaved(MochiVM* vm, ObjFiber* fiber, ObjHandleFrame* handle, O
 }
 
 // Dispatcher function to run a particular fiber in the context of the given vm.
-static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
+static MochiVMInterpretResult run(MochiVM * vm, ObjFiber* fiber) {
 
     // Remember the current fiber in case of GC.
     vm->fiber = fiber;
     fiber->isRoot = true;
 
-    register uint8_t* ip = fiber->ip;
     register uint8_t* codeStart = vm->block->code.data;
 
 #define FROM_START(offset)  (codeStart + (int)(offset))
@@ -109,10 +108,10 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 #define FRAME_COUNT()       (fiber->frameStackTop - fiber->frameStack)
 #define FIND(frame, slot)   ((*(fiber->frameStackTop - 1 - (frame)))->slots[(slot)])
 
-#define READ_BYTE() (*ip++)
-#define READ_SHORT() (ip += 2, (int16_t)((ip[-2] << 8) | ip[-1]))
-#define READ_USHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
-#define READ_UINT() (ip += 4, (uint32_t)((ip[-4] << 24) | (ip[-3] << 16) | (ip[-2] << 8) | ip[-1]))
+#define READ_BYTE() (*fiber->ip++)
+#define READ_SHORT() (fiber->ip += 2, (int16_t)((fiber->ip[-2] << 8) | fiber->ip[-1]))
+#define READ_USHORT() (fiber->ip += 2, (uint16_t)((fiber->ip[-2] << 8) | fiber->ip[-1]))
+#define READ_UINT() (fiber->ip += 4, (uint32_t)((fiber->ip[-4] << 24) | (fiber->ip[-3] << 16) | (fiber->ip[-2] << 8) | fiber->ip[-1]))
 #define READ_CONSTANT() (vm->block->constants.data[READ_BYTE()])
 #define BINARY_OP(valueType, op) \
     do { \
@@ -122,7 +121,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
     } while (false)
 
 #ifdef MOCHIVM_DEBUG_TRACE_EXECUTION
-    #define DEBUG_TRACE_INSTRUCTIONS() disassembleInstruction(vm, (int)(ip - codeStart))
+    #define DEBUG_TRACE_INSTRUCTIONS() disassembleInstruction(vm, (int)(fiber->ip - codeStart))
 #else
     #define DEBUG_TRACE_INSTRUCTIONS() do { } while (false)
 #endif
@@ -148,7 +147,6 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 #if MOCHIVM_BATTERY_UV
     #define UV_EVENT_LOOP()                                                  \
         do {                                                                 \
-            printf("Checking for LibUV events.\n");                          \
             uv_run(uv_default_loop(), UV_RUN_NOWAIT);                        \
         } while (false)
 #else
@@ -169,12 +167,12 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
     #define DISPATCH()                                                           \
         do                                                                       \
         {                                                                        \
+            UV_EVENT_LOOP();                                                     \
+            if (fiber->isSuspended) { goto CASE_CODE(NOP); }                     \
             DEBUG_TRACE_VALUE_STACK();                                           \
             DEBUG_TRACE_FRAME_STACK();                                           \
             DEBUG_TRACE_ROOT_STACK();                                            \
             DEBUG_TRACE_INSTRUCTIONS();                                          \
-            UV_EVENT_LOOP();                                                     \
-            if (fiber->isSuspended) { goto CASE_CODE(NOP); }                     \
             goto *dispatchTable[instruction = (Code)READ_BYTE()];                \
         } while (false)
 
@@ -182,12 +180,12 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
     #define INTERPRET_LOOP                                                       \
         loop:                                                                    \
+            UV_EVENT_LOOP();                                                     \
+            if (fiber->isSuspended) { goto loop; }                               \
             DEBUG_TRACE_VALUE_STACK();                                           \
             DEBUG_TRACE_FRAME_STACK();                                           \
             DEBUG_TRACE_ROOT_STACK();                                            \
             DEBUG_TRACE_INSTRUCTIONS();                                          \
-            UV_EVENT_LOOP();                                                     \
-            if (fiber->isSuspended) { goto loop; }                               \
             switch (instruction = (Code)READ_BYTE())
 
     #define CASE_CODE(name)  case CODE_##name
@@ -312,13 +310,13 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         }
         CASE_CODE(CALL): {
             uint8_t* callPtr = FROM_START(READ_UINT());
-            ObjCallFrame* frame = newCallFrame(NULL, 0, ip, vm);
+            ObjCallFrame* frame = newCallFrame(NULL, 0, fiber->ip, vm);
             PUSH_FRAME((ObjVarFrame*)frame);
-            ip = callPtr;
+            fiber->ip = callPtr;
             DISPATCH();
         }
         CASE_CODE(TAILCALL): {
-            ip = FROM_START(READ_UINT());
+            fiber->ip = FROM_START(READ_UINT());
             DISPATCH();
         }
         CASE_CODE(CALL_CLOSURE): {
@@ -332,11 +330,11 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             // top of the stack is first in the frame, next is second, etc.
             // captured are copied as they appear in the closure
             mochiFiberPushRoot(fiber, (Obj*)closure);
-            ObjCallFrame* frame = callClosureFrame(vm, fiber, closure, NULL, NULL, ip);
+            ObjCallFrame* frame = callClosureFrame(vm, fiber, closure, NULL, NULL, fiber->ip);
             mochiFiberPopRoot(fiber);
 
             // jump to the closure body and push the frame
-            ip = next;
+            fiber->ip = next;
             PUSH_FRAME(frame);
             DISPATCH();
         }
@@ -354,20 +352,21 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             mochiFiberPopRoot(fiber);
 
             // jump to the closure body, drop the old frame and push the new frame
-            ip = next;
+            fiber->ip = next;
             DROP_FRAMES(1);
             PUSH_FRAME(frame);
             DISPATCH();
         }
         CASE_CODE(OFFSET): {
-            ip = ip + (int)READ_SHORT();
+            int offset = READ_UINT();
+            fiber->ip = fiber->ip + offset;
             DISPATCH();
         }
         CASE_CODE(RETURN): {
             ASSERT(FRAME_COUNT() > 0, "RETURN expects at least one frame on the stack.");
             ObjCallFrame* frame = (ObjCallFrame*)POP_FRAME();
             ASSERT_OBJ_TYPE(frame, OBJ_CALL_FRAME, "RETURN expects a frame of type 'call frame' on the frame stack.");
-            ip = frame->afterLocation;
+            fiber->ip = frame->afterLocation;
             DISPATCH();
         }
         CASE_CODE(CLOSURE): {
@@ -464,7 +463,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             // plus one for the implicit 'after' closure that will be called by COMPLETE
             ASSERT(VALUE_COUNT() >= handlerCount + paramCount + 1, "HANDLE did not have the required number of values on the stack.");
 
-            ObjHandleFrame* frame = mochinewHandleFrame(vm, handleId, paramCount, handlerCount, ip + afterOffset);
+            ObjHandleFrame* frame = mochinewHandleFrame(vm, handleId, paramCount, handlerCount, fiber->ip + afterOffset);
             // take the handlers off the stack
             for (int i = 0; i < handlerCount; i++) {
                 frame->handlers[i] = AS_CLOSURE(POP_VAL());
@@ -526,7 +525,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
             DROP_FRAMES(1);
             PUSH_FRAME(newFrame);
-            ip = frame->afterClosure->funcLocation;
+            fiber->ip = frame->afterClosure->funcLocation;
             DISPATCH();
         }
         CASE_CODE(ESCAPE): {
@@ -550,10 +549,10 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
                 PUSH_FRAME(newFrame);
             } else if (handler->resumeLimit == RESUME_ONCE_TAIL && frame->call.vars.slotCount == 0) {
                 // TODO: does the condition for a handle context with no variables actually matter?
-                ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, NULL, NULL, ip);
+                ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, NULL, NULL, fiber->ip);
                 PUSH_FRAME(newFrame);
             } else {
-                ObjContinuation* cont = mochiNewContinuation(vm, ip, frame->call.vars.slotCount, VALUE_COUNT() - handler->paramCount, frameCount);
+                ObjContinuation* cont = mochiNewContinuation(vm, fiber->ip, frame->call.vars.slotCount, VALUE_COUNT() - handler->paramCount, frameCount);
                 // save all frames up to and including the found handle frame
                 OBJ_ARRAY_COPY(cont->savedFrames, fiber->frameStackTop - frameCount, frameCount);
                 valueArrayCopy(cont->savedStack, fiber->valueStack, cont->savedStackCount);
@@ -568,7 +567,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
                 PUSH_FRAME(newFrame);
             }            
 
-            ip = handler->funcLocation;
+            fiber->ip = handler->funcLocation;
 
             DISPATCH();
         }
@@ -582,8 +581,8 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             ASSERT_OBJ_TYPE(handle, OBJ_HANDLE_FRAME, "CALL_CONTINUATION expected a handle frame at the bottom of the continuation frame stack.");
             ASSERT(VALUE_COUNT() > handle->call.vars.slotCount, "CALL_CONTINUATION expected more values on the value stack than were available for parameters.");
 
-            restoreSaved(vm, fiber, handle, cont, ip);
-            ip = cont->resumeLocation;
+            restoreSaved(vm, fiber, handle, cont, fiber->ip);
+            fiber->ip = cont->resumeLocation;
 
             mochiFiberPopRoot(fiber);
             DISPATCH();
@@ -602,7 +601,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             ASSERT(VALUE_COUNT() > handle->call.vars.slotCount, "TAILCALL_CONTINUATION expected more values on the value stack than were available for parameters.");
 
             restoreSaved(vm, fiber, handle, cont, after);
-            ip = cont->resumeLocation;
+            fiber->ip = cont->resumeLocation;
 
             mochiFiberPopRoot(fiber);
             DISPATCH();

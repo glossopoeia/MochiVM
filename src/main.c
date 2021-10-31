@@ -89,7 +89,7 @@ int main(int argc, const char * argv[]) {
     #include "test_frames.h"
     #include "test_handle.h"
 #if MOCHIVM_BATTERY_UV
-    //#include "test_foreign.h"
+    #include "test_foreign.h"
 #endif
 
 #if MOCHIVM_BATTERY_UV

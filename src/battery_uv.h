@@ -13,6 +13,11 @@ void uvmochiNewTimer(MochiVM* vm, ObjFiber* fiber);
 // Stack effect:
 //      a... Timer  --  a...
 void uvmochiCloseTimer(MochiVM* vm, ObjFiber* fiber);
+// Starts the timer on top of the stack with the given duration. The timer will execute the callback
+// in the third stack slot when the duration has elapsed. Suspends the current fiber until the duration
+// has elapsed. Places the timer reference on top of the stack for the callback.
+// Stack effect:
+//      a... (a... Timer -> c...) U64 Timer  --  c...
 void uvmochiTimerStart(MochiVM* vm, ObjFiber* fiber);
 void uvmochiTimerStop(MochiVM* vm, ObjFiber* fiber);
 void uvmochiTimerSetRepeat(MochiVM* vm, ObjFiber* fiber);
