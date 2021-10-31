@@ -103,6 +103,9 @@
 // Log fiber frame stack state on every instruction execution.
 #define MOCHIVM_DEBUG_TRACE_FRAME_STACK 1
 
+// Log fiber root stack state on every instruction execution.
+#define MOCHIVM_DEBUG_TRACE_ROOT_STACK 0
+
 // We need buffers of a few different types. To avoid lots of casting between
 // void* and back, we'll use the preprocessor as a poor man's generics and let
 // it generate a few type-specific ones.

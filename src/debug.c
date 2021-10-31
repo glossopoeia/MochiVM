@@ -205,3 +205,36 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return offset + 1;
     }
 }
+
+void printFiberValueStack(MochiVM* vm, ObjFiber* fiber) {
+    printf("VALUES:    ");
+    if (fiber->valueStack >= fiber->valueStackTop) { printf("<empty>"); }
+    for (Value * slot = fiber->valueStack; slot < fiber->valueStackTop; slot++) {
+        printf("[ ");
+        printValue(vm, *slot);
+        printf(" ]");
+    }
+    printf("\n");
+}
+
+void printFiberFrameStack(MochiVM* vm, ObjFiber* fiber) {
+    printf("FRAMES:    ");
+    if (fiber->frameStack >= fiber->frameStackTop) { printf("<empty>"); }
+    for (ObjVarFrame** frame = fiber->frameStack; frame < fiber->frameStackTop; frame++) {
+        printf("[ ");
+        printObject(vm, OBJ_VAL(*frame));
+        printf(" ]");
+    }
+    printf("\n");
+}
+
+void printFiberRootStack(MochiVM* vm, ObjFiber* fiber) {
+    printf("ROOTS:     ");
+    if (fiber->rootStack >= fiber->rootStackTop) { printf("<empty>"); }
+    for (Obj** root = fiber->rootStack; root < fiber->rootStackTop; root++) {
+        printf("[ ");
+        printObject(vm, OBJ_VAL(*root));
+        printf(" ]");
+    }
+    printf("\n");
+}

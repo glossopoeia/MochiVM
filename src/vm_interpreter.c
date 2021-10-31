@@ -128,35 +128,21 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 #endif
 
 #if MOCHIVM_DEBUG_TRACE_VALUE_STACK
-    #define DEBUG_TRACE_VALUE_STACK() \
-        do { \
-            printf("STACK:    "); \
-            if (fiber->valueStack >= fiber->valueStackTop) { printf("<empty>"); } \
-            for (Value * slot = fiber->valueStack; slot < fiber->valueStackTop; slot++) { \
-                printf("[ "); \
-                printValue(vm, *slot); \
-                printf(" ]"); \
-            } \
-            printf("\n"); \
-        } while (false)
+    #define DEBUG_TRACE_VALUE_STACK() printFiberValueStack(vm, fiber);
 #else
     #define DEBUG_TRACE_VALUE_STACK() do { } while (false)
 #endif
 
 #if MOCHIVM_DEBUG_TRACE_FRAME_STACK
-    #define DEBUG_TRACE_FRAME_STACK() \
-        do { \
-            printf("FRAMES:   "); \
-            if (fiber->frameStack >= fiber->frameStackTop) { printf("<empty>"); } \
-            for (ObjVarFrame** frame = fiber->frameStack; frame < fiber->frameStackTop; frame++) { \
-                printf("[ "); \
-                printObject(vm, OBJ_VAL(*frame)); \
-                printf(" ]"); \
-            } \
-            printf("\n"); \
-        } while (false)
+    #define DEBUG_TRACE_FRAME_STACK() printFiberFrameStack(vm, fiber);
 #else
     #define DEBUG_TRACE_FRAME_STACK() do { } while (false)
+#endif
+
+#if MOCHIVM_DEBUG_TRACE_ROOT_STACK
+    #define DEBUG_TRACE_ROOT_STACK() printFiberRootStack(vm, fiber);
+#else
+    #define DEBUG_TRACE_ROOT_STACK() do { } while (false)
 #endif
 
 #if MOCHIVM_BATTERY_UV
@@ -185,6 +171,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         {                                                                        \
             DEBUG_TRACE_VALUE_STACK();                                           \
             DEBUG_TRACE_FRAME_STACK();                                           \
+            DEBUG_TRACE_ROOT_STACK();                                            \
             DEBUG_TRACE_INSTRUCTIONS();                                          \
             UV_EVENT_LOOP();                                                     \
             if (fiber->isSuspended) { goto CASE_CODE(NOP); }                     \
@@ -197,6 +184,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         loop:                                                                    \
             DEBUG_TRACE_VALUE_STACK();                                           \
             DEBUG_TRACE_FRAME_STACK();                                           \
+            DEBUG_TRACE_ROOT_STACK();                                            \
             DEBUG_TRACE_INSTRUCTIONS();                                          \
             UV_EVENT_LOOP();                                                     \
             if (fiber->isSuspended) { goto loop; }                               \
