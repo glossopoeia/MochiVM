@@ -127,19 +127,19 @@ static MochiVMInterpretResult run(MochiVM * vm, ObjFiber* fiber) {
 #endif
 
 #if MOCHIVM_DEBUG_TRACE_VALUE_STACK
-    #define DEBUG_TRACE_VALUE_STACK() printFiberValueStack(vm, fiber);
+    #define DEBUG_TRACE_VALUE_STACK() printFiberValueStack(vm, fiber)
 #else
     #define DEBUG_TRACE_VALUE_STACK() do { } while (false)
 #endif
 
 #if MOCHIVM_DEBUG_TRACE_FRAME_STACK
-    #define DEBUG_TRACE_FRAME_STACK() printFiberFrameStack(vm, fiber);
+    #define DEBUG_TRACE_FRAME_STACK() printFiberFrameStack(vm, fiber)
 #else
     #define DEBUG_TRACE_FRAME_STACK() do { } while (false)
 #endif
 
 #if MOCHIVM_DEBUG_TRACE_ROOT_STACK
-    #define DEBUG_TRACE_ROOT_STACK() printFiberRootStack(vm, fiber);
+    #define DEBUG_TRACE_ROOT_STACK() printFiberRootStack(vm, fiber)
 #else
     #define DEBUG_TRACE_ROOT_STACK() do { } while (false)
 #endif
@@ -193,7 +193,7 @@ static MochiVMInterpretResult run(MochiVM * vm, ObjFiber* fiber) {
 
 #endif
 
-    Code instruction;
+    Code instruction = CODE_NOP;
     INTERPRET_LOOP
     {
         CASE_CODE(NOP): {
@@ -305,7 +305,9 @@ static MochiVMInterpretResult run(MochiVM * vm, ObjFiber* fiber) {
             int16_t fnIndex = READ_SHORT();
             ASSERT(vm->foreignFns.count > fnIndex, "CALL_FOREIGN attempted to address a method outside the bounds of the foreign function collection.");
             MochiVMForeignMethodFn fn = vm->foreignFns.data[fnIndex];
+            printf("Frame stack before foreign: %p, %p\n", fiber->frameStack, fiber->frameStackTop);
             fn(vm, fiber);
+            printf("Frame stack after foreign: %p, %p\n", fiber->frameStack, fiber->frameStackTop);
             DISPATCH();
         }
         CASE_CODE(CALL): {

@@ -7,7 +7,7 @@
 #include "mochivm.h"
 
 #define ASSERT_OBJ_TYPE(obj, objType, message)  ASSERT(((Obj*)obj)->type == objType, message)
-#define OBJ_ARRAY_COPY(objDest, objSrc, count)  memcpy((Obj**)(objDest), (Obj**)(objSrc), sizeof(Obj*) * count)
+#define OBJ_ARRAY_COPY(objDest, objSrc, count)  memcpy((Obj**)(objDest), (Obj**)(objSrc), sizeof(Obj*) * (count))
 
 #define OBJ_TYPE(value)        (AS_OBJ(value)->type)
 

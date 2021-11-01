@@ -64,7 +64,7 @@
         // No computed gotos in Visual Studio.
         #define MOCHIVM_COMPUTED_GOTO 0
     #else
-        #define MOCHIVM_COMPUTED_GOTO 1
+        #define MOCHIVM_COMPUTED_GOTO 0
     #endif
 #endif
 
@@ -72,7 +72,7 @@
 // these or not. By default, they are all available. To disable one, set the
 // corresponding `MOCHIVM_BATTERY_<name>` define to `0`.
 #ifndef MOCHIVM_BATTERY_UV
-    #define MOCHIVM_BATTERY_UV 1  // LibUV included by default to support concurrent system ops
+    #define MOCHIVM_BATTERY_UV 0  // LibUV included by default to support concurrent system ops
 #endif
 
 #ifndef MOCHIVM_BATTERY_SDL
@@ -86,10 +86,10 @@
 #define MOCHIVM_DEBUG_GC_STRESS 1
 
 // Log all memory operations.
-#define MOCHIVM_DEBUG_TRACE_MEMORY 1
+#define MOCHIVM_DEBUG_TRACE_MEMORY 0
 
 // Log all garbage collections.
-#define MOCHIVM_DEBUG_TRACE_GC 1
+#define MOCHIVM_DEBUG_TRACE_GC 0
 
 // Display all the input bytecode before beginning execution.
 #define MOCHIVM_DEBUG_DUMP_BYTECODE 1

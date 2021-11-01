@@ -34,12 +34,12 @@ void uvmochiCloseTimer(MochiVM* vm, ObjFiber* fiber) {
 }
 
 static void uvmochiTimerCallback(uv_timer_t* timer) {
-    printf("Res: %p\n", timer);
+    //printf("Res: %p\n", timer);
     ForeignResume* res = (ForeignResume*)uv_req_get_data((uv_req_t*)timer);
     MochiVM* vm = res->vm;
     ObjFiber* fiber = res->fiber;
-    printf("Other: %p\n", (ForeignResume*)((uv_req_t*)timer)->data);
-    printf("Got resume %p, %p, %p, %p\n", timer, res, vm, fiber);
+    //printf("Other: %p\n", (ForeignResume*)((uv_req_t*)timer)->data);
+    //printf("Got resume %p, %p, %p, %p\n", timer, res, vm, fiber);
 
     ObjClosure* callback = AS_CLOSURE(mochiFiberPopValue(fiber));
 
@@ -53,9 +53,9 @@ static void uvmochiTimerCallback(uv_timer_t* timer) {
     // start the callback call
     mochiFiberPushFrame(fiber, (ObjVarFrame*)basicClosureFrame(vm, fiber, callback));
 
-    printf("Before foreign reset: %p\n", fiber->ip);
+    //printf("Before foreign reset: %p\n", fiber->ip);
     fiber->ip = callback->funcLocation;
-    printf("After foreign reset: %p\n", fiber->ip);
+    //printf("After foreign reset: %p\n", fiber->ip);
     fiber->isSuspended = false;
 }
 
@@ -76,10 +76,10 @@ void uvmochiTimerStart(MochiVM* vm, ObjFiber* fiber) {
     //uv_req_set_data((uv_req_t*)ptr->pointer, res);
     uv_timer_t* tmr = (uv_timer_t*)ptr->pointer;
     tmr->data = res;
-    printf("Req: %p, %p, %p, %p\n", ptr->pointer, res, res->vm, res->fiber);
+    //printf("Req: %p, %p, %p, %p\n", ptr->pointer, res, res->vm, res->fiber);
     uv_timer_start((uv_timer_t*)ptr->pointer, uvmochiTimerCallback, duration, 0);
-    printf("type: %d\n", res->obj.type);
-    printf("marked: %d\n", res->obj.isMarked);
+    //printf("type: %d\n", res->obj.type);
+    //printf("marked: %d\n", res->obj.isMarked);
     //res->obj.type = OBJ_FOREIGN_RESUME;
     //res->obj.isMarked = false;
     //res->obj.next = next;
@@ -87,7 +87,7 @@ void uvmochiTimerStart(MochiVM* vm, ObjFiber* fiber) {
     //res->vm = vm;
     //res->fiber = fiber;
     //uv_req_set_data((uv_req_t*)ptr->pointer, res);
-    printf("Req: %p, %p, %p, %p\n", ptr->pointer, res, res->vm, res->fiber);
+    //printf("Req: %p, %p, %p, %p\n", ptr->pointer, res, res->vm, res->fiber);
 }
 
 void uvmochiTimerStop(MochiVM* vm, ObjFiber* fiber) {

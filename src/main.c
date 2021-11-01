@@ -14,7 +14,7 @@
         printf("\n"); \
         printf("=============================\n"); \
         vm = mochiNewVM(NULL);     \
-        fiber = mochiNewFiber(vm, vm->block->code.data, NULL, 0); \
+        ObjFiber* fiber = mochiNewFiber(vm, vm->block->code.data, NULL, 0); \
         vm->fiber = fiber; \
         assertNumber = 0;       \
         assertString = NULL;    \
@@ -25,18 +25,18 @@
 #define END_TEST() \
     do { \
         disassembleChunk(vm, "test chunk"); \
-        mochiInterpret(vm, fiber); \
+        mochiInterpret(vm, vm->fiber); \
         if (assertStack >= 0) { \
-            ASSERT(assertStack == fiber->valueStackTop - fiber->valueStack, "TEST FAILED: Unexpected stack count"); \
+            ASSERT(assertStack == vm->fiber->valueStackTop - vm->fiber->valueStack, "TEST FAILED: Unexpected stack count"); \
         } \
         if (assertFrames >= 0) { \
-            ASSERT(assertFrames == fiber->frameStackTop - fiber->frameStack, "TEST FAILED: Unexpected frame count"); \
+            ASSERT(assertFrames == vm->fiber->frameStackTop - vm->fiber->frameStack, "TEST FAILED: Unexpected frame count"); \
         } \
         if (assertString != NULL) { \
             printf("TODO: String verify unimplemented\n"); \
         } \
         if (assertNumber != 0) { \
-            double num = AS_NUMBER(*(fiber->valueStackTop - 1)); \
+            double num = AS_NUMBER(*(vm->fiber->valueStackTop - 1)); \
             ASSERT(assertNumber == num, "TEST FAILED: Unexpected number at the end of execution."); \
         } \
         mochiFreeVM(vm); \
@@ -78,18 +78,17 @@ int main(int argc, const char * argv[]) {
     printf("MochiVM is under development... watch for bugs!\n");
 
     MochiVM* vm = NULL;
-    ObjFiber* fiber = NULL;
     double assertNumber = 0;
     char* assertString = NULL;
     int assertStack = -1;
     int assertFrames = -1;
 
-    #include "test_numerics.h"
-    #include "test_strings.h"
-    #include "test_frames.h"
+    //#include "test_numerics.h"
+    //#include "test_strings.h"
+    //#include "test_frames.h"
     #include "test_handle.h"
 #if MOCHIVM_BATTERY_UV
-    #include "test_foreign.h"
+    //#include "test_foreign.h"
 #endif
 
 #if MOCHIVM_BATTERY_UV

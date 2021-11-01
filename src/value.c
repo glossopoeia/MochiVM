@@ -103,6 +103,7 @@ ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int in
     }
     fiber->valueStackTop += initialStackCount;
 
+    fiber->isSuspended = false;
     fiber->isRoot = false;
     fiber->caller = NULL;
     return fiber;
@@ -483,9 +484,7 @@ static void markFiber(MochiVM* vm, ObjFiber* fiber) {
     }
 
     // Root stack.
-    printFiberRootStack(vm, fiber);
     for (Obj** slot = fiber->rootStack; slot < fiber->rootStackTop; slot++) {
-        printf("Graying root.\n");
         mochiGrayObj(vm, *slot);
     }
 
