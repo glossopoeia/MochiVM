@@ -260,7 +260,7 @@ END_TEST();
 
 
 
-/* BEGIN_TEST("Two nested handle contexts with the same mark id.");
+BEGIN_TEST("Two nested handle contexts with the same mark id.");
 
 //main =
 //  handle {
@@ -446,4 +446,4 @@ WRITE_BYTE(0, 15);
 VERIFY_FRAMES(0);
 VERIFY_STACK(1);
 
-END_TEST(); */
+END_TEST();
