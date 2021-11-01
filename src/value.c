@@ -470,8 +470,6 @@ static void markContinuation(MochiVM* vm, ObjContinuation* cont) {
     vm->bytesAllocated += sizeof(ObjVarFrame*) * cont->savedFramesCount;
 }
 
-#include "debug.h"
-
 static void markFiber(MochiVM* vm, ObjFiber* fiber) {
     // Stack variables.
     for (Value* slot = fiber->valueStack; slot < fiber->valueStackTop; slot++) {
