@@ -67,24 +67,27 @@ void uvmochiTimerStart(MochiVM* vm, ObjFiber* fiber) {
 
     ForeignResume* res = mochiNewResume(vm, fiber);
     mochiFiberPushRoot(fiber, (Obj*)res);
-    Obj* next = res->obj.next;
+    //Obj* next = res->obj.next;
 
     uint64_t duration = (uint64_t)AS_NUMBER(mochiFiberPopValue(fiber));
 
     // TODO: assert stack count at least 1 (callback closure)
 
-    uv_req_set_data((uv_req_t*)ptr->pointer, res);
-    ForeignResume* assigned = uv_req_get_data((uv_req_t*)ptr->pointer);
-    printf("Req: %p, %p, %p, %p\n", ptr->pointer, assigned, assigned->vm, assigned->fiber);
-    uv_timer_start((uv_timer_t*)ptr->pointer, uvmochiTimerCallback, duration, 0);    
-    res->obj.type = OBJ_FOREIGN_RESUME;
-    res->obj.isMarked = false;
-    res->obj.next = next;
+    //uv_req_set_data((uv_req_t*)ptr->pointer, res);
+    uv_timer_t* tmr = (uv_timer_t*)ptr->pointer;
+    tmr->data = res;
+    printf("Req: %p, %p, %p, %p\n", ptr->pointer, res, res->vm, res->fiber);
+    uv_timer_start((uv_timer_t*)ptr->pointer, uvmochiTimerCallback, duration, 0);
+    printf("type: %d\n", res->obj.type);
+    printf("marked: %d\n", res->obj.isMarked);
+    //res->obj.type = OBJ_FOREIGN_RESUME;
+    //res->obj.isMarked = false;
+    //res->obj.next = next;
     //vm->objects = (Obj*)res;
-    res->vm = vm;
-    res->fiber = fiber;
-    uv_req_set_data((uv_req_t*)ptr->pointer, res);
-    printf("Req: %p, %p, %p, %p\n", ptr->pointer, assigned, assigned->vm, assigned->fiber);
+    //res->vm = vm;
+    //res->fiber = fiber;
+    //uv_req_set_data((uv_req_t*)ptr->pointer, res);
+    printf("Req: %p, %p, %p, %p\n", ptr->pointer, res, res->vm, res->fiber);
 }
 
 void uvmochiTimerStop(MochiVM* vm, ObjFiber* fiber) {
