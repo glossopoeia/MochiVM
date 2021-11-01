@@ -305,9 +305,7 @@ static MochiVMInterpretResult run(MochiVM * vm, ObjFiber* fiber) {
             int16_t fnIndex = READ_SHORT();
             ASSERT(vm->foreignFns.count > fnIndex, "CALL_FOREIGN attempted to address a method outside the bounds of the foreign function collection.");
             MochiVMForeignMethodFn fn = vm->foreignFns.data[fnIndex];
-            printf("Frame stack before foreign: %p, %p\n", fiber->frameStack, fiber->frameStackTop);
             fn(vm, fiber);
-            printf("Frame stack after foreign: %p, %p\n", fiber->frameStack, fiber->frameStackTop);
             DISPATCH();
         }
         CASE_CODE(CALL): {
@@ -702,5 +700,7 @@ static MochiVMInterpretResult run(MochiVM * vm, ObjFiber* fiber) {
 
 MochiVMInterpretResult mochiInterpret(MochiVM* vm, ObjFiber* fiber) {
     fiber->ip = vm->block->code.data;
-    return run(vm, fiber);
+    MochiVMInterpretResult res = run(vm, fiber);
+    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+    return res;
 }

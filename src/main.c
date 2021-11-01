@@ -83,17 +83,12 @@ int main(int argc, const char * argv[]) {
     int assertStack = -1;
     int assertFrames = -1;
 
-    //#include "test_numerics.h"
-    //#include "test_strings.h"
-    //#include "test_frames.h"
+    #include "test_numerics.h"
+    #include "test_strings.h"
+    #include "test_frames.h"
     #include "test_handle.h"
 #if MOCHIVM_BATTERY_UV
-    //#include "test_foreign.h"
-#endif
-
-#if MOCHIVM_BATTERY_UV
-    printf("Terminating LibUV default loop.\n");
-    uv_loop_close(uv_default_loop());
+    #include "test_foreign.h"
 #endif
 
     return 0;

@@ -30,14 +30,14 @@ static void* defaultReallocate(void* ptr, size_t newSize, void* _) {
 }
 
 #if MOCHIVM_BATTERY_UV
-// static void* uvmochiMalloc(size_t size) { return defaultReallocate(NULL, size, NULL); }
-// static void* uvmochiRealloc(void* ptr, size_t size) { return defaultReallocate(ptr, size, NULL); }
-// static void* uvmochiCalloc(size_t count, size_t size) {
-//     void* mem = defaultReallocate(NULL, count * size, NULL);
-//     memset(mem, 0, count * size);
-//     return mem;
-// }
-// static void uvmochiFree(void* ptr) { defaultReallocate(NULL, 0, NULL); }
+static void* uvmochiMalloc(size_t size) { return defaultReallocate(NULL, size, NULL); }
+static void* uvmochiRealloc(void* ptr, size_t size) { return defaultReallocate(ptr, size, NULL); }
+static void* uvmochiCalloc(size_t count, size_t size) {
+    void* mem = defaultReallocate(NULL, count * size, NULL);
+    memset(mem, 0, count * size);
+    return mem;
+}
+static void uvmochiFree(void* ptr) { defaultReallocate(NULL, 0, NULL); }
 #endif
 
 int mochiGetVersionNumber() { 
@@ -89,7 +89,7 @@ MochiVM* mochiNewVM(MochiVMConfiguration* config) {
     mochiForeignFunctionBufferInit(&vm->foreignFns);
 
 #if MOCHIVM_BATTERY_UV
-    //uv_replace_allocator(uvmochiMalloc, uvmochiRealloc, uvmochiCalloc, uvmochiFree);
+    uv_replace_allocator(uvmochiMalloc, uvmochiRealloc, uvmochiCalloc, uvmochiFree);
 
     mochiAddForeign(vm, uvmochiNewTimer);
     mochiAddForeign(vm, uvmochiCloseTimer);
