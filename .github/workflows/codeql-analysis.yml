@@ -63,6 +63,7 @@ jobs:
     #    uses a compiled language
 
     - run: |
+       mkdir -p build
        (cd build && cmake ../deps/libuv)
        cmake --build build
        make MODE=release
