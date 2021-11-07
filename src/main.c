@@ -46,6 +46,7 @@
 #define CONSTANT(arg)               addConstant(vm, (arg));
 #define WRITE_INST(inst, line)      writeChunk(vm, CODE_##inst, (line));
 #define WRITE_BYTE(byte, line)      writeChunk(vm, (byte), (line));
+#define WRITE_LABEL(label, length)  writeLabel(vm, vm->block->code.count, length, label)
 #define VERIFY_STACK(count)         assertStack = (count);
 #define VERIFY_FRAMES(count)        assertFrames = (count);
 #define VERIFY_NUMBER(num)          assertNumber = num;

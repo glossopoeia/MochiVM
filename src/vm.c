@@ -201,6 +201,23 @@ void writeChunk(MochiVM* vm, uint8_t instr, int line) {
     mochiIntBufferWrite(vm, &vm->block->lines, line);
 }
 
+void writeLabel(MochiVM* vm, int byteIndex, int labelLength, const char* labelText) {
+    mochiIntBufferWrite(vm, &vm->block->labelIndices, byteIndex);
+    ObjString* str = copyString(labelText, labelLength, vm);
+    mochiFiberPushRoot(vm->fiber, (Obj*)str);
+    mochiValueBufferWrite(vm, &vm->block->labels, OBJ_VAL(str));
+    mochiFiberPopRoot(vm->fiber);
+}
+
+char* getLabel(MochiVM* vm, int byteIndex) {
+    for (int i = 0; i < vm->block->labelIndices.count; i++) {
+        if (vm->block->labelIndices.data[i] == byteIndex) {
+            return AS_CSTRING(vm->block->labels.data[i]);
+        }
+    }
+    return NULL;
+}
+
 int mochiAddForeign(MochiVM* vm, MochiVMForeignMethodFn fn) {
     mochiForeignFunctionBufferWrite(vm, &vm->foreignFns, fn);
     return vm->foreignFns.count - 1;

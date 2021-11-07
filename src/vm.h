@@ -51,6 +51,8 @@ struct MochiVM {
 
 int addConstant(MochiVM* vm, Value value);
 void writeChunk(MochiVM* vm, uint8_t instr, int line);
+void writeLabel(MochiVM* vm, int byteIndex, int labelLength, const char* label);
+char* getLabel(MochiVM* vm, int byteIndex);
 
 // Mark [obj] as reachable and still in use. This should only be called
 // during the sweep phase of a garbage collection.

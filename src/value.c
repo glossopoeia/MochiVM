@@ -8,11 +8,6 @@ DEFINE_BUFFER(Byte, uint8_t);
 DEFINE_BUFFER(Int, int);
 DEFINE_BUFFER(Value, Value);
 
-#define ALLOCATE_OBJ(vm, type, objectType) (type*)allocateObject((vm), sizeof(type), (objectType))
-
-#define ALLOCATE_FLEX_OBJ(vm, objectType, type, elemType, elemCount)  \
-    (type*)allocateObject((vm), sizeof(type) + sizeof(elemType) * elemCount, (objectType))
-
 static void initObj(MochiVM* vm, Obj* obj, ObjType type) {
     obj->type = type;
     obj->isMarked = false;
@@ -21,18 +16,9 @@ static void initObj(MochiVM* vm, Obj* obj, ObjType type) {
     vm->objects = obj;
 }
 
-static Obj* allocateObject(MochiVM* vm, size_t size, ObjType type) {
-    Obj* object = (Obj*)mochiReallocate(vm, NULL, 0, size);
-    object->type = type;
-    object->isMarked = false;
-    // keep track of all allocated objects via the linked list in the vm
-    object->next = vm->objects;
-    vm->objects = object;
-    return object;
-}
-
 static ObjString* allocateString(char* chars, int length, MochiVM* vm) {
-    ObjString* string = ALLOCATE_OBJ(vm, ObjString, OBJ_STRING);
+    ObjString* string = ALLOCATE(vm, ObjString);
+    initObj(vm, (Obj*)string, OBJ_STRING);
     string->length = length;
     string->chars = chars;
     return string;
@@ -50,14 +36,16 @@ ObjString* copyString(const char* chars, int length, MochiVM* vm) {
 }
 
 ObjVarFrame* newVarFrame(Value* vars, int varCount, MochiVM* vm) {
-    ObjVarFrame* frame = ALLOCATE_OBJ(vm, ObjVarFrame, OBJ_VAR_FRAME);
+    ObjVarFrame* frame = ALLOCATE(vm, ObjVarFrame);
+    initObj(vm, (Obj*)frame, OBJ_VAR_FRAME);
     frame->slots = vars;
     frame->slotCount = varCount;
     return frame;
 }
 
 ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, MochiVM* vm) {
-    ObjCallFrame* frame = ALLOCATE_OBJ(vm, ObjCallFrame, OBJ_CALL_FRAME);
+    ObjCallFrame* frame = ALLOCATE(vm, ObjCallFrame);
+    initObj(vm, (Obj*)frame, OBJ_CALL_FRAME);
     frame->vars.slots = vars;
     frame->vars.slotCount = varCount;
     frame->afterLocation = afterLocation;
@@ -90,7 +78,8 @@ ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int in
     ObjVarFrame** frames = ALLOCATE_ARRAY(vm, ObjVarFrame*, vm->config.frameStackCapacity);
     Obj** roots = ALLOCATE_ARRAY(vm, Obj*, vm->config.rootStackCapacity);
     
-    ObjFiber* fiber = ALLOCATE_OBJ(vm, ObjFiber, OBJ_FIBER);
+    ObjFiber* fiber = ALLOCATE(vm, ObjFiber);
+    initObj(vm, (Obj*)fiber, OBJ_FIBER);
     fiber->valueStack = values;
     fiber->valueStackTop = values;
     fiber->frameStack = frames;
@@ -177,6 +166,8 @@ ObjCodeBlock* mochiNewCodeBlock(MochiVM* vm) {
     mochiValueBufferInit(&block->constants);
     mochiByteBufferInit(&block->code);
     mochiIntBufferInit(&block->lines);
+    mochiIntBufferInit(&block->labelIndices);
+    mochiValueBufferInit(&block->labels);
     return block;
 }
 
@@ -190,9 +181,10 @@ ObjForeign* mochiNewForeign(MochiVM* vm, size_t size) {
 }
 
 ObjCPointer* mochiNewCPointer(MochiVM* vm, void* pointer) {
-    ObjCPointer* object = ALLOCATE_OBJ(vm, ObjCPointer, OBJ_C_POINTER);
-    object->pointer = pointer;
-    return object;
+    ObjCPointer* ptr = ALLOCATE(vm, ObjCPointer);
+    initObj(vm, (Obj*)ptr, OBJ_C_POINTER);
+    ptr->pointer = pointer;
+    return ptr;
 }
 
 ForeignResume* mochiNewResume(MochiVM* vm, ObjFiber* fiber) {
@@ -250,6 +242,8 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
             mochiByteBufferClear(vm, &block->code);
             mochiValueBufferClear(vm, &block->constants);
             mochiIntBufferClear(vm, &block->lines);
+            mochiIntBufferClear(vm, &block->labelIndices);
+            mochiValueBufferClear(vm, &block->labels);
             break;
         }
         case OBJ_STRING: {
@@ -408,11 +402,14 @@ void mochiGrayBuffer(MochiVM* vm, ValueBuffer* buffer) {
 
 static void markCodeBlock(MochiVM* vm, ObjCodeBlock* block) {
     mochiGrayBuffer(vm, &block->constants);
+    mochiGrayBuffer(vm, &block->labels);
 
     vm->bytesAllocated += sizeof(ObjCodeBlock);
     vm->bytesAllocated += sizeof(uint8_t) * block->code.capacity;
     vm->bytesAllocated += sizeof(Value) * block->constants.capacity;
     vm->bytesAllocated += sizeof(int) * block->lines.capacity;
+    vm->bytesAllocated += sizeof(int) * block->labelIndices.capacity;
+    vm->bytesAllocated += sizeof(Value) * block->labels.capacity;
 }
 
 static void markVarFrame(MochiVM* vm, ObjVarFrame* frame) {

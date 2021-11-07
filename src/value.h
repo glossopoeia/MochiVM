@@ -92,6 +92,8 @@ typedef struct ObjCodeBlock {
     ByteBuffer code;
     ValueBuffer constants;
     IntBuffer lines;
+    IntBuffer labelIndices;
+    ValueBuffer labels;
 } ObjCodeBlock;
 
 typedef struct ObjString {

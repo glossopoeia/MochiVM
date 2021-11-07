@@ -37,6 +37,18 @@ static int intArgInstruction(const char* name, MochiVM* vm, int offset) {
     return offset + 5;
 }
 
+static int callInstruction(const char* name, MochiVM* vm, int offset) {
+    uint8_t* code = vm->block->code.data;
+    int instrIndex = getInt(code, offset+1);
+    char* str = getLabel(vm, instrIndex);
+    if (str == NULL) {
+        printf("%-16s %d\n", name, instrIndex);
+    } else {
+        printf("%-16s %s\n", name, str);
+    }
+    return offset + 5;
+}
+
 static int constantInstruction(const char * name, MochiVM* vm, int offset) {
     uint8_t constant = vm->block->code.data[offset + 1];
     printf("%-16s %-4d '", name, constant);
@@ -50,9 +62,15 @@ static int closureInstruction(const char* name, MochiVM* vm, int offset) {
     offset += 1;
 
     int body = getInt(code, offset); offset += 4;
+    char* str = getLabel(vm, body);
     uint8_t paramCount = code[offset]; offset += 1;
     uint16_t captureCount = getUShort(code, offset); offset += 2;
-    printf("%-16s %-8d %-3d %-5d ( ", name, body, paramCount, captureCount);
+
+    if (str == NULL) {
+        printf("%-16s %-8d %-3d %-5d ( ", name, body, paramCount, captureCount);
+    } else {
+        printf("%-16s %s %-3d %-5d ( ", name, str, paramCount, captureCount);
+    }
     for (int i = 0; i < captureCount; i++) {
         printf("%5d:%5d ", getShort(code, offset + i*4), getShort(code, offset + 2 + i*4));
     }
@@ -146,9 +164,9 @@ int disassembleInstruction(MochiVM* vm, int offset) {
         case CODE_CALL_FOREIGN:
             return shortArgInstruction("CALL_FOREIGN", vm, offset);
         case CODE_CALL:
-            return intArgInstruction("CALL", vm, offset);
+            return callInstruction("CALL", vm, offset);
         case CODE_TAILCALL:
-            return intArgInstruction("TAILCALL", vm, offset);
+            return callInstruction("TAILCALL", vm, offset);
         case CODE_OFFSET:
             return intArgInstruction("OFFSET", vm, offset);
         case CODE_RETURN:
