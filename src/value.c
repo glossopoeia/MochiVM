@@ -224,6 +224,85 @@ int mochiListLength(ObjList* list) {
     return count;
 }
 
+ObjArray* mochiArrayNil(MochiVM* vm) {
+    ObjArray* arr = ALLOCATE(vm, ObjArray);
+    initObj(vm, (Obj*)arr, OBJ_ARRAY);
+    mochiValueBufferInit(&arr->elems);
+    return arr;
+}
+
+ObjArray* mochiArrayFill(MochiVM* vm, int amount, Value elem, ObjArray* array) {
+    mochiValueBufferFill(vm, &array->elems, elem, amount);
+    return array;
+}
+
+ObjArray* mochiArraySnoc(MochiVM* vm, Value elem, ObjArray* array) {
+    mochiValueBufferWrite(vm, &array->elems, elem);
+    return array;
+}
+
+Value mochiArrayGetAt(MochiVM* vm, int index, ObjArray* array) {
+    ASSERT(array->elems.count > index, "Tried to access an element beyond the bounds of the Array.");
+    return array->elems.data[index];
+}
+
+void mochiArraySetAt(MochiVM* vm, int index, Value value, ObjArray* array) {
+    ASSERT(array->elems.count > index, "Tried to modify an element beyond the bounds of the Array.");
+    array->elems.data[index] = value;
+}
+
+int mochiArrayLength(MochiVM* vm, ObjArray* array) {
+    return array->elems.count;
+}
+
+ObjArray* mochiArrayCopy(MochiVM* vm, int start, int length, ObjArray* array) {
+    ObjArray* copy = mochiArrayNil(vm);
+    mochiFiberPushRoot(vm->fiber, (Obj*)copy);
+    for (int i = 0; i < array->elems.count; i++) {
+        mochiValueBufferWrite(vm, &copy->elems, array->elems.data[i]);
+    }
+    mochiFiberPopRoot(vm->fiber);
+    return copy;
+}
+
+ObjSlice* mochiArraySlice(MochiVM* vm, int start, int length, ObjArray* array) {
+    ASSERT(start + length <= array->elems.count, "Tried to creat a Slice that accesses elements beyond the length of the source Array.");
+    ObjSlice* slice = ALLOCATE(vm, ObjSlice);
+    initObj(vm, (Obj*)slice, OBJ_SLICE);
+    slice->start = start;
+    slice->count = length;
+    slice->source = array;
+    return slice;
+}
+
+ObjSlice* mochiSubslice(MochiVM* vm, int start, int length, ObjSlice* slice) {
+    return mochiArraySlice(vm, start + slice->start, length, slice->source);
+}
+
+Value mochiSliceGetAt(MochiVM* vm, int index, ObjSlice* slice) {
+    ASSERT(slice->count > index, "Tried to access an element beyond the bounds of the Slice.");
+    return slice->source->elems.data[slice->start + index];
+}
+
+void mochiSliceSetAt(MochiVM* vm, int index, Value value, ObjSlice* slice) {
+    ASSERT(slice->count > index, "Tried to modify an element beyond the bounds of the Slice.");
+    slice->source->elems.data[slice->start + index] = value;
+}
+
+int mochiSliceLength(MochiVM* vm, ObjSlice* slice) {
+    return slice->count;
+}
+
+ObjArray* mochiSliceCopy(MochiVM* vm, ObjSlice* slice) {
+    ObjArray* copy = mochiArrayNil(vm);
+    mochiFiberPushRoot(vm->fiber, (Obj*)copy);
+    for (int i = 0; i < slice->count; i++) {
+        mochiValueBufferWrite(vm, &copy->elems, slice->source->elems.data[i]);
+    }
+    mochiFiberPopRoot(vm->fiber);
+    return copy;
+}
+
 static void freeVarFrame(MochiVM* vm, ObjVarFrame* frame) {
     DEALLOCATE(vm, frame->slots);
 }
@@ -276,12 +355,19 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
             DEALLOCATE(vm, fiber->valueStack);
             DEALLOCATE(vm, fiber->frameStack);
             DEALLOCATE(vm, fiber->rootStack);
+            break;
+        }
+        case OBJ_ARRAY: {
+            ObjArray* arr = (ObjArray*)object;
+            mochiValueBufferClear(vm, &arr->elems);
+            break;
         }
         case OBJ_CLOSURE: break;
         case OBJ_FOREIGN: break;
         case OBJ_C_POINTER: break;
         case OBJ_LIST: break;
         case OBJ_FOREIGN_RESUME: break;
+        case OBJ_SLICE: break;
     }
 
     DEALLOCATE(vm, object);
@@ -354,6 +440,30 @@ void printObject(MochiVM* vm, Value object) {
             printValue(vm, list->elem);
             printf(",");
             printObject(vm, OBJ_VAL(list->next));
+            printf(")");
+            break;
+        }
+        case OBJ_ARRAY: {
+            ObjArray* arr = AS_ARRAY(object);
+            printf("arr(");
+            for (int i = 0; i < arr->elems.count; i++) {
+                printValue(vm, arr->elems.data[i]);
+                if (i < arr->elems.count - 1) {
+                    printf(",");
+                }
+            }
+            printf(")");
+            break;
+        }
+        case OBJ_SLICE: {
+            ObjSlice* slice = AS_SLICE(object);
+            printf("slice(");
+            for (int i = 0; i < slice->count; i++) {
+                printValue(vm, slice->source->elems.data[slice->start + i]);
+                if (i < slice->count - 1) {
+                    printf(",");
+                }
+            }
             printf(")");
             break;
         }
@@ -512,6 +622,18 @@ static void markList(MochiVM* vm, ObjList* list) {
     vm->bytesAllocated += sizeof(ObjList);
 }
 
+static void markArray(MochiVM* vm, ObjArray* arr) {
+    mochiGrayBuffer(vm, &arr->elems);
+
+    vm->bytesAllocated += sizeof(ObjArray);
+}
+
+static void markSlice(MochiVM* vm, ObjSlice* slice) {
+    mochiGrayObj(vm, (Obj*)slice->source);
+
+    vm->bytesAllocated += sizeof(ObjSlice);
+}
+
 static void markForeignResume(MochiVM* vm, ForeignResume* resume) {
     mochiGrayObj(vm, (Obj*)resume->fiber);
 
@@ -541,6 +663,8 @@ static void blackenObject(MochiVM* vm, Obj* obj)
         case OBJ_C_POINTER:         markCPointer(vm, (ObjCPointer*)obj); break;
         case OBJ_LIST:              markList(vm, (ObjList*)obj); break;
         case OBJ_FOREIGN_RESUME:    markForeignResume(vm, (ForeignResume*)obj); break;
+        case OBJ_ARRAY:             markArray(vm, (ObjArray*)obj); break;
+        case OBJ_SLICE:             markSlice(vm, (ObjSlice*)obj); break;
     }
 }
 

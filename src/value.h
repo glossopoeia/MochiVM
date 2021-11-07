@@ -38,6 +38,8 @@
 #define AS_POINTER(v)           ((ObjCPointer*)AS_OBJ(v))
 #define AS_FOREIGN(v)           ((ObjForeign*)AS_OBJ(v))
 #define AS_LIST(v)              ((ObjList*)AS_OBJ(v))
+#define AS_ARRAY(v)             ((ObjArray*)AS_OBJ(v))
+#define AS_SLICE(v)             ((ObjSlice*)AS_OBJ(v))
 #define AS_NUMBER(value)        (mochiValueToNum(value))
 #define AS_STRING(v)            ((ObjString*)AS_OBJ(v))
 #define AS_CSTRING(v)           (AS_STRING(v)->chars)
@@ -54,7 +56,9 @@ typedef enum {
     OBJ_CONTINUATION,
     OBJ_FOREIGN,
     OBJ_C_POINTER,
-    OBJ_FOREIGN_RESUME
+    OBJ_FOREIGN_RESUME,
+    OBJ_ARRAY,
+    OBJ_SLICE
 } ObjType;
 
 // Base struct for all heap-allocated object types.
@@ -214,6 +218,18 @@ typedef struct ObjList {
     struct ObjList* next;
 } ObjList;
 
+typedef struct ObjArray {
+    Obj obj;
+    ValueBuffer elems;
+} ObjArray;
+
+typedef struct ObjSlice {
+    Obj obj;
+    int start;
+    int count;
+    ObjArray* source;
+} ObjSlice;
+
 static inline bool isObjType(Value value, ObjType type) {
     return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }
@@ -254,6 +270,21 @@ ObjList* mochiListCons(MochiVM* vm, Value elem, ObjList* tail);
 ObjList* mochiListTail(ObjList* list);
 Value mochiListHead(ObjList* list);
 int mochiListLength(ObjList* list);
+
+ObjArray* mochiArrayNil(MochiVM* vm);
+ObjArray* mochiArrayFill(MochiVM* vm, int amount, Value elem, ObjArray* array);
+ObjArray* mochiArraySnoc(MochiVM* vm, Value elem, ObjArray* array);
+Value mochiArrayGetAt(MochiVM* vm, int index, ObjArray* array);
+void mochiArraySetAt(MochiVM* vm, int index, Value value, ObjArray* array);
+int mochiArrayLength(MochiVM* vm, ObjArray* array);
+ObjArray* mochiArrayCopy(MochiVM* vm, int start, int length, ObjArray* array);
+
+ObjSlice* mochiArraySlice(MochiVM* vm, int start, int length, ObjArray* array);
+ObjSlice* mochiSubslice(MochiVM* vm, int start, int length, ObjSlice* slice);
+Value mochiSliceGetAt(MochiVM* vm, int index, ObjSlice* slice);
+void mochiSliceSetAt(MochiVM* vm, int index, Value vlaue, ObjSlice* slice);
+int mochiSliceLength(MochiVM* vm, ObjSlice* slice);
+ObjArray* mochiSliceCopy(MochiVM* vm, ObjSlice* slice);
 
 // Logs a textual representation of the given value to the output
 void printValue(MochiVM* vm, Value value);
