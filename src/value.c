@@ -241,17 +241,17 @@ ObjArray* mochiArraySnoc(MochiVM* vm, Value elem, ObjArray* array) {
     return array;
 }
 
-Value mochiArrayGetAt(MochiVM* vm, int index, ObjArray* array) {
+Value mochiArrayGetAt(int index, ObjArray* array) {
     ASSERT(array->elems.count > index, "Tried to access an element beyond the bounds of the Array.");
     return array->elems.data[index];
 }
 
-void mochiArraySetAt(MochiVM* vm, int index, Value value, ObjArray* array) {
+void mochiArraySetAt(int index, Value value, ObjArray* array) {
     ASSERT(array->elems.count > index, "Tried to modify an element beyond the bounds of the Array.");
     array->elems.data[index] = value;
 }
 
-int mochiArrayLength(MochiVM* vm, ObjArray* array) {
+int mochiArrayLength(ObjArray* array) {
     return array->elems.count;
 }
 
@@ -279,17 +279,17 @@ ObjSlice* mochiSubslice(MochiVM* vm, int start, int length, ObjSlice* slice) {
     return mochiArraySlice(vm, start + slice->start, length, slice->source);
 }
 
-Value mochiSliceGetAt(MochiVM* vm, int index, ObjSlice* slice) {
+Value mochiSliceGetAt(int index, ObjSlice* slice) {
     ASSERT(slice->count > index, "Tried to access an element beyond the bounds of the Slice.");
     return slice->source->elems.data[slice->start + index];
 }
 
-void mochiSliceSetAt(MochiVM* vm, int index, Value value, ObjSlice* slice) {
+void mochiSliceSetAt(int index, Value value, ObjSlice* slice) {
     ASSERT(slice->count > index, "Tried to modify an element beyond the bounds of the Slice.");
     slice->source->elems.data[slice->start + index] = value;
 }
 
-int mochiSliceLength(MochiVM* vm, ObjSlice* slice) {
+int mochiSliceLength(ObjSlice* slice) {
     return slice->count;
 }
 

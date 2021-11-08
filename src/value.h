@@ -274,16 +274,16 @@ int mochiListLength(ObjList* list);
 ObjArray* mochiArrayNil(MochiVM* vm);
 ObjArray* mochiArrayFill(MochiVM* vm, int amount, Value elem, ObjArray* array);
 ObjArray* mochiArraySnoc(MochiVM* vm, Value elem, ObjArray* array);
-Value mochiArrayGetAt(MochiVM* vm, int index, ObjArray* array);
-void mochiArraySetAt(MochiVM* vm, int index, Value value, ObjArray* array);
-int mochiArrayLength(MochiVM* vm, ObjArray* array);
+Value mochiArrayGetAt(int index, ObjArray* array);
+void mochiArraySetAt(int index, Value value, ObjArray* array);
+int mochiArrayLength(ObjArray* array);
 ObjArray* mochiArrayCopy(MochiVM* vm, int start, int length, ObjArray* array);
 
 ObjSlice* mochiArraySlice(MochiVM* vm, int start, int length, ObjArray* array);
 ObjSlice* mochiSubslice(MochiVM* vm, int start, int length, ObjSlice* slice);
-Value mochiSliceGetAt(MochiVM* vm, int index, ObjSlice* slice);
-void mochiSliceSetAt(MochiVM* vm, int index, Value vlaue, ObjSlice* slice);
-int mochiSliceLength(MochiVM* vm, ObjSlice* slice);
+Value mochiSliceGetAt(int index, ObjSlice* slice);
+void mochiSliceSetAt(int index, Value vlaue, ObjSlice* slice);
+int mochiSliceLength(ObjSlice* slice);
 ObjArray* mochiSliceCopy(MochiVM* vm, ObjSlice* slice);
 
 // Logs a textual representation of the given value to the output

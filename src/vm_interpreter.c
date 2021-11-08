@@ -85,7 +85,7 @@ static void restoreSaved(MochiVM* vm, ObjFiber* fiber, ObjHandleFrame* handle, O
 }
 
 // Dispatcher function to run a particular fiber in the context of the given vm.
-static MochiVMInterpretResult run(MochiVM * vm, ObjFiber* fiber) {
+static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
     // Remember the current fiber in case of GC.
     vm->fiber = fiber;
@@ -684,6 +684,98 @@ static MochiVMInterpretResult run(MochiVM * vm, ObjFiber* fiber) {
                 DROP_VALS(2);
                 PUSH_VAL(OBJ_VAL(start));
             }
+            DISPATCH();
+        }
+
+        CASE_CODE(ARRAY_NIL): {
+            PUSH_VAL(OBJ_VAL(mochiArrayNil(vm)));
+            DISPATCH();
+        }
+        CASE_CODE(ARRAY_FILL): {
+            Value v = PEEK_VAL(1);
+            int amt = (int)AS_NUMBER(PEEK_VAL(2));
+            ObjArray* arr = mochiArrayNil(vm);
+            mochiFiberPushRoot(fiber, (Obj*)arr);
+            arr = mochiArrayFill(vm, amt, v, arr);
+            mochiFiberPopRoot(fiber);
+            DROP_VALS(2);
+            PUSH_VAL(OBJ_VAL(arr));
+            DISPATCH();
+        }
+        CASE_CODE(ARRAY_SNOC): {
+            Value v = PEEK_VAL(1);
+            ObjArray* arr = AS_ARRAY(PEEK_VAL(2));
+            mochiArraySnoc(vm, v, arr);
+            DROP_VALS(1);
+            DISPATCH();
+        }
+        CASE_CODE(ARRAY_GET_AT): {
+            int idx = (int)AS_NUMBER(POP_VAL());
+            ObjArray* arr = AS_ARRAY(POP_VAL());
+            PUSH_VAL(mochiArrayGetAt(idx, arr));
+            DISPATCH();
+        }
+        CASE_CODE(ARRAY_SET_AT): {
+            int idx = (int)AS_NUMBER(POP_VAL());
+            Value val = PEEK_VAL(1);
+            ObjArray* arr = AS_ARRAY(PEEK_VAL(2));
+            mochiArraySetAt(idx, val, arr);
+            DROP_VALS(1);
+            DISPATCH();
+        }
+        CASE_CODE(ARRAY_LENGTH): {
+            ObjArray* arr = AS_ARRAY(POP_VAL());
+            PUSH_VAL(NUMBER_VAL(mochiArrayLength(arr)));
+            DISPATCH();
+        }
+        CASE_CODE(ARRAY_COPY): {
+            int start = (int)AS_NUMBER(POP_VAL());
+            int length = (int)AS_NUMBER(POP_VAL());
+            ObjArray* arr = AS_ARRAY(PEEK_VAL(1));
+            PUSH_VAL(OBJ_VAL(mochiArrayCopy(vm, start, length, arr)));
+            DISPATCH();
+        }
+
+        CASE_CODE(ARRAY_SLICE): {
+            int start = (int)AS_NUMBER(POP_VAL());
+            int length = (int)AS_NUMBER(POP_VAL());
+            ObjArray* arr = AS_ARRAY(PEEK_VAL(1));
+            ObjSlice* slice = mochiArraySlice(vm, start, length, arr);
+            DROP_VALS(1);
+            PUSH_VAL(OBJ_VAL(slice));
+            DISPATCH();
+        }
+        CASE_CODE(SUBSLICE): {
+            int start = (int)AS_NUMBER(POP_VAL());
+            int length = (int)AS_NUMBER(POP_VAL());
+            ObjSlice* orig = AS_SLICE(PEEK_VAL(1));
+            ObjSlice* sub = mochiSubslice(vm, start, length, orig);
+            DROP_VALS(1);
+            PUSH_VAL(OBJ_VAL(sub));
+            DISPATCH();
+        }
+        CASE_CODE(SLICE_GET_AT): {
+            int idx = (int)AS_NUMBER(POP_VAL());
+            ObjSlice* slice = AS_SLICE(POP_VAL());
+            PUSH_VAL(mochiSliceGetAt(idx, slice));
+            DISPATCH();
+        }
+        CASE_CODE(SLICE_SET_AT): {
+            int idx = (int)AS_NUMBER(POP_VAL());
+            Value val = PEEK_VAL(1);
+            ObjSlice* slice = AS_SLICE(PEEK_VAL(2));
+            mochiSliceSetAt(idx, val, slice);
+            DROP_VALS(1);
+            DISPATCH();
+        }
+        CASE_CODE(SLICE_LENGTH): {
+            ObjSlice* slice = AS_SLICE(POP_VAL());
+            PUSH_VAL(NUMBER_VAL(mochiSliceLength(slice)));
+            DISPATCH();
+        }
+        CASE_CODE(SLICE_COPY): {
+            ObjSlice* slice = AS_SLICE(PEEK_VAL(1));
+            PUSH_VAL(OBJ_VAL(mochiSliceCopy(vm, slice)));
             DISPATCH();
         }
     }

@@ -222,6 +222,32 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("LIST_IS_EMPTY", offset);
         case CODE_LIST_APPEND:
             return simpleInstruction("LIST_APPEND", offset);
+        case CODE_ARRAY_NIL:
+            return simpleInstruction("ARRAY_NIL", offset);
+        case CODE_ARRAY_FILL:
+            return simpleInstruction("ARRAY_FILL", offset);
+        case CODE_ARRAY_SNOC:
+            return simpleInstruction("ARRAY_SNOC", offset);
+        case CODE_ARRAY_GET_AT:
+            return simpleInstruction("ARRAY_GET_AT", offset);
+        case CODE_ARRAY_SET_AT:
+            return simpleInstruction("ARRAY_SET_AT", offset);
+        case CODE_ARRAY_LENGTH:
+            return simpleInstruction("ARRAY_LENGTH", offset);
+        case CODE_ARRAY_COPY:
+            return simpleInstruction("ARRAY_COPY", offset);
+        case CODE_ARRAY_SLICE:
+            return simpleInstruction("ARRAY_SLICE", offset);
+        case CODE_SUBSLICE:
+            return simpleInstruction("SUBSLICE", offset);
+        case CODE_SLICE_GET_AT:
+            return simpleInstruction("SLICE_GET_AT", offset);
+        case CODE_SLICE_SET_AT:
+            return simpleInstruction("SLICE_SET_AT", offset);
+        case CODE_SLICE_LENGTH:
+            return simpleInstruction("SLICE_LENGTH", offset);
+        case CODE_SLICE_COPY:
+            return simpleInstruction("SLICE_COPY", offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;
