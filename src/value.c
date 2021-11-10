@@ -368,6 +368,7 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
         case OBJ_LIST: break;
         case OBJ_FOREIGN_RESUME: break;
         case OBJ_SLICE: break;
+        case OBJ_REF: break;
     }
 
     DEALLOCATE(vm, object);
@@ -469,6 +470,13 @@ void printObject(MochiVM* vm, Value object) {
         }
         case OBJ_FOREIGN_RESUME: {
             printf("foreign_resume");
+            break;
+        }
+        case OBJ_REF: {
+            printf("ref(");
+            ObjRef* ref = AS_REF(object);
+            printValue(vm, *ref->ref);
+            printf(")");
             break;
         }
         default: {
@@ -634,6 +642,12 @@ static void markSlice(MochiVM* vm, ObjSlice* slice) {
     vm->bytesAllocated += sizeof(ObjSlice);
 }
 
+static void markRef(MochiVM* vm, ObjRef* ref) {
+    mochiGrayValue(vm, *ref->ref);
+
+    vm->bytesAllocated += sizeof(ObjRef);
+}
+
 static void markForeignResume(MochiVM* vm, ForeignResume* resume) {
     mochiGrayObj(vm, (Obj*)resume->fiber);
 
@@ -665,6 +679,7 @@ static void blackenObject(MochiVM* vm, Obj* obj)
         case OBJ_FOREIGN_RESUME:    markForeignResume(vm, (ForeignResume*)obj); break;
         case OBJ_ARRAY:             markArray(vm, (ObjArray*)obj); break;
         case OBJ_SLICE:             markSlice(vm, (ObjSlice*)obj); break;
+        case OBJ_REF:               markRef(vm, (ObjRef*)obj); break;
     }
 }
 

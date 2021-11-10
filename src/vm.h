@@ -25,6 +25,9 @@ struct MochiVM {
     ObjCodeBlock* block;
     ObjFiber* fiber;
 
+    // Stateful heap management
+    ValueBuffer heap;
+
     // Memory management data:
 
     // The number of bytes that are known to be currently allocated. Includes all
