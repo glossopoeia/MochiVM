@@ -369,6 +369,40 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             fiber->ip = frame->afterLocation;
             DISPATCH();
         }
+
+        CASE_CODE(JUMP_TRUE): {
+            uint8_t* newLoc = FROM_START(READ_UINT());
+            bool val = AS_BOOL(POP_VAL());
+            if (val) {
+                fiber->ip = newLoc;
+            }
+            DISPATCH();
+        }
+        CASE_CODE(JUMP_FALSE): {
+            uint8_t* newLoc = FROM_START(READ_UINT());
+            bool val = AS_BOOL(POP_VAL());
+            if (!val) {
+                fiber->ip = newLoc;
+            }
+            DISPATCH();
+        }
+        CASE_CODE(OFFSET_TRUE): {
+            int offset = READ_UINT();
+            bool val = AS_BOOL(POP_VAL());
+            if (val) {
+                fiber->ip += offset;
+            }
+            DISPATCH();
+        }
+        CASE_CODE(OFFSET_FALSE): {
+            int offset = READ_UINT();
+            bool val = AS_BOOL(POP_VAL());
+            if (!val) {
+                fiber->ip += offset;
+            }
+            DISPATCH();
+        }
+
         CASE_CODE(CLOSURE): {
             uint8_t* bodyLocation = FROM_START(READ_UINT());
             uint8_t paramCount = READ_BYTE();

@@ -171,6 +171,14 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return intArgInstruction("OFFSET", vm, offset);
         case CODE_RETURN:
             return simpleInstruction("RETURN", offset);
+        case CODE_JUMP_TRUE:
+            return intArgInstruction("JUMP_TRUE", vm, offset);
+        case CODE_JUMP_FALSE:
+            return intArgInstruction("JUMP_FALSE", vm, offset);
+        case CODE_OFFSET_TRUE:
+            return intArgInstruction("OFFSET_TRUE", vm, offset);
+        case CODE_OFFSET_FALSE:
+            return intArgInstruction("OFFSET_FALSE", vm, offset);
         case CODE_CLOSURE:
             return closureInstruction("CLOSURE", vm, offset);
         case CODE_RECURSIVE:

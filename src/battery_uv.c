@@ -75,13 +75,13 @@ void uvmochiTimerStart(MochiVM* vm, ObjFiber* fiber) {
 }
 
 void uvmochiTimerStop(MochiVM* vm, ObjFiber* fiber) {
-
+    ASSERT(false, "uvmochiTimerStop not yet implemented.");
 }
 
 void uvmochiTimerSetRepeat(MochiVM* vm, ObjFiber* fiber) {
-
+    ASSERT(false, "uvmochiTimerSetRepeat not yet implemented.");
 }
 
 void uvmochiTimerAgain(MochiVM* vm, ObjFiber* fiber) {
-
+    ASSERT(false, "uvmochiTimerAgain not yet implemented.");
 }
