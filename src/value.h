@@ -41,6 +41,7 @@
 #define AS_ARRAY(v)             ((ObjArray*)AS_OBJ(v))
 #define AS_SLICE(v)             ((ObjSlice*)AS_OBJ(v))
 #define AS_REF(v)               ((ObjRef*)AS_OBJ(v))
+#define AS_STRUCT(v)            ((ObjStruct*)AS_OBJ(v))
 #define AS_NUMBER(value)        (mochiValueToNum(value))
 #define AS_STRING(v)            ((ObjString*)AS_OBJ(v))
 #define AS_CSTRING(v)           (AS_STRING(v)->chars)
@@ -60,7 +61,8 @@ typedef enum {
     OBJ_FOREIGN_RESUME,
     OBJ_ARRAY,
     OBJ_SLICE,
-    OBJ_REF
+    OBJ_REF,
+    OBJ_STRUCT
 } ObjType;
 
 // Base struct for all heap-allocated object types.
@@ -236,6 +238,15 @@ typedef struct ObjRef {
     Obj obj;
     HeapKey ptr;
 } ObjRef;
+
+typedef uint32_t StructId;
+
+typedef struct ObjStruct {
+    Obj obj;
+    StructId id;
+    int count;
+    Value elems[];
+} ObjStruct;
 
 static inline bool isObjType(Value value, ObjType type) {
     return IS_OBJ(value) && AS_OBJ(value)->type == type;

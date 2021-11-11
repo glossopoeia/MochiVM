@@ -389,6 +389,7 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
         case OBJ_LIST: break;
         case OBJ_FOREIGN_RESUME: break;
         case OBJ_SLICE: break;
+        case OBJ_STRUCT: break;
     }
 
     DEALLOCATE(vm, object);
@@ -500,6 +501,18 @@ void printObject(MochiVM* vm, Value object) {
                 printValue(vm, val);
             } else {
                 printf("NOT_FOUND");
+            }
+            printf(")");
+            break;
+        }
+        case OBJ_STRUCT: {
+            printf("struct(");
+            ObjStruct* stru = AS_STRUCT(object);
+            for (int i = 0; i < stru->count; i++) {
+                printValue(vm, stru->elems[i]);
+                if (i < stru->count - 1) {
+                    printf(",");
+                }
             }
             printf(")");
             break;
@@ -679,6 +692,14 @@ static void markRef(MochiVM* vm, ObjRef* ref) {
     vm->bytesAllocated += sizeof(ObjRef);
 }
 
+static void markStruct(MochiVM* vm, ObjStruct* stru) {
+    for (int i = 0; i < stru->count; i++) {
+        mochiGrayValue(vm, stru->elems[i]);
+    }
+
+    vm->bytesAllocated += sizeof(ObjStruct) + stru->count * sizeof(Value);
+}
+
 static void markForeignResume(MochiVM* vm, ForeignResume* resume) {
     mochiGrayObj(vm, (Obj*)resume->fiber);
 
@@ -711,6 +732,7 @@ static void blackenObject(MochiVM* vm, Obj* obj)
         case OBJ_ARRAY:             markArray(vm, (ObjArray*)obj); break;
         case OBJ_SLICE:             markSlice(vm, (ObjSlice*)obj); break;
         case OBJ_REF:               markRef(vm, (ObjRef*)obj); break;
+        case OBJ_STRUCT:            markStruct(vm, (ObjStruct*)obj); break;
     }
 }
 
