@@ -285,6 +285,8 @@ ForeignResume* mochiNewResume(MochiVM* vm, ObjFiber* fiber);
 
 ObjRef* mochiNewRef(MochiVM* vm, HeapKey ptr);
 
+ObjStruct* mochiNewStruct(MochiVM* vm, StructId id, int elemCount);
+
 ObjList* mochiListNil(MochiVM* vm);
 ObjList* mochiListCons(MochiVM* vm, Value elem, ObjList* tail);
 ObjList* mochiListTail(ObjList* list);

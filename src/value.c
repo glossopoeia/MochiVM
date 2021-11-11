@@ -202,6 +202,14 @@ ObjRef* mochiNewRef(MochiVM* vm, HeapKey ptr) {
     return ref;
 }
 
+ObjStruct* mochiNewStruct(MochiVM* vm, StructId id, int elemCount) {
+    ObjStruct* stru = ALLOCATE_FLEX(vm, ObjStruct, Value, elemCount);
+    initObj(vm, (Obj*)stru, OBJ_STRUCT);
+    stru->id = id;
+    stru->count = elemCount;
+    return stru;
+}
+
 ObjList* mochiListNil(MochiVM* vm) {
     return NULL;
 }

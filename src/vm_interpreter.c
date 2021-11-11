@@ -720,6 +720,53 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
 
+        CASE_CODE(CONSTRUCT): {
+            StructId structId = READ_UINT();
+            uint8_t count = READ_BYTE();
+
+            ObjStruct* stru = mochiNewStruct(vm, structId, count);
+            // NOTE: this make the values in the struct ID conceptually 'backwards' from how they
+            // were laid out on the stack, even though in memory its the same order. The stack top pointer
+            // is at the end of the array, the struct pointer is at the beginning. Doing it this way
+            // means we don't have to reverse the elements, but might lead to conceptual confusion.
+            // DOCUMENTATION REQUIRED
+            valueArrayCopy(stru->elems, fiber->valueStackTop - count, count);
+            DROP_VALS(count);
+            PUSH_VAL(OBJ_VAL(stru));
+            DISPATCH();
+        }
+        CASE_CODE(DESTRUCT): {
+            ObjStruct* stru = AS_STRUCT(POP_VAL());
+            // NOTE: see note in CONSTRUCT instruction for a potential conceptual pitfall.
+            valueArrayCopy(fiber->valueStackTop, stru->elems, stru->count);
+            fiber->valueStackTop += stru->count;
+            DISPATCH();
+        }
+        CASE_CODE(IS_STRUCT): {
+            StructId structId = READ_UINT();
+            ObjStruct* stru = AS_STRUCT(POP_VAL());
+            PUSH_VAL(BOOL_VAL(stru->id == structId));
+            DISPATCH();
+        }
+        CASE_CODE(JUMP_STRUCT): {
+            StructId structId = READ_UINT();
+            uint8_t* newLoc = FROM_START(READ_UINT());
+            ObjStruct* stru = AS_STRUCT(POP_VAL());
+            if (stru->id == structId) {
+                fiber->ip = newLoc;
+            }
+            DISPATCH();
+        }
+        CASE_CODE(OFFSET_STRUCT): {
+            StructId structId = READ_UINT();
+            int offset = READ_UINT();
+            ObjStruct* stru = AS_STRUCT(POP_VAL());
+            if (stru->id == structId) {
+                fiber->ip += offset;
+            }
+            DISPATCH();
+        }
+
         CASE_CODE(ARRAY_NIL): {
             PUSH_VAL(OBJ_VAL(mochiArrayNil(vm)));
             DISPATCH();

@@ -218,6 +218,37 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("GETREF", offset);
         case CODE_PUTREF:
             return simpleInstruction("PUTREF", offset);
+        case CODE_CONSTRUCT: {
+            uint8_t* code = vm->block->code.data;
+            offset += 1;
+
+            int structId = getInt(code, offset); offset += 4;
+            uint8_t count = code[offset]; offset += 1;
+            printf("%-16s %d - %d\n", "CONSTRUCT", structId, count);
+            return offset;
+        }
+        case CODE_DESTRUCT:
+            return simpleInstruction("DESTRUCT", offset);
+        case CODE_IS_STRUCT:
+            return intArgInstruction("IS_STRUCT", vm, offset);
+        case CODE_JUMP_STRUCT: {
+            uint8_t* code = vm->block->code.data;
+            offset += 1;
+
+            int structId = getInt(code, offset); offset += 4;
+            int fnIndex = getInt(code, offset); offset += 4;
+            printf("%-16s %-8d %-8d\n", "JUMP_STRUCT", structId, fnIndex);
+            return offset;
+        }
+        case CODE_OFFSET_STRUCT: {
+            uint8_t* code = vm->block->code.data;
+            offset += 1;
+
+            int structId = getInt(code, offset); offset += 4;
+            int jmpRelative = getInt(code, offset); offset += 4;
+            printf("%-16s %-8d %-8d\n", "OFFSET_STRUCT", structId, jmpRelative);
+            return offset;
+        }
         case CODE_LIST_NIL:
             return simpleInstruction("LIST_NIL", offset);
         case CODE_LIST_CONS:
