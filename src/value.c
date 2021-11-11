@@ -195,6 +195,13 @@ ForeignResume* mochiNewResume(MochiVM* vm, ObjFiber* fiber) {
     return res;
 }
 
+ObjRef* mochiNewRef(MochiVM* vm, HeapKey ptr) {
+    ObjRef* ref = ALLOCATE(vm, ObjRef);
+    initObj(vm, (Obj*)ref, OBJ_REF);
+    ref->ptr = ptr;
+    return ref;
+}
+
 ObjList* mochiListNil(MochiVM* vm) {
     return NULL;
 }
@@ -362,13 +369,26 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
             mochiValueBufferClear(vm, &arr->elems);
             break;
         }
+        case OBJ_REF: {
+            ObjRef* ref = (ObjRef*)object;
+            // NOTE: this assumes garbage collection, i.e. there are
+            // no other ObjRef instances that contain the same ptr value
+            // that ref contains. If the ref can be fully copied into
+            // a new ObjRef with the same ptr value, the following is
+            // no longer valid. But note that this is not the same as
+            // having multiple pointers to ref on the value/frame stack,
+            // which is perfectly fine since the heap-clearing logic will
+            // only occur when ref becomes fully unreachable.
+            bool removed = mochiHeapTryRemove(vm, &vm->heap, ref->ptr);
+            ASSERT(removed, "Could not clear a reference from the heap.");
+            break;
+        }
         case OBJ_CLOSURE: break;
         case OBJ_FOREIGN: break;
         case OBJ_C_POINTER: break;
         case OBJ_LIST: break;
         case OBJ_FOREIGN_RESUME: break;
         case OBJ_SLICE: break;
-        case OBJ_REF: break;
     }
 
     DEALLOCATE(vm, object);
@@ -475,7 +495,12 @@ void printObject(MochiVM* vm, Value object) {
         case OBJ_REF: {
             printf("ref(");
             ObjRef* ref = AS_REF(object);
-            printValue(vm, *ref->ref);
+            Value val;
+            if (mochiHeapGet(&vm->heap, ref->ptr, &val)) {
+                printValue(vm, val);
+            } else {
+                printf("NOT_FOUND");
+            }
             printf(")");
             break;
         }
@@ -643,7 +668,13 @@ static void markSlice(MochiVM* vm, ObjSlice* slice) {
 }
 
 static void markRef(MochiVM* vm, ObjRef* ref) {
-    mochiGrayValue(vm, *ref->ref);
+    // TODO: investigate iterating over the heap itself to gray set values, determine if performance benefit/degradation
+    Value val;
+    if (mochiHeapGet(&vm->heap, ref->ptr, &val)) {
+        mochiGrayValue(vm, val);
+    } else {
+        ASSERT(false, "Ref does not point to a heap slot.");
+    }
 
     vm->bytesAllocated += sizeof(ObjRef);
 }

@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 // The MochiVM semantic version number components.
 #define MOCHIVM_VERSION_MAJOR 0
@@ -32,6 +33,7 @@
 // MochiVM has no global state, so all state stored by a running interpreter lives
 // here.
 typedef struct MochiVM MochiVM;
+typedef uint64_t HeapKey;
 typedef struct ObjFiber ObjFiber;
 
 // A generic allocation function that handles all explicit memory management

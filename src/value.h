@@ -234,7 +234,7 @@ typedef struct ObjSlice {
 
 typedef struct ObjRef {
     Obj obj;
-    Value* ref;
+    HeapKey ptr;
 } ObjRef;
 
 static inline bool isObjType(Value value, ObjType type) {
@@ -271,6 +271,8 @@ ObjHandleFrame* mochinewHandleFrame(MochiVM* vm, int handleId, uint8_t paramCoun
 ObjForeign* mochiNewForeign(MochiVM* vm, size_t size);
 ObjCPointer* mochiNewCPointer(MochiVM* vm, void* pointer);
 ForeignResume* mochiNewResume(MochiVM* vm, ObjFiber* fiber);
+
+ObjRef* mochiNewRef(MochiVM* vm, HeapKey ptr);
 
 ObjList* mochiListNil(MochiVM* vm);
 ObjList* mochiListCons(MochiVM* vm, Value elem, ObjList* tail);

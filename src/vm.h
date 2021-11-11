@@ -19,8 +19,6 @@ typedef enum
 
 DECLARE_BUFFER(ForeignFunction, MochiVMForeignMethodFn);
 
-typedef uint64_t HeapKey;
-
 typedef struct
 {
     // The entry's key. 0 if not in use & available, 1 if tombstone, >1 for actual value.
@@ -101,9 +99,8 @@ bool mochiHeapGet(Heap* heap, HeapKey key, Value* out);
 // Associates [key] with [value] in [heap].
 void mochiHeapSet(MochiVM* vm, Heap* heap, HeapKey key, Value value);
 void mochiHeapClear(MochiVM* vm, Heap* heap);
-// Removes [key] from [heap], if present. Returns true if found or false otherwise,
-// setting the out Value to either the found Value or FALSE_VAL.
-bool mochiHeapTryRemove(MochiVM* vm, Heap* heap, HeapKey key, Value* out);
+// Removes [key] from [heap], if present. Returns true if found or false otherwise.
+bool mochiHeapTryRemove(MochiVM* vm, Heap* heap, HeapKey key);
 
 int addConstant(MochiVM* vm, Value value);
 void writeChunk(MochiVM* vm, uint8_t instr, int line);

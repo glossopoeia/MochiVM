@@ -208,8 +208,16 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("TAILCALL_CONTINUATION", offset);
         case CODE_ZAP:
             return simpleInstruction("ZAP", offset);
+        case CODE_DUP:
+            return simpleInstruction("DUP", offset);
         case CODE_SWAP:
             return simpleInstruction("SWAP", offset);
+        case CODE_NEWREF:
+            return simpleInstruction("NEWREF", offset);
+        case CODE_GETREF:
+            return simpleInstruction("GETREF", offset);
+        case CODE_PUTREF:
+            return simpleInstruction("PUTREF", offset);
         case CODE_LIST_NIL:
             return simpleInstruction("LIST_NIL", offset);
         case CODE_LIST_CONS:

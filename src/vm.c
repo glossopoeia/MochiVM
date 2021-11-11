@@ -384,13 +384,10 @@ static void resizeHeap(MochiVM* vm, Heap* heap, uint32_t capacity)
 bool mochiHeapGet(Heap* heap, HeapKey key, Value* out)
 {
     HeapEntry* entry;
-    if (findEntry(heap->entries, heap->capacity, key, &entry)) {
-        *out = entry->value;
-        return true;
-    }
-
-    *out = FALSE_VAL;
-    return false;
+    bool found = findEntry(heap->entries, heap->capacity, key, &entry);
+    ASSERT(out != NULL, "Cannot pass null pointer for Value out in mochiHeapGet.");
+    *out = found ? entry->value : FALSE_VAL;
+    return found;
 }
 
 void mochiHeapSet(MochiVM* vm, Heap* heap, HeapKey key, Value value)
@@ -420,20 +417,16 @@ void mochiHeapClear(MochiVM* vm, Heap* heap)
     heap->count = 0;
 }
 
-bool mochiHeapTryRemove(MochiVM* vm, Heap* heap, HeapKey key, Value* out)
+bool mochiHeapTryRemove(MochiVM* vm, Heap* heap, HeapKey key)
 {
-    *out = FALSE_VAL;
     HeapEntry* entry;
     if (!findEntry(heap->entries, heap->capacity, key, &entry)) { return false; }
 
     // Remove the entry from the heap. Set this key to 1, which marks it as a
     // deleted slot. When searching for a key, we will stop on empty slots, but
     // continue past deleted slots.
-    *out = entry->value;
     entry->key = 1;
     entry->value = FALSE_VAL;
-
-    if (IS_OBJ(*out)) { mochiFiberPushRoot(vm->fiber, AS_OBJ(*out)); }
 
     heap->count--;
 
@@ -453,6 +446,5 @@ bool mochiHeapTryRemove(MochiVM* vm, Heap* heap, HeapKey key, Value* out)
         resizeHeap(vm, heap, capacity);
     }
 
-    if (IS_OBJ(*out)) { mochiFiberPopRoot(vm->fiber); }
     return true;
 }

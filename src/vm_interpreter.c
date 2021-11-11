@@ -612,6 +612,12 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DROP_VALS(1);
             DISPATCH();
         }
+        CASE_CODE(DUP): {
+            ASSERT(VALUE_COUNT() >= 1, "DUP expects at least one value on the value stack.");
+            Value top = PEEK_VAL(1);
+            PUSH_VAL(top);
+            DISPATCH();
+        }
         CASE_CODE(SWAP): {
             ASSERT(VALUE_COUNT() >= 2, "SWAP expects at least two values on the value stack.");
             Value top = POP_VAL();
@@ -684,6 +690,33 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
                 DROP_VALS(2);
                 PUSH_VAL(OBJ_VAL(start));
             }
+            DISPATCH();
+        }
+
+        CASE_CODE(NEWREF): {
+            Value refInit = POP_VAL();
+            // TODO: make this into a function: HeapKey nextKey(vm)
+            // TODO: make these two lines atomic/thread safe
+            uint64_t key = vm->nextHeapKey;
+            vm->nextHeapKey += 1;
+
+            mochiHeapSet(vm, &vm->heap, (HeapKey)key, refInit);
+            PUSH_VAL(OBJ_VAL(mochiNewRef(vm, key)));
+            DISPATCH();
+        }
+        CASE_CODE(GETREF): {
+            ObjRef* ref = AS_REF(POP_VAL());
+            Value val;
+            bool found = mochiHeapGet(&vm->heap, ref->ptr, &val);
+            ASSERT(found, "Heap reference not found in GETREF.");
+            PUSH_VAL(val);
+            DISPATCH();
+        }
+        CASE_CODE(PUTREF): {
+            Value val = PEEK_VAL(1);
+            ObjRef* ref = AS_REF(PEEK_VAL(2));
+            mochiHeapSet(vm, &vm->heap, ref->ptr, val);
+            DROP_VALS(2);
             DISPATCH();
         }
 
