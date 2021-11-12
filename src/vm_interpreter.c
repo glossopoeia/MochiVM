@@ -660,6 +660,22 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             PUSH_VAL(below);
             DISPATCH();
         }
+        CASE_CODE(SHUFFLE): {
+            uint8_t pop = READ_BYTE();
+            uint8_t push = READ_BYTE();
+            ASSERT(VALUE_COUNT() >= pop, "SHUFFLE expected more values on the stack than were available.");
+
+            for (int i = 0; i < push; i++) {
+                uint8_t index = READ_BYTE();
+                Value val = PEEK_VAL(index + 1);
+                PUSH_VAL(val);
+            }
+
+            valueArrayCopy(fiber->valueStackTop - push - pop, fiber->valueStackTop - push, push);
+            fiber->valueStackTop -= pop;
+            DISPATCH();
+        }
+
         CASE_CODE(LIST_NIL): {
             PUSH_VAL(OBJ_VAL(NULL));
             DISPATCH();

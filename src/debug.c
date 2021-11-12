@@ -220,6 +220,21 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("DUP", offset);
         case CODE_SWAP:
             return simpleInstruction("SWAP", offset);
+        case CODE_SHUFFLE: {
+            uint8_t* code = vm->block->code.data;
+            offset += 1;
+
+            uint8_t pop = code[offset]; offset += 1;
+            uint8_t push = code[offset]; offset += 1;
+            printf("%-16s %-3d -> ", "SHUFFLE", pop);
+            for (int i = 0; i < push; i++) {
+                printf("%d ", code[offset]);
+                offset += 1;
+            }
+            printf("\n");
+
+            return offset;
+        }
         case CODE_NEWREF:
             return simpleInstruction("NEWREF", offset);
         case CODE_GETREF:
