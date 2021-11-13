@@ -224,8 +224,12 @@ void writeChunk(MochiVM* vm, uint8_t instr, int line) {
 
 void writeLabel(MochiVM* vm, int byteIndex, int labelLength, const char* labelText) {
     mochiIntBufferWrite(vm, &vm->block->labelIndices, byteIndex);
-    ObjString* str = copyString(labelText, labelLength, vm);
+    ObjByteArray* str = mochiByteArrayNil(vm);
     mochiFiberPushRoot(vm->fiber, (Obj*)str);
+    for (int i = 0; i < labelLength; i++) {
+        mochiByteArraySnoc(vm, (uint8_t)labelText[i], str);
+    }
+    mochiByteArraySnoc(vm, '\0', str);
     mochiValueBufferWrite(vm, &vm->block->labels, OBJ_VAL(str));
     mochiFiberPopRoot(vm->fiber);
 }

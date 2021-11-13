@@ -37,25 +37,6 @@ ObjDouble* mochiNewDouble(MochiVM* vm, double val) {
     return i;
 }
 
-static ObjString* allocateString(char* chars, int length, MochiVM* vm) {
-    ObjString* string = ALLOCATE(vm, ObjString);
-    initObj(vm, (Obj*)string, OBJ_STRING);
-    string->length = length;
-    string->chars = chars;
-    return string;
-}
-
-ObjString* takeString(char* chars, int length, MochiVM* vm) {
-    return allocateString(chars, length, vm);
-}
-
-ObjString* copyString(const char* chars, int length, MochiVM* vm) {
-    char* heapChars = ALLOCATE_ARRAY(vm, char, length + 1);
-    memcpy(heapChars, chars, length);
-    heapChars[length] = '\0';
-    return allocateString(heapChars, length, vm);
-}
-
 ObjVarFrame* newVarFrame(Value* vars, int varCount, MochiVM* vm) {
     ObjVarFrame* frame = ALLOCATE(vm, ObjVarFrame);
     initObj(vm, (Obj*)frame, OBJ_VAR_FRAME);
@@ -447,11 +428,6 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
             mochiValueBufferClear(vm, &block->labels);
             break;
         }
-        case OBJ_STRING: {
-            ObjString* string = (ObjString*)object;
-            DEALLOCATE(vm, string->chars);
-            break;
-        }
         case OBJ_VAR_FRAME: {
             freeVarFrame(vm, (ObjVarFrame*)object);
             break;
@@ -555,10 +531,6 @@ void printObject(MochiVM* vm, Value object) {
         }
         case OBJ_CODE_BLOCK: {
             printf("code");
-            break;
-        }
-        case OBJ_STRING: {
-            printf("\"%s\"", AS_CSTRING(object));
             break;
         }
         case OBJ_VAR_FRAME: {
@@ -817,10 +789,6 @@ static void markFiber(MochiVM* vm, ObjFiber* fiber) {
     vm->bytesAllocated += vm->config.rootStackCapacity * sizeof(Obj*);
 }
 
-static void markString(MochiVM* vm, ObjString* string) {
-    vm->bytesAllocated += sizeof(ObjString) + string->length + 1;
-}
-
 static void markForeign(MochiVM* vm, ObjForeign* foreign) {
     vm->bytesAllocated += sizeof(Obj) + sizeof(int);
     vm->bytesAllocated += sizeof(uint8_t) * foreign->dataCount;
@@ -898,7 +866,6 @@ static void blackenObject(MochiVM* vm, Obj* obj)
         case OBJ_CLOSURE:           markClosure( vm, (ObjClosure*) obj); break;
         case OBJ_CONTINUATION:      markContinuation(vm, (ObjContinuation*)obj); break;
         case OBJ_FIBER:             markFiber(vm, (ObjFiber*)obj); break;
-        case OBJ_STRING:            markString(vm, (ObjString*)obj); break;
         case OBJ_FOREIGN:           markForeign(vm, (ObjForeign*)obj); break;
         case OBJ_C_POINTER:         MARK_SIMPLE(vm, ObjCPointer); break;
         case OBJ_LIST:              markList(vm, (ObjList*)obj); break;

@@ -526,21 +526,6 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         CASE_CODE(DOUBLE_GREATER): { BINARY_OP(double, AS_DOUBLE, BOOL_VAL, >); DISPATCH(); }
         CASE_CODE(DOUBLE_SIGN): { SIGN_OP(double, AS_DOUBLE); DISPATCH(); }
 
-        CASE_CODE(CONCAT): {
-            ObjString* b = AS_STRING(PEEK_VAL(1));
-            ObjString* a = AS_STRING(PEEK_VAL(2));
-
-            int length = a->length + b->length;
-            char* chars = ALLOCATE_ARRAY(vm, char, length + 1);
-            memcpy(chars, a->chars, a->length);
-            memcpy(chars + a->length, b->chars, b->length);
-            chars[length] = '\0';
-            DROP_VALS(2);
-
-            ObjString* result = takeString(chars, length, vm);
-            PUSH_VAL(OBJ_VAL(result));
-            DISPATCH();
-        }
         CASE_CODE(STORE): {
             uint8_t varCount = READ_BYTE();
             ASSERT(VALUE_COUNT() >= varCount, "Not enough values to store in frame in STORE");
@@ -1140,6 +1125,21 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             PUSH_VAL(OBJ_VAL(mochiArrayCopy(vm, start, length, arr)));
             DISPATCH();
         }
+        CASE_CODE(ARRAY_CONCAT): {
+            ObjArray* b = AS_ARRAY(PEEK_VAL(1));
+            ObjArray* a = AS_ARRAY(PEEK_VAL(2));
+
+            ObjArray* cat = mochiArrayNil(vm);
+            for (int i = 0; i < a->elems.count; i++) {
+                mochiArraySnoc(vm, a->elems.data[i], cat);
+            }
+            for (int i = 0; i < b->elems.count; i++) {
+                mochiArraySnoc(vm, b->elems.data[i], cat);
+            }
+            DROP_VALS(2);
+            PUSH_VAL(OBJ_VAL(cat));
+            DISPATCH();
+        }
 
         CASE_CODE(ARRAY_SLICE): {
             int start = (int)AS_U32(POP_VAL());
@@ -1229,6 +1229,21 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             PUSH_VAL(OBJ_VAL(mochiByteArrayCopy(vm, start, length, arr)));
             DISPATCH();
         }
+        CASE_CODE(BYTE_ARRAY_CONCAT): {
+            ObjByteArray* b = AS_BYTE_ARRAY(PEEK_VAL(1));
+            ObjByteArray* a = AS_BYTE_ARRAY(PEEK_VAL(2));
+
+            ObjByteArray* cat = mochiByteArrayNil(vm);
+            for (int i = 0; i < a->elems.count; i++) {
+                mochiByteArraySnoc(vm, a->elems.data[i], cat);
+            }
+            for (int i = 0; i < b->elems.count; i++) {
+                mochiByteArraySnoc(vm, b->elems.data[i], cat);
+            }
+            DROP_VALS(2);
+            PUSH_VAL(OBJ_VAL(cat));
+            DISPATCH();
+        }
 
         CASE_CODE(BYTE_ARRAY_SLICE): {
             int start = (int)AS_U32(POP_VAL());
@@ -1269,6 +1284,23 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         CASE_CODE(BYTE_SLICE_COPY): {
             ObjByteSlice* slice = AS_BYTE_SLICE(PEEK_VAL(1));
             PUSH_VAL(OBJ_VAL(mochiByteSliceCopy(vm, slice)));
+            DISPATCH();
+        }
+
+        CASE_CODE(STRING_CONCAT): {
+            ObjByteArray* b = AS_BYTE_ARRAY(PEEK_VAL(1));
+            ObjByteArray* a = AS_BYTE_ARRAY(PEEK_VAL(2));
+
+            ObjByteArray* cat = mochiByteArrayNil(vm);
+            // count - 1 to remove the null-terminator character from the first string
+            for (int i = 0; i < a->elems.count - 1; i++) {
+                mochiByteArraySnoc(vm, a->elems.data[i], cat);
+            }
+            for (int i = 0; i < b->elems.count; i++) {
+                mochiByteArraySnoc(vm, b->elems.data[i], cat);
+            }
+            DROP_VALS(2);
+            PUSH_VAL(OBJ_VAL(cat));
             DISPATCH();
         }
     }

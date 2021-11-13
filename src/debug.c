@@ -204,8 +204,6 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("DOUBLE_GREATER", offset);
         case CODE_DOUBLE_SIGN:
             return simpleInstruction("DOUBLE_SIGN", offset);
-        case CODE_CONCAT:
-            return simpleInstruction("CONCAT", offset);
         case CODE_STORE:
             return byteArgInstruction("STORE", vm, offset);
         case CODE_FIND: {
@@ -356,6 +354,8 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("ARRAY_LENGTH", offset);
         case CODE_ARRAY_COPY:
             return simpleInstruction("ARRAY_COPY", offset);
+        case CODE_ARRAY_CONCAT:
+            return simpleInstruction("ARRAY_CONCAT", offset);
         case CODE_ARRAY_SLICE:
             return simpleInstruction("ARRAY_SLICE", offset);
         case CODE_SUBSLICE:
@@ -382,6 +382,8 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("BYTE_ARRAY_LENGTH", offset);
         case CODE_BYTE_ARRAY_COPY:
             return simpleInstruction("BYTE_ARRAY_COPY", offset);
+        case CODE_BYTE_ARRAY_CONCAT:
+            return simpleInstruction("BYTE_ARRAY_CONCAT", offset);
         case CODE_BYTE_ARRAY_SLICE:
             return simpleInstruction("BYTE_ARRAY_SLICE", offset);
         case CODE_BYTE_SUBSLICE:
@@ -394,6 +396,8 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("BYTE_SLICE_LENGTH", offset);
         case CODE_BYTE_SLICE_COPY:
             return simpleInstruction("BYTE_SLICE_COPY", offset);
+        case CODE_STRING_CONCAT:
+            return simpleInstruction("STRING_CONCAT", offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;

@@ -16,7 +16,6 @@
 #define IS_VAR_FRAME(value)    isObjType(value, OBJ_VAR_FRAME)
 #define IS_CALL_FRAME(value)   isObjType(value, OBJ_CALL_FRAME)
 #define IS_HANDLE_FRAME(value) isObjType(value, OBJ_HANDLE_FRAME)
-#define IS_STRING(value)       isObjType(value, OBJ_STRING)
 #define IS_CLOSURE(value)      isObjType(value, OBJ_CLOSURE)
 #define IS_CONTINUATION(value) isObjType(value, OBJ_CONTINUATION)
 
@@ -39,8 +38,7 @@
 #define AS_BYTE_SLICE(v)        ((ObjByteSlice*)AS_OBJ(v))
 #define AS_REF(v)               ((ObjRef*)AS_OBJ(v))
 #define AS_STRUCT(v)            ((ObjStruct*)AS_OBJ(v))
-#define AS_STRING(v)            ((ObjString*)AS_OBJ(v))
-#define AS_CSTRING(v)           (AS_STRING(v)->chars)
+#define AS_CSTRING(v)           ((char*)(void*)((ObjByteArray*)AS_OBJ(v))->elems.data)
 
 typedef enum {
     INT_INSTR_I8,
@@ -63,7 +61,6 @@ typedef enum {
     OBJ_VAR_FRAME,
     OBJ_CALL_FRAME,
     OBJ_HANDLE_FRAME,
-    OBJ_STRING,
     OBJ_CLOSURE,
     OBJ_CONTINUATION,
     OBJ_FOREIGN,
@@ -89,24 +86,6 @@ struct Obj {
     struct Obj* next;
 };
 
-#if MOCHIVM_POINTER_TAGGING
-
-#include "value_ptr_tagged.h"
-
-#elif MOCHIVM_NAN_TAGGING
-
-#include "value_nan_tagged.h"
-
-#else
-
-#include "value_union.h"
-
-#endif
-
-DECLARE_BUFFER(Byte, uint8_t);
-DECLARE_BUFFER(Int, int);
-DECLARE_BUFFER(Value, Value);
-
 // Some internal representations don't support full 64-bit
 // value types, so we have heap allocated versions.
 
@@ -125,6 +104,24 @@ typedef struct ObjDouble {
     double val;
 } ObjDouble;
 
+#if MOCHIVM_POINTER_TAGGING
+
+#include "value_ptr_tagged.h"
+
+#elif MOCHIVM_NAN_TAGGING
+
+#include "value_nan_tagged.h"
+
+#else
+
+#include "value_union.h"
+
+#endif
+
+DECLARE_BUFFER(Byte, uint8_t);
+DECLARE_BUFFER(Int, int);
+DECLARE_BUFFER(Value, Value);
+
 typedef struct ObjCodeBlock {
     Obj obj;
     ByteBuffer code;
@@ -133,12 +130,6 @@ typedef struct ObjCodeBlock {
     IntBuffer labelIndices;
     ValueBuffer labels;
 } ObjCodeBlock;
-
-typedef struct ObjString {
-    Obj obj;
-    int length;
-    char* chars;
-} ObjString;
 
 // This enum provides a way for compiler writers to specify that some closures-as-handlers have
 // certain assumptions guaranteed that allow more efficient operation. For instance, RESUME_NONE
@@ -317,9 +308,6 @@ void mochiClosureCapture(ObjClosure* closure, int captureIndex, Value value);
 ObjContinuation* mochiNewContinuation(MochiVM* vm, uint8_t* resume, uint8_t paramCount, int savedStack, int savedFrames);
 
 ObjCodeBlock* mochiNewCodeBlock(MochiVM* vm);
-
-ObjString* takeString(char* chars, int length, MochiVM* vm);
-ObjString* copyString(const char* chars, int length, MochiVM* vm);
 
 ObjVarFrame* newVarFrame(Value* vars, int varCount, MochiVM* vm);
 ObjCallFrame* newCallFrame(Value* vars, int varCount, uint8_t* afterLocation, MochiVM* vm);

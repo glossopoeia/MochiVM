@@ -87,7 +87,6 @@ int main(int argc, const char * argv[]) {
     int assertFrames = -1;
 
     #include "test_numerics.h"
-    #include "test_strings.h"
     #include "test_frames.h"
     #include "test_handle.h"
     #include "test_refs.h"
