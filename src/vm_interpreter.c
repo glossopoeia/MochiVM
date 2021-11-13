@@ -113,11 +113,60 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 #define READ_USHORT() (fiber->ip += 2, (uint16_t)((fiber->ip[-2] << 8) | fiber->ip[-1]))
 #define READ_UINT() (fiber->ip += 4, (uint32_t)((fiber->ip[-4] << 24) | (fiber->ip[-3] << 16) | (fiber->ip[-2] << 8) | fiber->ip[-1]))
 #define READ_CONSTANT() (vm->block->constants.data[READ_BYTE()])
-#define BINARY_OP(valueType, op) \
+#define UNARY_OP(paramType, paramExtract, retConstruct, op) \
     do { \
-        double a = AS_NUMBER(POP_VAL()); \
-        double b = AS_NUMBER(POP_VAL()); \
-        PUSH_VAL(valueType(a op b)); \
+        paramType n = paramExtract(POP_VAL()); \
+        PUSH_VAL(retConstruct(vm, op n)); \
+    } while (false)
+#define BINARY_OP(paramType, paramExtract, retConstruct, op) \
+    do { \
+        paramType a = paramExtract(POP_VAL()); \
+        paramType b = paramExtract(POP_VAL()); \
+        PUSH_VAL(retConstruct(vm, a op b)); \
+    } while (false)
+#define SIGN_OP(paramType, paramExtract) \
+    do { \
+        paramType a = paramExtract(POP_VAL()); \
+        PUSH_VAL(I8_VAL(vm, (a > 0) - (a < 0))); \
+    } while (false)
+// Integer division has several interesting flavors, some of which we implement.
+// For a more in depth overview of these flavors, see
+// https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/divmodnote-letter.pdf
+#define DIV_REM_T(paramType, paramExtract, retConstruct) \
+    do { \
+        paramType a = paramExtract(POP_VAL()); \
+        paramType b = paramExtract(POP_VAL()); \
+        PUSH_VAL(retConstruct(vm, a / b)); \
+        PUSH_VAL(retConstruct(vm, a % b)); \
+    } while (false)
+#define DIV_REM_F(paramType, paramExtract, retConstruct) \
+    do { \
+        paramType a = paramExtract(POP_VAL()); \
+        paramType b = paramExtract(POP_VAL()); \
+        paramType q = a / b; \
+        paramType r = a % b; \
+        if ((r > 0 && b < 0) || (r < 0 && b > 0)) { \
+            q = q - 1; \
+            r = r + b; \
+        } \
+        PUSH_VAL(retConstruct(vm, q)); \
+        PUSH_VAL(retConstruct(vm, r)); \
+    } while (false)
+#define DIV_REM_E(paramType, paramExtract, retConstruct) \
+    do { \
+        paramType a = paramExtract(POP_VAL()); \
+        paramType b = paramExtract(POP_VAL()); \
+        paramType q = a / b; \
+        paramType r = a % b; \
+        if (r < 0) { \
+            if (b > 0) { \
+                q = q - 1; \
+                r = r + b; \
+            } else { \
+                q = q + 1; \
+                r = r - b; \
+            } \
+        } \
     } while (false)
 
 #ifdef MOCHIVM_DEBUG_TRACE_EXECUTION
@@ -208,49 +257,275 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             PUSH_VAL(constant);
             DISPATCH();
         }
-        CASE_CODE(NEGATE): {
-            double n = AS_NUMBER(POP_VAL());
-            PUSH_VAL(NUMBER_VAL(-n));
-            DISPATCH();
-        }
-        CASE_CODE(ADD):      BINARY_OP(NUMBER_VAL, +); DISPATCH();
-        CASE_CODE(SUBTRACT): BINARY_OP(NUMBER_VAL, -); DISPATCH();
-        CASE_CODE(MULTIPLY): BINARY_OP(NUMBER_VAL, *); DISPATCH();
-        CASE_CODE(DIVIDE):   BINARY_OP(NUMBER_VAL, /); DISPATCH();
-        CASE_CODE(EQUAL):    BINARY_OP(BOOL_VAL, ==); DISPATCH();
-        CASE_CODE(GREATER):  BINARY_OP(BOOL_VAL, >); DISPATCH();
-        CASE_CODE(LESS):     BINARY_OP(BOOL_VAL, <); DISPATCH();
-        CASE_CODE(TRUE):     PUSH_VAL(BOOL_VAL(true)); DISPATCH();
-        CASE_CODE(FALSE):    PUSH_VAL(BOOL_VAL(false)); DISPATCH();
-        CASE_CODE(NOT): {
+        CASE_CODE(TRUE):     PUSH_VAL(TRUE_VAL); DISPATCH();
+        CASE_CODE(FALSE):    PUSH_VAL(FALSE_VAL); DISPATCH();
+        CASE_CODE(BOOL_NOT): {
             bool b = AS_BOOL(POP_VAL());
-            PUSH_VAL(BOOL_VAL(!b));
+            PUSH_VAL(BOOL_VAL(vm, !b));
             DISPATCH();
         }
         CASE_CODE(BOOL_AND): {
             bool a = AS_BOOL(POP_VAL());
             bool b = AS_BOOL(POP_VAL());
-            PUSH_VAL(BOOL_VAL(a && b));
+            PUSH_VAL(BOOL_VAL(vm, a && b));
             DISPATCH();
         }
         CASE_CODE(BOOL_OR): {
             bool a = AS_BOOL(POP_VAL());
             bool b = AS_BOOL(POP_VAL());
-            PUSH_VAL(BOOL_VAL(a || b));
+            PUSH_VAL(BOOL_VAL(vm, a || b));
             DISPATCH();
         }
         CASE_CODE(BOOL_NEQ): {
             bool a = AS_BOOL(POP_VAL());
             bool b = AS_BOOL(POP_VAL());
-            PUSH_VAL(BOOL_VAL(a != b));
+            PUSH_VAL(BOOL_VAL(vm, a != b));
             DISPATCH();
         }
         CASE_CODE(BOOL_EQ): {
             bool a = AS_BOOL(POP_VAL());
             bool b = AS_BOOL(POP_VAL());
-            PUSH_VAL(BOOL_VAL(a == b));
+            PUSH_VAL(BOOL_VAL(vm, a == b));
             DISPATCH();
         }
+
+        CASE_CODE(INT_NEG): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { UNARY_OP(int8_t, AS_I8, I8_VAL, -); DISPATCH(); }
+                case INT_INSTR_U8: { UNARY_OP(uint8_t, AS_U8, U8_VAL, -); DISPATCH(); }
+                case INT_INSTR_I16: { UNARY_OP(int16_t, AS_I16, I16_VAL, -); DISPATCH(); }
+                case INT_INSTR_U16: { UNARY_OP(uint16_t, AS_U16, U16_VAL, -); DISPATCH(); }
+                case INT_INSTR_I32: { UNARY_OP(int32_t, AS_I32, I32_VAL, -); DISPATCH(); }
+                case INT_INSTR_U32: { UNARY_OP(uint32_t, AS_U32, U32_VAL, -); DISPATCH(); }
+                case INT_INSTR_I64: { UNARY_OP(int64_t, AS_I64, I64_VAL, -); DISPATCH(); }
+                case INT_INSTR_U64: { UNARY_OP(uint64_t, AS_U64, U64_VAL, -); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_INC): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { UNARY_OP(int8_t, AS_I8, I8_VAL, ++); DISPATCH(); }
+                case INT_INSTR_U8: { UNARY_OP(uint8_t, AS_U8, U8_VAL, ++); DISPATCH(); }
+                case INT_INSTR_I16: { UNARY_OP(int16_t, AS_I16, I16_VAL, ++); DISPATCH(); }
+                case INT_INSTR_U16: { UNARY_OP(uint16_t, AS_U16, U16_VAL, ++); DISPATCH(); }
+                case INT_INSTR_I32: { UNARY_OP(int32_t, AS_I32, I32_VAL, ++); DISPATCH(); }
+                case INT_INSTR_U32: { UNARY_OP(uint32_t, AS_U32, U32_VAL, ++); DISPATCH(); }
+                case INT_INSTR_I64: { UNARY_OP(int64_t, AS_I64, I64_VAL, ++); DISPATCH(); }
+                case INT_INSTR_U64: { UNARY_OP(uint64_t, AS_U64, U64_VAL, ++); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_DEC): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { UNARY_OP(int8_t, AS_I8, I8_VAL, --); DISPATCH(); }
+                case INT_INSTR_U8: { UNARY_OP(uint8_t, AS_U8, U8_VAL, --); DISPATCH(); }
+                case INT_INSTR_I16: { UNARY_OP(int16_t, AS_I16, I16_VAL, --); DISPATCH(); }
+                case INT_INSTR_U16: { UNARY_OP(uint16_t, AS_U16, U16_VAL, --); DISPATCH(); }
+                case INT_INSTR_I32: { UNARY_OP(int32_t, AS_I32, I32_VAL, --); DISPATCH(); }
+                case INT_INSTR_U32: { UNARY_OP(uint32_t, AS_U32, U32_VAL, --); DISPATCH(); }
+                case INT_INSTR_I64: { UNARY_OP(int64_t, AS_I64, I64_VAL, --); DISPATCH(); }
+                case INT_INSTR_U64: { UNARY_OP(uint64_t, AS_U64, U64_VAL, --); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_ADD): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, +); DISPATCH(); }
+                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, +); DISPATCH(); }
+                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, +); DISPATCH(); }
+                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, +); DISPATCH(); }
+                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, +); DISPATCH(); }
+                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, +); DISPATCH(); }
+                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, +); DISPATCH(); }
+                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, +); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_SUB): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, -); DISPATCH(); }
+                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, -); DISPATCH(); }
+                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, -); DISPATCH(); }
+                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, -); DISPATCH(); }
+                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, -); DISPATCH(); }
+                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, -); DISPATCH(); }
+                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, -); DISPATCH(); }
+                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, -); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_MUL): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, *); DISPATCH(); }
+                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, *); DISPATCH(); }
+                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, *); DISPATCH(); }
+                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, *); DISPATCH(); }
+                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, *); DISPATCH(); }
+                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, *); DISPATCH(); }
+                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, *); DISPATCH(); }
+                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, *); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_DIV_REM_T): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { DIV_REM_T(int8_t, AS_I8, I8_VAL); DISPATCH(); }
+                case INT_INSTR_U8: { DIV_REM_T(uint8_t, AS_U8, U8_VAL); DISPATCH(); }
+                case INT_INSTR_I16: { DIV_REM_T(int16_t, AS_I16, I16_VAL); DISPATCH(); }
+                case INT_INSTR_U16: { DIV_REM_T(uint16_t, AS_U16, U16_VAL); DISPATCH(); }
+                case INT_INSTR_I32: { DIV_REM_T(int32_t, AS_I32, I32_VAL); DISPATCH(); }
+                case INT_INSTR_U32: { DIV_REM_T(uint32_t, AS_U32, U32_VAL); DISPATCH(); }
+                case INT_INSTR_I64: { DIV_REM_T(int64_t, AS_I64, I64_VAL); DISPATCH(); }
+                case INT_INSTR_U64: { DIV_REM_T(uint64_t, AS_U64, U64_VAL); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_DIV_REM_F): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { DIV_REM_F(int8_t, AS_I8, I8_VAL); DISPATCH(); }
+                case INT_INSTR_I16: { DIV_REM_F(int16_t, AS_I16, I16_VAL); DISPATCH(); }
+                case INT_INSTR_I32: { DIV_REM_F(int32_t, AS_I32, I32_VAL); DISPATCH(); }
+                case INT_INSTR_I64: { DIV_REM_F(int64_t, AS_I64, I64_VAL); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_DIV_REM_E): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { DIV_REM_E(int8_t, AS_I8, I8_VAL); DISPATCH(); }
+                case INT_INSTR_I16: { DIV_REM_E(int16_t, AS_I16, I16_VAL); DISPATCH(); }
+                case INT_INSTR_I32: { DIV_REM_E(int32_t, AS_I32, I32_VAL); DISPATCH(); }
+                case INT_INSTR_I64: { DIV_REM_E(int64_t, AS_I64, I64_VAL); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_OR): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, |); DISPATCH(); }
+                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, |); DISPATCH(); }
+                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, |); DISPATCH(); }
+                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, |); DISPATCH(); }
+                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, |); DISPATCH(); }
+                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, |); DISPATCH(); }
+                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, |); DISPATCH(); }
+                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, |); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_AND): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, &); DISPATCH(); }
+                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, &); DISPATCH(); }
+                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, &); DISPATCH(); }
+                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, &); DISPATCH(); }
+                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, &); DISPATCH(); }
+                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, &); DISPATCH(); }
+                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, &); DISPATCH(); }
+                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, &); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_XOR): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, ^); DISPATCH(); }
+                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, ^); DISPATCH(); }
+                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, ^); DISPATCH(); }
+                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, ^); DISPATCH(); }
+                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, ^); DISPATCH(); }
+                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, ^); DISPATCH(); }
+                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, ^); DISPATCH(); }
+                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, ^); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_COMP): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { UNARY_OP(int8_t, AS_I8, I8_VAL, ~); DISPATCH(); }
+                case INT_INSTR_U8: { UNARY_OP(uint8_t, AS_U8, U8_VAL, ~); DISPATCH(); }
+                case INT_INSTR_I16: { UNARY_OP(int16_t, AS_I16, I16_VAL, ~); DISPATCH(); }
+                case INT_INSTR_U16: { UNARY_OP(uint16_t, AS_U16, U16_VAL, ~); DISPATCH(); }
+                case INT_INSTR_I32: { UNARY_OP(int32_t, AS_I32, I32_VAL, ~); DISPATCH(); }
+                case INT_INSTR_U32: { UNARY_OP(uint32_t, AS_U32, U32_VAL, ~); DISPATCH(); }
+                case INT_INSTR_I64: { UNARY_OP(int64_t, AS_I64, I64_VAL, ~); DISPATCH(); }
+                case INT_INSTR_U64: { UNARY_OP(uint64_t, AS_U64, U64_VAL, ~); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_SHL): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, <<); DISPATCH(); }
+                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, <<); DISPATCH(); }
+                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, <<); DISPATCH(); }
+                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, <<); DISPATCH(); }
+                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, <<); DISPATCH(); }
+                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, <<); DISPATCH(); }
+                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, <<); DISPATCH(); }
+                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, <<); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_SHR): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, >>); DISPATCH(); }
+                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, >>); DISPATCH(); }
+                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, >>); DISPATCH(); }
+                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, >>); DISPATCH(); }
+                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, >>); DISPATCH(); }
+                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, >>); DISPATCH(); }
+                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, >>); DISPATCH(); }
+                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, >>); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_EQ): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, BOOL_VAL, ==); DISPATCH(); }
+                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, BOOL_VAL, ==); DISPATCH(); }
+                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, BOOL_VAL, ==); DISPATCH(); }
+                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, BOOL_VAL, ==); DISPATCH(); }
+                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, BOOL_VAL, ==); DISPATCH(); }
+                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, BOOL_VAL, ==); DISPATCH(); }
+                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, BOOL_VAL, ==); DISPATCH(); }
+                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, BOOL_VAL, ==); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_LESS): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, BOOL_VAL, <); DISPATCH(); }
+                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, BOOL_VAL, <); DISPATCH(); }
+                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, BOOL_VAL, <); DISPATCH(); }
+                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, BOOL_VAL, <); DISPATCH(); }
+                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, BOOL_VAL, <); DISPATCH(); }
+                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, BOOL_VAL, <); DISPATCH(); }
+                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, BOOL_VAL, <); DISPATCH(); }
+                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, BOOL_VAL, <); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_GREATER): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, BOOL_VAL, >); DISPATCH(); }
+                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, BOOL_VAL, >); DISPATCH(); }
+                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, BOOL_VAL, >); DISPATCH(); }
+                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, BOOL_VAL, >); DISPATCH(); }
+                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, BOOL_VAL, >); DISPATCH(); }
+                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, BOOL_VAL, >); DISPATCH(); }
+                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, BOOL_VAL, >); DISPATCH(); }
+                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, BOOL_VAL, >); DISPATCH(); }
+            }
+        }
+        CASE_CODE(INT_SIGN): {
+            switch (READ_BYTE()) {
+                case INT_INSTR_I8: { SIGN_OP(int8_t, AS_I8); DISPATCH(); }
+                case INT_INSTR_I16: { SIGN_OP(int16_t, AS_I16); DISPATCH(); }
+                case INT_INSTR_I32: { SIGN_OP(int32_t, AS_I32); DISPATCH(); }
+                case INT_INSTR_I64: { SIGN_OP(int64_t, AS_I64); DISPATCH(); }
+            }
+        }
+
+        CASE_CODE(SINGLE_NEG): { UNARY_OP(float, AS_SINGLE, SINGLE_VAL, -); DISPATCH(); }
+        CASE_CODE(SINGLE_ADD): { BINARY_OP(float, AS_SINGLE, SINGLE_VAL, +); DISPATCH(); }
+        CASE_CODE(SINGLE_SUB): { BINARY_OP(float, AS_SINGLE, SINGLE_VAL, -); DISPATCH(); }
+        CASE_CODE(SINGLE_MUL): { BINARY_OP(float, AS_SINGLE, SINGLE_VAL, *); DISPATCH(); }
+        CASE_CODE(SINGLE_DIV): { BINARY_OP(float, AS_SINGLE, SINGLE_VAL, /); DISPATCH(); }
+        CASE_CODE(SINGLE_EQ): { BINARY_OP(float, AS_SINGLE, BOOL_VAL, ==); DISPATCH(); }
+        CASE_CODE(SINGLE_LESS): { BINARY_OP(float, AS_SINGLE, BOOL_VAL, <); DISPATCH(); }
+        CASE_CODE(SINGLE_GREATER): { BINARY_OP(float, AS_SINGLE, BOOL_VAL, >); DISPATCH(); }
+        CASE_CODE(SINGLE_SIGN): { SIGN_OP(float, AS_SINGLE); DISPATCH(); }
+
+        CASE_CODE(DOUBLE_NEG): { UNARY_OP(double, AS_DOUBLE, DOUBLE_VAL, -); DISPATCH(); }
+        CASE_CODE(DOUBLE_ADD): { BINARY_OP(double, AS_DOUBLE, DOUBLE_VAL, +); DISPATCH(); }
+        CASE_CODE(DOUBLE_SUB): { BINARY_OP(double, AS_DOUBLE, DOUBLE_VAL, -); DISPATCH(); }
+        CASE_CODE(DOUBLE_MUL): { BINARY_OP(double, AS_DOUBLE, DOUBLE_VAL, *); DISPATCH(); }
+        CASE_CODE(DOUBLE_DIV): { BINARY_OP(double, AS_DOUBLE, DOUBLE_VAL, /); DISPATCH(); }
+        CASE_CODE(DOUBLE_EQ): { BINARY_OP(double, AS_DOUBLE, BOOL_VAL, ==); DISPATCH(); }
+        CASE_CODE(DOUBLE_LESS): { BINARY_OP(double, AS_DOUBLE, BOOL_VAL, <); DISPATCH(); }
+        CASE_CODE(DOUBLE_GREATER): { BINARY_OP(double, AS_DOUBLE, BOOL_VAL, >); DISPATCH(); }
+        CASE_CODE(DOUBLE_SIGN): { SIGN_OP(double, AS_DOUBLE); DISPATCH(); }
+
         CASE_CODE(CONCAT): {
             ObjString* b = AS_STRING(PEEK_VAL(1));
             ObjString* a = AS_STRING(PEEK_VAL(2));
@@ -710,7 +985,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         CASE_CODE(LIST_IS_EMPTY): {
             ASSERT(VALUE_COUNT() >= 1, "LIST_IS_EMPTY expects at least one value on the stack.");
             ObjList* list = AS_LIST(POP_VAL());
-            PUSH_VAL(BOOL_VAL(list == NULL));
+            PUSH_VAL(BOOL_VAL(vm, list == NULL));
             DISPATCH();
         }
         CASE_CODE(LIST_APPEND): {
@@ -795,7 +1070,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         CASE_CODE(IS_STRUCT): {
             StructId structId = READ_UINT();
             ObjStruct* stru = AS_STRUCT(POP_VAL());
-            PUSH_VAL(BOOL_VAL(stru->id == structId));
+            PUSH_VAL(BOOL_VAL(vm, stru->id == structId));
             DISPATCH();
         }
         CASE_CODE(JUMP_STRUCT): {
@@ -823,7 +1098,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         }
         CASE_CODE(ARRAY_FILL): {
             Value v = PEEK_VAL(1);
-            int amt = (int)AS_NUMBER(PEEK_VAL(2));
+            int amt = (int)AS_U32(PEEK_VAL(2));
             ObjArray* arr = mochiArrayNil(vm);
             mochiFiberPushRoot(fiber, (Obj*)arr);
             arr = mochiArrayFill(vm, amt, v, arr);
@@ -840,13 +1115,13 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(ARRAY_GET_AT): {
-            int idx = (int)AS_NUMBER(POP_VAL());
+            int idx = (int)AS_U32(POP_VAL());
             ObjArray* arr = AS_ARRAY(POP_VAL());
             PUSH_VAL(mochiArrayGetAt(idx, arr));
             DISPATCH();
         }
         CASE_CODE(ARRAY_SET_AT): {
-            int idx = (int)AS_NUMBER(POP_VAL());
+            int idx = (int)AS_U32(POP_VAL());
             Value val = PEEK_VAL(1);
             ObjArray* arr = AS_ARRAY(PEEK_VAL(2));
             mochiArraySetAt(idx, val, arr);
@@ -855,20 +1130,20 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         }
         CASE_CODE(ARRAY_LENGTH): {
             ObjArray* arr = AS_ARRAY(POP_VAL());
-            PUSH_VAL(NUMBER_VAL(mochiArrayLength(arr)));
+            PUSH_VAL(AS_U32(mochiArrayLength(arr)));
             DISPATCH();
         }
         CASE_CODE(ARRAY_COPY): {
-            int start = (int)AS_NUMBER(POP_VAL());
-            int length = (int)AS_NUMBER(POP_VAL());
+            int start = (int)AS_U32(POP_VAL());
+            int length = (int)AS_U32(POP_VAL());
             ObjArray* arr = AS_ARRAY(PEEK_VAL(1));
             PUSH_VAL(OBJ_VAL(mochiArrayCopy(vm, start, length, arr)));
             DISPATCH();
         }
 
         CASE_CODE(ARRAY_SLICE): {
-            int start = (int)AS_NUMBER(POP_VAL());
-            int length = (int)AS_NUMBER(POP_VAL());
+            int start = (int)AS_U32(POP_VAL());
+            int length = (int)AS_U32(POP_VAL());
             ObjArray* arr = AS_ARRAY(PEEK_VAL(1));
             ObjSlice* slice = mochiArraySlice(vm, start, length, arr);
             DROP_VALS(1);
@@ -876,8 +1151,8 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(SUBSLICE): {
-            int start = (int)AS_NUMBER(POP_VAL());
-            int length = (int)AS_NUMBER(POP_VAL());
+            int start = (int)AS_U32(POP_VAL());
+            int length = (int)AS_U32(POP_VAL());
             ObjSlice* orig = AS_SLICE(PEEK_VAL(1));
             ObjSlice* sub = mochiSubslice(vm, start, length, orig);
             DROP_VALS(1);
@@ -885,13 +1160,13 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(SLICE_GET_AT): {
-            int idx = (int)AS_NUMBER(POP_VAL());
+            int idx = (int)AS_U32(POP_VAL());
             ObjSlice* slice = AS_SLICE(POP_VAL());
             PUSH_VAL(mochiSliceGetAt(idx, slice));
             DISPATCH();
         }
         CASE_CODE(SLICE_SET_AT): {
-            int idx = (int)AS_NUMBER(POP_VAL());
+            int idx = (int)AS_U32(POP_VAL());
             Value val = PEEK_VAL(1);
             ObjSlice* slice = AS_SLICE(PEEK_VAL(2));
             mochiSliceSetAt(idx, val, slice);
@@ -900,7 +1175,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         }
         CASE_CODE(SLICE_LENGTH): {
             ObjSlice* slice = AS_SLICE(POP_VAL());
-            PUSH_VAL(NUMBER_VAL(mochiSliceLength(slice)));
+            PUSH_VAL(AS_U32(mochiSliceLength(slice)));
             DISPATCH();
         }
         CASE_CODE(SLICE_COPY): {

@@ -66,7 +66,7 @@ void uvmochiTimerStart(MochiVM* vm, ObjFiber* fiber) {
     mochiFiberPushRoot(fiber, (Obj*)res);
     //Obj* next = res->obj.next;
 
-    uint64_t duration = (uint64_t)AS_NUMBER(mochiFiberPopValue(fiber));
+    uint64_t duration = (uint64_t)AS_DOUBLE(mochiFiberPopValue(fiber));
 
     // TODO: assert stack count at least 1 (callback closure)
 

@@ -116,28 +116,12 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return byteArgInstruction("ABORT", vm, offset);
         case CODE_CONSTANT:
             return constantInstruction("CONSTANT", vm, offset);
-        case CODE_NEGATE:
-            return simpleInstruction("NEGATE", offset);
-        case CODE_ADD:
-            return simpleInstruction("ADD", offset);
-        case CODE_SUBTRACT:
-            return simpleInstruction("SUBTRACT", offset);
-        case CODE_MULTIPLY:
-            return simpleInstruction("MULTIPLY", offset);
-        case CODE_DIVIDE:
-            return simpleInstruction("DIVIDE", offset);
-        case CODE_EQUAL:
-            return simpleInstruction("EQUAL", offset);
-        case CODE_GREATER:
-            return simpleInstruction("GREATER", offset);
-        case CODE_LESS:
-            return simpleInstruction("LESS", offset);
         case CODE_TRUE:
             return simpleInstruction("TRUE", offset);
         case CODE_FALSE:
             return simpleInstruction("FALSE", offset);
-        case CODE_NOT:
-            return simpleInstruction("NOT", offset);
+        case CODE_BOOL_NOT:
+            return simpleInstruction("BOOL_NOT", offset);
         case CODE_BOOL_AND:
             return simpleInstruction("BOOL_AND", offset);
         case CODE_BOOL_OR:
@@ -146,6 +130,80 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("BOOL_NEQ", offset);
         case CODE_BOOL_EQ:
             return simpleInstruction("BOOL_EQ", offset);
+        case CODE_INT_NEG:
+            return byteArgInstruction("INT_NEG", vm, offset);
+        case CODE_INT_INC:
+            return byteArgInstruction("INT_INC", vm, offset);
+        case CODE_INT_DEC:
+            return byteArgInstruction("INT_DEC", vm, offset);
+        case CODE_INT_ADD:
+            return byteArgInstruction("INT_ADD", vm, offset);
+        case CODE_INT_SUB:
+            return byteArgInstruction("INT_SUB", vm, offset);
+        case CODE_INT_MUL:
+            return byteArgInstruction("INT_MUL", vm, offset);
+        case CODE_INT_DIV_REM_T:
+            return byteArgInstruction("INT_DIV_REM_T", vm, offset);
+        case CODE_INT_DIV_REM_F:
+            return byteArgInstruction("INT_DIV_REM_F", vm, offset);
+        case CODE_INT_DIV_REM_E:
+            return byteArgInstruction("INT_DIV_REM_E", vm, offset);
+        case CODE_INT_OR:
+            return byteArgInstruction("INT_OR", vm, offset);
+        case CODE_INT_AND:
+            return byteArgInstruction("INT_AND", vm, offset);
+        case CODE_INT_XOR:
+            return byteArgInstruction("INT_XOR", vm, offset);
+        case CODE_INT_COMP:
+            return byteArgInstruction("INT_COMP", vm, offset);
+        case CODE_INT_SHL:
+            return byteArgInstruction("INT_SHL", vm, offset);
+        case CODE_INT_SHR:
+            return byteArgInstruction("INT_SHR", vm, offset);
+        case CODE_INT_EQ:
+            return byteArgInstruction("INT_EQ", vm, offset);
+        case CODE_INT_LESS:
+            return byteArgInstruction("INT_LESS", vm, offset);
+        case CODE_INT_GREATER:
+            return byteArgInstruction("INT_GREATER", vm, offset);
+        case CODE_INT_SIGN:
+            return byteArgInstruction("INT_SIGN", vm, offset);
+        case CODE_SINGLE_NEG:
+            return simpleInstruction("SINGLE_NEG", offset);
+        case CODE_SINGLE_ADD:
+            return simpleInstruction("SINGLE_ADD", offset);
+        case CODE_SINGLE_SUB:
+            return simpleInstruction("SINGLE_SUB", offset);
+        case CODE_SINGLE_MUL:
+            return simpleInstruction("SINGLE_MUL", offset);
+        case CODE_SINGLE_DIV:
+            return simpleInstruction("SINGLE_DIV", offset);
+        case CODE_SINGLE_EQ:
+            return simpleInstruction("SINGLE_EQ", offset);
+        case CODE_SINGLE_LESS:
+            return simpleInstruction("SINGLE_LESS", offset);
+        case CODE_SINGLE_GREATER:
+            return simpleInstruction("SINGLE_GREATER", offset);
+        case CODE_SINGLE_SIGN:
+            return simpleInstruction("SINGLE_SIGN", offset);
+        case CODE_DOUBLE_NEG:
+            return simpleInstruction("DOUBLE_NEG", offset);
+        case CODE_DOUBLE_ADD:
+            return simpleInstruction("DOUBLE_ADD", offset);
+        case CODE_DOUBLE_SUB:
+            return simpleInstruction("DOUBLE_SUB", offset);
+        case CODE_DOUBLE_MUL:
+            return simpleInstruction("DOUBLE_MUL", offset);
+        case CODE_DOUBLE_DIV:
+            return simpleInstruction("DOUBLE_DIV", offset);
+        case CODE_DOUBLE_EQ:
+            return simpleInstruction("DOUBLE_EQ", offset);
+        case CODE_DOUBLE_LESS:
+            return simpleInstruction("DOUBLE_LESS", offset);
+        case CODE_DOUBLE_GREATER:
+            return simpleInstruction("DOUBLE_GREATER", offset);
+        case CODE_DOUBLE_SIGN:
+            return simpleInstruction("DOUBLE_SIGN", offset);
         case CODE_CONCAT:
             return simpleInstruction("CONCAT", offset);
         case CODE_STORE:

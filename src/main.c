@@ -7,6 +7,8 @@
 #include "memory.h"
 #include "uv.h"
 
+#define TEST_DOUBLE_VAL(val)    DOUBLE_VAL(vm, val)
+
 #define BEGIN_TEST(header)      \
     do {                        \
         printf("=============================\n"); \
@@ -36,7 +38,7 @@
             printf("TODO: String verify unimplemented\n"); \
         } \
         if (assertNumber != 0) { \
-            double num = AS_NUMBER(*(vm->fiber->valueStackTop - 1)); \
+            double num = AS_DOUBLE(*(vm->fiber->valueStackTop - 1)); \
             ASSERT(assertNumber == num, "TEST FAILED: Unexpected number at the end of execution."); \
         } \
         mochiFreeVM(vm); \

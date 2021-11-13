@@ -10,12 +10,7 @@
 #define OBJ_ARRAY_COPY(objDest, objSrc, count)  memcpy((Obj**)(objDest), (Obj**)(objSrc), sizeof(Obj*) * (count))
 
 #define OBJ_TYPE(value)        (AS_OBJ(value)->type)
-
-// These macros promote a primitive C value to a full Zhenzhu Value. There are
-// more defined below that are specific to the various Value representations.
-#define BOOL_VAL(boolean)   ((boolean) ? TRUE_VAL : FALSE_VAL)
-#define NUMBER_VAL(num)     (mochiNumToValue(num))
-#define OBJ_VAL(obj)        (mochiObjectToValue((Obj*)(obj)))
+#define OBJ_VAL(obj)           (mochiObjectToValue((Obj*)(obj)))
 
 #define IS_FIBER(value)        isObjType(value, OBJ_FIBER)
 #define IS_VAR_FRAME(value)    isObjType(value, OBJ_VAR_FRAME)
@@ -42,11 +37,24 @@
 #define AS_SLICE(v)             ((ObjSlice*)AS_OBJ(v))
 #define AS_REF(v)               ((ObjRef*)AS_OBJ(v))
 #define AS_STRUCT(v)            ((ObjStruct*)AS_OBJ(v))
-#define AS_NUMBER(value)        (mochiValueToNum(value))
 #define AS_STRING(v)            ((ObjString*)AS_OBJ(v))
 #define AS_CSTRING(v)           (AS_STRING(v)->chars)
 
 typedef enum {
+    INT_INSTR_I8,
+    INT_INSTR_U8,
+    INT_INSTR_I16,
+    INT_INSTR_U16,
+    INT_INSTR_I32,
+    INT_INSTR_U32,
+    INT_INSTR_I64,
+    INT_INSTR_U64,
+} IntInstr;
+
+typedef enum {
+    OBJ_I64,
+    OBJ_U64,
+    OBJ_DOUBLE,
     OBJ_LIST,
     OBJ_CODE_BLOCK,
     OBJ_FIBER,
@@ -94,6 +102,24 @@ struct Obj {
 DECLARE_BUFFER(Byte, uint8_t);
 DECLARE_BUFFER(Int, int);
 DECLARE_BUFFER(Value, Value);
+
+// Some internal representations don't support full 64-bit
+// value types, so we have heap allocated versions.
+
+typedef struct ObjI64 {
+    Obj obj;
+    int64_t val;
+} ObjI64;
+
+typedef struct ObjU64 {
+    Obj obj;
+    uint64_t val;
+} ObjU64;
+
+typedef struct ObjDouble {
+    Obj obj;
+    double val;
+} ObjDouble;
 
 typedef struct ObjCodeBlock {
     Obj obj;
@@ -255,6 +281,10 @@ static inline bool isObjType(Value value, ObjType type) {
 static inline void valueArrayCopy(Value* dest, Value* src, int count) {
     memcpy(dest, src, sizeof(Value) * count);
 }
+
+ObjI64* mochiNewI64(MochiVM* vm, int64_t val);
+ObjU64* mochiNewU64(MochiVM* vm, uint64_t val);
+ObjDouble* mochiNewDouble(MochiVM* vm, double val);
 
 // Creates a new fiber object with the values from the given initial stack.
 ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int initialStackCount);

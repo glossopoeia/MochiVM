@@ -16,6 +16,27 @@ static void initObj(MochiVM* vm, Obj* obj, ObjType type) {
     vm->objects = obj;
 }
 
+ObjI64* mochiNewI64(MochiVM* vm, int64_t val) {
+    ObjI64* i = ALLOCATE(vm, ObjI64);
+    initObj(vm, (Obj*)i, OBJ_I64);
+    i->val = val;
+    return i;
+}
+
+ObjU64* mochiNewU64(MochiVM* vm, uint64_t val) {
+    ObjU64* i = ALLOCATE(vm, ObjU64);
+    initObj(vm, (Obj*)i, OBJ_U64);
+    i->val = val;
+    return i;
+}
+
+ObjDouble* mochiNewDouble(MochiVM* vm, double val) {
+    ObjDouble* i = ALLOCATE(vm, ObjDouble);
+    initObj(vm, (Obj*)i, OBJ_DOUBLE);
+    i->val = val;
+    return i;
+}
+
 static ObjString* allocateString(char* chars, int length, MochiVM* vm) {
     ObjString* string = ALLOCATE(vm, ObjString);
     initObj(vm, (Obj*)string, OBJ_STRING);
@@ -398,6 +419,9 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
         case OBJ_FOREIGN_RESUME: break;
         case OBJ_SLICE: break;
         case OBJ_STRUCT: break;
+        case OBJ_I64: break;
+        case OBJ_U64: break;
+        case OBJ_DOUBLE: break;
     }
 
     DEALLOCATE(vm, object);
@@ -407,7 +431,11 @@ void printValue(MochiVM* vm, Value value) {
     if (IS_OBJ(value)) {
         printObject(vm, value);
     } else {
-        printf("%f", AS_NUMBER(value));
+#if MOCHIVM_NAN_TAGGING
+        printf("%f", AS_DOUBLE(value));
+#else
+        printf("%ju", value);
+#endif
     }
 }
 
@@ -418,6 +446,21 @@ void printObject(MochiVM* vm, Value object) {
     }
 
     switch (AS_OBJ(object)->type) {
+        case OBJ_I64: {
+            ObjI64* i = (ObjI64*)AS_OBJ(object);
+            printf("%jd", i->val);
+            break;
+        }
+        case OBJ_U64: {
+            ObjU64* i = (ObjU64*)AS_OBJ(object);
+            printf("%ju", i->val);
+            break;
+        }
+        case OBJ_DOUBLE: {
+            ObjDouble* i = (ObjDouble*)AS_OBJ(object);
+            printf("%f", i->val);
+            break;
+        }
         case OBJ_CODE_BLOCK: {
             printf("code");
             break;
@@ -564,6 +607,8 @@ void mochiGrayBuffer(MochiVM* vm, ValueBuffer* buffer) {
     }
 }
 
+#define MARK_SIMPLE(vm, type)   ((vm)->bytesAllocated += sizeof(type))
+
 static void markCodeBlock(MochiVM* vm, ObjCodeBlock* block) {
     mochiGrayBuffer(vm, &block->constants);
     mochiGrayBuffer(vm, &block->labels);
@@ -665,10 +710,6 @@ static void markForeign(MochiVM* vm, ObjForeign* foreign) {
     vm->bytesAllocated += sizeof(uint8_t) * foreign->dataCount;
 }
 
-static void markCPointer(MochiVM* vm, ObjCPointer* ptr) {
-    vm->bytesAllocated += sizeof(ObjCPointer);
-}
-
 static void markList(MochiVM* vm, ObjList* list) {
     mochiGrayValue(vm, list->elem);
     mochiGrayObj(vm, (Obj*)list->next);
@@ -725,6 +766,9 @@ static void blackenObject(MochiVM* vm, Obj* obj)
     // Traverse the object's fields.
     switch (obj->type)
     {
+        case OBJ_I64:               MARK_SIMPLE(vm, ObjI64); break;
+        case OBJ_U64:               MARK_SIMPLE(vm, ObjU64); break;
+        case OBJ_DOUBLE:            MARK_SIMPLE(vm, ObjDouble); break;
         case OBJ_CODE_BLOCK:        markCodeBlock(vm, (ObjCodeBlock*)obj); break;
         case OBJ_VAR_FRAME:         markVarFrame(vm, (ObjVarFrame*)obj); break;
         case OBJ_CALL_FRAME:        markCallFrame(vm, (ObjCallFrame*)obj); break;
@@ -734,7 +778,7 @@ static void blackenObject(MochiVM* vm, Obj* obj)
         case OBJ_FIBER:             markFiber(vm, (ObjFiber*)obj); break;
         case OBJ_STRING:            markString(vm, (ObjString*)obj); break;
         case OBJ_FOREIGN:           markForeign(vm, (ObjForeign*)obj); break;
-        case OBJ_C_POINTER:         markCPointer(vm, (ObjCPointer*)obj); break;
+        case OBJ_C_POINTER:         MARK_SIMPLE(vm, ObjCPointer); break;
         case OBJ_LIST:              markList(vm, (ObjList*)obj); break;
         case OBJ_FOREIGN_RESUME:    markForeignResume(vm, (ForeignResume*)obj); break;
         case OBJ_ARRAY:             markArray(vm, (ObjArray*)obj); break;

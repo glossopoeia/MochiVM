@@ -1,7 +1,7 @@
 
 BEGIN_TEST("Tail call with no frames works.");
 
-CONSTANT(NUMBER_VAL(1))
+CONSTANT(TEST_DOUBLE_VAL(1))
 
 WRITE_INT_INST(TAILCALL, 7, 1)
 // This push-constant instruction should get skipped by the tailcall,
@@ -19,7 +19,7 @@ END_TEST()
 
 BEGIN_TEST("Offset with no frames works.");
 
-CONSTANT(NUMBER_VAL(1))
+CONSTANT(TEST_DOUBLE_VAL(1))
 
 WRITE_INST(OFFSET, 1)
 WRITE_INT(2, 1);
