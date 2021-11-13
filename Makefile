@@ -3,7 +3,7 @@
 #
 # MODE			"debug" or "release"
 
-CFLAGS := -std=gnu99 -Wall -Wextra -Werror -Wno-unused-parameter -Ideps/libuv/include/ -Itest/ -Lbuild
+CFLAGS := -std=gnu99 -Wall -Wextra -Werror -Wno-unused-parameter -Ideps/libuv/include/ -Itest/ -Lbuild -Lbuild/utf8proc
 
 BUILD_TOP := build
 
@@ -19,12 +19,12 @@ endif
 HEADERS := $(wildcard src/*.h test/*.h)
 SOURCES := $(wildcard src/*.c)
 OBJECTS := $(addprefix $(BUILD_DIR)/, $(notdir $(SOURCES:.c=.o)))
-LIBS := -luv_a -pthread -Wl,--no-as-needed -ldl
+LIBS := -luv_a -lutf8proc -pthread -Wl,--no-as-needed -ldl
 
 # Targets ---------------------------------------------------------------------
 
 # Link the interpreter.
-$(BUILD_DIR)/mochivm: $(OBJECTS) $(BUILD_TOP)/libuv_a.a
+$(BUILD_DIR)/mochivm: $(OBJECTS) $(BUILD_TOP)/libuv_a.a $(BUILD_TOP)/utf8proc/libutf8proc.a
 	@ printf "%8s %-40s %s %s\n" $(CC) $@ "$(CFLAGS)" "$(LIBS)"
 	@ mkdir -p $(BUILD_DIR)
 	@ $(CC) $(CFLAGS) $^ -o $@ $(LIBS)
@@ -41,6 +41,13 @@ $(BUILD_TOP)/libuv_a.a:
 	@ mkdir -p $(BUILD_TOP)
 	@ (cd $(BUILD_TOP) && cmake ../deps/libuv)
 	@ cmake --build $(BUILD_TOP)
+
+# Compile utf8proc
+$(BUILD_TOP)/utf8proc/libutf8proc.a:
+	@ printf "Building utf8proc\n"
+	@ mkdir -p $(BUILD_TOP)/utf8proc
+	@ (cd $(BUILD_TOP)/utf8proc && cmake ../../deps/utf8proc)
+	@ (cd $(BUILD_TOP)/utf8proc && make)
 
 .PHONY: default
 
