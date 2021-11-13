@@ -41,15 +41,18 @@
 #define AS_CSTRING(v)           ((char*)(void*)((ObjByteArray*)AS_OBJ(v))->elems.data)
 
 typedef enum {
-    INT_INSTR_I8,
-    INT_INSTR_U8,
-    INT_INSTR_I16,
-    INT_INSTR_U16,
-    INT_INSTR_I32,
-    INT_INSTR_U32,
-    INT_INSTR_I64,
-    INT_INSTR_U64,
-} IntInstr;
+    VAL_BOOL,
+    VAL_I8,
+    VAL_U8,
+    VAL_I16,
+    VAL_U16,
+    VAL_I32,
+    VAL_U32,
+    VAL_I64,
+    VAL_U64,
+    VAL_SINGLE,
+    VAL_DOUBLE
+} ValueType;
 
 typedef enum {
     OBJ_I64,

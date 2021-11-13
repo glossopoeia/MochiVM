@@ -291,218 +291,218 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
         CASE_CODE(INT_NEG): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { UNARY_OP(int8_t, AS_I8, I8_VAL, -); DISPATCH(); }
-                case INT_INSTR_U8: { UNARY_OP(uint8_t, AS_U8, U8_VAL, -); DISPATCH(); }
-                case INT_INSTR_I16: { UNARY_OP(int16_t, AS_I16, I16_VAL, -); DISPATCH(); }
-                case INT_INSTR_U16: { UNARY_OP(uint16_t, AS_U16, U16_VAL, -); DISPATCH(); }
-                case INT_INSTR_I32: { UNARY_OP(int32_t, AS_I32, I32_VAL, -); DISPATCH(); }
-                case INT_INSTR_U32: { UNARY_OP(uint32_t, AS_U32, U32_VAL, -); DISPATCH(); }
-                case INT_INSTR_I64: { UNARY_OP(int64_t, AS_I64, I64_VAL, -); DISPATCH(); }
-                case INT_INSTR_U64: { UNARY_OP(uint64_t, AS_U64, U64_VAL, -); DISPATCH(); }
+                case VAL_I8: { UNARY_OP(int8_t, AS_I8, I8_VAL, -); DISPATCH(); }
+                case VAL_U8: { UNARY_OP(uint8_t, AS_U8, U8_VAL, -); DISPATCH(); }
+                case VAL_I16: { UNARY_OP(int16_t, AS_I16, I16_VAL, -); DISPATCH(); }
+                case VAL_U16: { UNARY_OP(uint16_t, AS_U16, U16_VAL, -); DISPATCH(); }
+                case VAL_I32: { UNARY_OP(int32_t, AS_I32, I32_VAL, -); DISPATCH(); }
+                case VAL_U32: { UNARY_OP(uint32_t, AS_U32, U32_VAL, -); DISPATCH(); }
+                case VAL_I64: { UNARY_OP(int64_t, AS_I64, I64_VAL, -); DISPATCH(); }
+                case VAL_U64: { UNARY_OP(uint64_t, AS_U64, U64_VAL, -); DISPATCH(); }
             }
         }
         CASE_CODE(INT_INC): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { UNARY_OP(int8_t, AS_I8, I8_VAL, ++); DISPATCH(); }
-                case INT_INSTR_U8: { UNARY_OP(uint8_t, AS_U8, U8_VAL, ++); DISPATCH(); }
-                case INT_INSTR_I16: { UNARY_OP(int16_t, AS_I16, I16_VAL, ++); DISPATCH(); }
-                case INT_INSTR_U16: { UNARY_OP(uint16_t, AS_U16, U16_VAL, ++); DISPATCH(); }
-                case INT_INSTR_I32: { UNARY_OP(int32_t, AS_I32, I32_VAL, ++); DISPATCH(); }
-                case INT_INSTR_U32: { UNARY_OP(uint32_t, AS_U32, U32_VAL, ++); DISPATCH(); }
-                case INT_INSTR_I64: { UNARY_OP(int64_t, AS_I64, I64_VAL, ++); DISPATCH(); }
-                case INT_INSTR_U64: { UNARY_OP(uint64_t, AS_U64, U64_VAL, ++); DISPATCH(); }
+                case VAL_I8: { UNARY_OP(int8_t, AS_I8, I8_VAL, ++); DISPATCH(); }
+                case VAL_U8: { UNARY_OP(uint8_t, AS_U8, U8_VAL, ++); DISPATCH(); }
+                case VAL_I16: { UNARY_OP(int16_t, AS_I16, I16_VAL, ++); DISPATCH(); }
+                case VAL_U16: { UNARY_OP(uint16_t, AS_U16, U16_VAL, ++); DISPATCH(); }
+                case VAL_I32: { UNARY_OP(int32_t, AS_I32, I32_VAL, ++); DISPATCH(); }
+                case VAL_U32: { UNARY_OP(uint32_t, AS_U32, U32_VAL, ++); DISPATCH(); }
+                case VAL_I64: { UNARY_OP(int64_t, AS_I64, I64_VAL, ++); DISPATCH(); }
+                case VAL_U64: { UNARY_OP(uint64_t, AS_U64, U64_VAL, ++); DISPATCH(); }
             }
         }
         CASE_CODE(INT_DEC): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { UNARY_OP(int8_t, AS_I8, I8_VAL, --); DISPATCH(); }
-                case INT_INSTR_U8: { UNARY_OP(uint8_t, AS_U8, U8_VAL, --); DISPATCH(); }
-                case INT_INSTR_I16: { UNARY_OP(int16_t, AS_I16, I16_VAL, --); DISPATCH(); }
-                case INT_INSTR_U16: { UNARY_OP(uint16_t, AS_U16, U16_VAL, --); DISPATCH(); }
-                case INT_INSTR_I32: { UNARY_OP(int32_t, AS_I32, I32_VAL, --); DISPATCH(); }
-                case INT_INSTR_U32: { UNARY_OP(uint32_t, AS_U32, U32_VAL, --); DISPATCH(); }
-                case INT_INSTR_I64: { UNARY_OP(int64_t, AS_I64, I64_VAL, --); DISPATCH(); }
-                case INT_INSTR_U64: { UNARY_OP(uint64_t, AS_U64, U64_VAL, --); DISPATCH(); }
+                case VAL_I8: { UNARY_OP(int8_t, AS_I8, I8_VAL, --); DISPATCH(); }
+                case VAL_U8: { UNARY_OP(uint8_t, AS_U8, U8_VAL, --); DISPATCH(); }
+                case VAL_I16: { UNARY_OP(int16_t, AS_I16, I16_VAL, --); DISPATCH(); }
+                case VAL_U16: { UNARY_OP(uint16_t, AS_U16, U16_VAL, --); DISPATCH(); }
+                case VAL_I32: { UNARY_OP(int32_t, AS_I32, I32_VAL, --); DISPATCH(); }
+                case VAL_U32: { UNARY_OP(uint32_t, AS_U32, U32_VAL, --); DISPATCH(); }
+                case VAL_I64: { UNARY_OP(int64_t, AS_I64, I64_VAL, --); DISPATCH(); }
+                case VAL_U64: { UNARY_OP(uint64_t, AS_U64, U64_VAL, --); DISPATCH(); }
             }
         }
         CASE_CODE(INT_ADD): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, +); DISPATCH(); }
-                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, +); DISPATCH(); }
-                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, +); DISPATCH(); }
-                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, +); DISPATCH(); }
-                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, +); DISPATCH(); }
-                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, +); DISPATCH(); }
-                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, +); DISPATCH(); }
-                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, +); DISPATCH(); }
+                case VAL_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, +); DISPATCH(); }
+                case VAL_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, +); DISPATCH(); }
+                case VAL_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, +); DISPATCH(); }
+                case VAL_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, +); DISPATCH(); }
+                case VAL_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, +); DISPATCH(); }
+                case VAL_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, +); DISPATCH(); }
+                case VAL_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, +); DISPATCH(); }
+                case VAL_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, +); DISPATCH(); }
             }
         }
         CASE_CODE(INT_SUB): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, -); DISPATCH(); }
-                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, -); DISPATCH(); }
-                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, -); DISPATCH(); }
-                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, -); DISPATCH(); }
-                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, -); DISPATCH(); }
-                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, -); DISPATCH(); }
-                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, -); DISPATCH(); }
-                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, -); DISPATCH(); }
+                case VAL_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, -); DISPATCH(); }
+                case VAL_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, -); DISPATCH(); }
+                case VAL_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, -); DISPATCH(); }
+                case VAL_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, -); DISPATCH(); }
+                case VAL_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, -); DISPATCH(); }
+                case VAL_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, -); DISPATCH(); }
+                case VAL_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, -); DISPATCH(); }
+                case VAL_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, -); DISPATCH(); }
             }
         }
         CASE_CODE(INT_MUL): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, *); DISPATCH(); }
-                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, *); DISPATCH(); }
-                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, *); DISPATCH(); }
-                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, *); DISPATCH(); }
-                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, *); DISPATCH(); }
-                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, *); DISPATCH(); }
-                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, *); DISPATCH(); }
-                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, *); DISPATCH(); }
+                case VAL_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, *); DISPATCH(); }
+                case VAL_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, *); DISPATCH(); }
+                case VAL_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, *); DISPATCH(); }
+                case VAL_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, *); DISPATCH(); }
+                case VAL_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, *); DISPATCH(); }
+                case VAL_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, *); DISPATCH(); }
+                case VAL_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, *); DISPATCH(); }
+                case VAL_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, *); DISPATCH(); }
             }
         }
         CASE_CODE(INT_DIV_REM_T): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { DIV_REM_T(int8_t, AS_I8, I8_VAL); DISPATCH(); }
-                case INT_INSTR_U8: { DIV_REM_T(uint8_t, AS_U8, U8_VAL); DISPATCH(); }
-                case INT_INSTR_I16: { DIV_REM_T(int16_t, AS_I16, I16_VAL); DISPATCH(); }
-                case INT_INSTR_U16: { DIV_REM_T(uint16_t, AS_U16, U16_VAL); DISPATCH(); }
-                case INT_INSTR_I32: { DIV_REM_T(int32_t, AS_I32, I32_VAL); DISPATCH(); }
-                case INT_INSTR_U32: { DIV_REM_T(uint32_t, AS_U32, U32_VAL); DISPATCH(); }
-                case INT_INSTR_I64: { DIV_REM_T(int64_t, AS_I64, I64_VAL); DISPATCH(); }
-                case INT_INSTR_U64: { DIV_REM_T(uint64_t, AS_U64, U64_VAL); DISPATCH(); }
+                case VAL_I8: { DIV_REM_T(int8_t, AS_I8, I8_VAL); DISPATCH(); }
+                case VAL_U8: { DIV_REM_T(uint8_t, AS_U8, U8_VAL); DISPATCH(); }
+                case VAL_I16: { DIV_REM_T(int16_t, AS_I16, I16_VAL); DISPATCH(); }
+                case VAL_U16: { DIV_REM_T(uint16_t, AS_U16, U16_VAL); DISPATCH(); }
+                case VAL_I32: { DIV_REM_T(int32_t, AS_I32, I32_VAL); DISPATCH(); }
+                case VAL_U32: { DIV_REM_T(uint32_t, AS_U32, U32_VAL); DISPATCH(); }
+                case VAL_I64: { DIV_REM_T(int64_t, AS_I64, I64_VAL); DISPATCH(); }
+                case VAL_U64: { DIV_REM_T(uint64_t, AS_U64, U64_VAL); DISPATCH(); }
             }
         }
         CASE_CODE(INT_DIV_REM_F): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { DIV_REM_F(int8_t, AS_I8, I8_VAL); DISPATCH(); }
-                case INT_INSTR_I16: { DIV_REM_F(int16_t, AS_I16, I16_VAL); DISPATCH(); }
-                case INT_INSTR_I32: { DIV_REM_F(int32_t, AS_I32, I32_VAL); DISPATCH(); }
-                case INT_INSTR_I64: { DIV_REM_F(int64_t, AS_I64, I64_VAL); DISPATCH(); }
+                case VAL_I8: { DIV_REM_F(int8_t, AS_I8, I8_VAL); DISPATCH(); }
+                case VAL_I16: { DIV_REM_F(int16_t, AS_I16, I16_VAL); DISPATCH(); }
+                case VAL_I32: { DIV_REM_F(int32_t, AS_I32, I32_VAL); DISPATCH(); }
+                case VAL_I64: { DIV_REM_F(int64_t, AS_I64, I64_VAL); DISPATCH(); }
             }
         }
         CASE_CODE(INT_DIV_REM_E): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { DIV_REM_E(int8_t, AS_I8, I8_VAL); DISPATCH(); }
-                case INT_INSTR_I16: { DIV_REM_E(int16_t, AS_I16, I16_VAL); DISPATCH(); }
-                case INT_INSTR_I32: { DIV_REM_E(int32_t, AS_I32, I32_VAL); DISPATCH(); }
-                case INT_INSTR_I64: { DIV_REM_E(int64_t, AS_I64, I64_VAL); DISPATCH(); }
+                case VAL_I8: { DIV_REM_E(int8_t, AS_I8, I8_VAL); DISPATCH(); }
+                case VAL_I16: { DIV_REM_E(int16_t, AS_I16, I16_VAL); DISPATCH(); }
+                case VAL_I32: { DIV_REM_E(int32_t, AS_I32, I32_VAL); DISPATCH(); }
+                case VAL_I64: { DIV_REM_E(int64_t, AS_I64, I64_VAL); DISPATCH(); }
             }
         }
         CASE_CODE(INT_OR): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, |); DISPATCH(); }
-                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, |); DISPATCH(); }
-                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, |); DISPATCH(); }
-                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, |); DISPATCH(); }
-                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, |); DISPATCH(); }
-                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, |); DISPATCH(); }
-                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, |); DISPATCH(); }
-                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, |); DISPATCH(); }
+                case VAL_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, |); DISPATCH(); }
+                case VAL_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, |); DISPATCH(); }
+                case VAL_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, |); DISPATCH(); }
+                case VAL_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, |); DISPATCH(); }
+                case VAL_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, |); DISPATCH(); }
+                case VAL_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, |); DISPATCH(); }
+                case VAL_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, |); DISPATCH(); }
+                case VAL_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, |); DISPATCH(); }
             }
         }
         CASE_CODE(INT_AND): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, &); DISPATCH(); }
-                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, &); DISPATCH(); }
-                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, &); DISPATCH(); }
-                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, &); DISPATCH(); }
-                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, &); DISPATCH(); }
-                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, &); DISPATCH(); }
-                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, &); DISPATCH(); }
-                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, &); DISPATCH(); }
+                case VAL_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, &); DISPATCH(); }
+                case VAL_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, &); DISPATCH(); }
+                case VAL_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, &); DISPATCH(); }
+                case VAL_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, &); DISPATCH(); }
+                case VAL_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, &); DISPATCH(); }
+                case VAL_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, &); DISPATCH(); }
+                case VAL_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, &); DISPATCH(); }
+                case VAL_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, &); DISPATCH(); }
             }
         }
         CASE_CODE(INT_XOR): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, ^); DISPATCH(); }
-                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, ^); DISPATCH(); }
-                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, ^); DISPATCH(); }
-                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, ^); DISPATCH(); }
-                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, ^); DISPATCH(); }
-                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, ^); DISPATCH(); }
-                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, ^); DISPATCH(); }
-                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, ^); DISPATCH(); }
+                case VAL_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, ^); DISPATCH(); }
+                case VAL_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, ^); DISPATCH(); }
+                case VAL_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, ^); DISPATCH(); }
+                case VAL_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, ^); DISPATCH(); }
+                case VAL_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, ^); DISPATCH(); }
+                case VAL_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, ^); DISPATCH(); }
+                case VAL_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, ^); DISPATCH(); }
+                case VAL_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, ^); DISPATCH(); }
             }
         }
         CASE_CODE(INT_COMP): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { UNARY_OP(int8_t, AS_I8, I8_VAL, ~); DISPATCH(); }
-                case INT_INSTR_U8: { UNARY_OP(uint8_t, AS_U8, U8_VAL, ~); DISPATCH(); }
-                case INT_INSTR_I16: { UNARY_OP(int16_t, AS_I16, I16_VAL, ~); DISPATCH(); }
-                case INT_INSTR_U16: { UNARY_OP(uint16_t, AS_U16, U16_VAL, ~); DISPATCH(); }
-                case INT_INSTR_I32: { UNARY_OP(int32_t, AS_I32, I32_VAL, ~); DISPATCH(); }
-                case INT_INSTR_U32: { UNARY_OP(uint32_t, AS_U32, U32_VAL, ~); DISPATCH(); }
-                case INT_INSTR_I64: { UNARY_OP(int64_t, AS_I64, I64_VAL, ~); DISPATCH(); }
-                case INT_INSTR_U64: { UNARY_OP(uint64_t, AS_U64, U64_VAL, ~); DISPATCH(); }
+                case VAL_I8: { UNARY_OP(int8_t, AS_I8, I8_VAL, ~); DISPATCH(); }
+                case VAL_U8: { UNARY_OP(uint8_t, AS_U8, U8_VAL, ~); DISPATCH(); }
+                case VAL_I16: { UNARY_OP(int16_t, AS_I16, I16_VAL, ~); DISPATCH(); }
+                case VAL_U16: { UNARY_OP(uint16_t, AS_U16, U16_VAL, ~); DISPATCH(); }
+                case VAL_I32: { UNARY_OP(int32_t, AS_I32, I32_VAL, ~); DISPATCH(); }
+                case VAL_U32: { UNARY_OP(uint32_t, AS_U32, U32_VAL, ~); DISPATCH(); }
+                case VAL_I64: { UNARY_OP(int64_t, AS_I64, I64_VAL, ~); DISPATCH(); }
+                case VAL_U64: { UNARY_OP(uint64_t, AS_U64, U64_VAL, ~); DISPATCH(); }
             }
         }
         CASE_CODE(INT_SHL): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, <<); DISPATCH(); }
-                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, <<); DISPATCH(); }
-                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, <<); DISPATCH(); }
-                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, <<); DISPATCH(); }
-                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, <<); DISPATCH(); }
-                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, <<); DISPATCH(); }
-                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, <<); DISPATCH(); }
-                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, <<); DISPATCH(); }
+                case VAL_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, <<); DISPATCH(); }
+                case VAL_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, <<); DISPATCH(); }
+                case VAL_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, <<); DISPATCH(); }
+                case VAL_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, <<); DISPATCH(); }
+                case VAL_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, <<); DISPATCH(); }
+                case VAL_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, <<); DISPATCH(); }
+                case VAL_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, <<); DISPATCH(); }
+                case VAL_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, <<); DISPATCH(); }
             }
         }
         CASE_CODE(INT_SHR): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, >>); DISPATCH(); }
-                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, >>); DISPATCH(); }
-                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, >>); DISPATCH(); }
-                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, >>); DISPATCH(); }
-                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, >>); DISPATCH(); }
-                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, >>); DISPATCH(); }
-                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, >>); DISPATCH(); }
-                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, >>); DISPATCH(); }
+                case VAL_I8: { BINARY_OP(int8_t, AS_I8, I8_VAL, >>); DISPATCH(); }
+                case VAL_U8: { BINARY_OP(uint8_t, AS_U8, U8_VAL, >>); DISPATCH(); }
+                case VAL_I16: { BINARY_OP(int16_t, AS_I16, I16_VAL, >>); DISPATCH(); }
+                case VAL_U16: { BINARY_OP(uint16_t, AS_U16, U16_VAL, >>); DISPATCH(); }
+                case VAL_I32: { BINARY_OP(int32_t, AS_I32, I32_VAL, >>); DISPATCH(); }
+                case VAL_U32: { BINARY_OP(uint32_t, AS_U32, U32_VAL, >>); DISPATCH(); }
+                case VAL_I64: { BINARY_OP(int64_t, AS_I64, I64_VAL, >>); DISPATCH(); }
+                case VAL_U64: { BINARY_OP(uint64_t, AS_U64, U64_VAL, >>); DISPATCH(); }
             }
         }
         CASE_CODE(INT_EQ): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, BOOL_VAL, ==); DISPATCH(); }
-                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, BOOL_VAL, ==); DISPATCH(); }
-                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, BOOL_VAL, ==); DISPATCH(); }
-                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, BOOL_VAL, ==); DISPATCH(); }
-                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, BOOL_VAL, ==); DISPATCH(); }
-                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, BOOL_VAL, ==); DISPATCH(); }
-                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, BOOL_VAL, ==); DISPATCH(); }
-                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, BOOL_VAL, ==); DISPATCH(); }
+                case VAL_I8: { BINARY_OP(int8_t, AS_I8, BOOL_VAL, ==); DISPATCH(); }
+                case VAL_U8: { BINARY_OP(uint8_t, AS_U8, BOOL_VAL, ==); DISPATCH(); }
+                case VAL_I16: { BINARY_OP(int16_t, AS_I16, BOOL_VAL, ==); DISPATCH(); }
+                case VAL_U16: { BINARY_OP(uint16_t, AS_U16, BOOL_VAL, ==); DISPATCH(); }
+                case VAL_I32: { BINARY_OP(int32_t, AS_I32, BOOL_VAL, ==); DISPATCH(); }
+                case VAL_U32: { BINARY_OP(uint32_t, AS_U32, BOOL_VAL, ==); DISPATCH(); }
+                case VAL_I64: { BINARY_OP(int64_t, AS_I64, BOOL_VAL, ==); DISPATCH(); }
+                case VAL_U64: { BINARY_OP(uint64_t, AS_U64, BOOL_VAL, ==); DISPATCH(); }
             }
         }
         CASE_CODE(INT_LESS): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, BOOL_VAL, <); DISPATCH(); }
-                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, BOOL_VAL, <); DISPATCH(); }
-                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, BOOL_VAL, <); DISPATCH(); }
-                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, BOOL_VAL, <); DISPATCH(); }
-                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, BOOL_VAL, <); DISPATCH(); }
-                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, BOOL_VAL, <); DISPATCH(); }
-                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, BOOL_VAL, <); DISPATCH(); }
-                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, BOOL_VAL, <); DISPATCH(); }
+                case VAL_I8: { BINARY_OP(int8_t, AS_I8, BOOL_VAL, <); DISPATCH(); }
+                case VAL_U8: { BINARY_OP(uint8_t, AS_U8, BOOL_VAL, <); DISPATCH(); }
+                case VAL_I16: { BINARY_OP(int16_t, AS_I16, BOOL_VAL, <); DISPATCH(); }
+                case VAL_U16: { BINARY_OP(uint16_t, AS_U16, BOOL_VAL, <); DISPATCH(); }
+                case VAL_I32: { BINARY_OP(int32_t, AS_I32, BOOL_VAL, <); DISPATCH(); }
+                case VAL_U32: { BINARY_OP(uint32_t, AS_U32, BOOL_VAL, <); DISPATCH(); }
+                case VAL_I64: { BINARY_OP(int64_t, AS_I64, BOOL_VAL, <); DISPATCH(); }
+                case VAL_U64: { BINARY_OP(uint64_t, AS_U64, BOOL_VAL, <); DISPATCH(); }
             }
         }
         CASE_CODE(INT_GREATER): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { BINARY_OP(int8_t, AS_I8, BOOL_VAL, >); DISPATCH(); }
-                case INT_INSTR_U8: { BINARY_OP(uint8_t, AS_U8, BOOL_VAL, >); DISPATCH(); }
-                case INT_INSTR_I16: { BINARY_OP(int16_t, AS_I16, BOOL_VAL, >); DISPATCH(); }
-                case INT_INSTR_U16: { BINARY_OP(uint16_t, AS_U16, BOOL_VAL, >); DISPATCH(); }
-                case INT_INSTR_I32: { BINARY_OP(int32_t, AS_I32, BOOL_VAL, >); DISPATCH(); }
-                case INT_INSTR_U32: { BINARY_OP(uint32_t, AS_U32, BOOL_VAL, >); DISPATCH(); }
-                case INT_INSTR_I64: { BINARY_OP(int64_t, AS_I64, BOOL_VAL, >); DISPATCH(); }
-                case INT_INSTR_U64: { BINARY_OP(uint64_t, AS_U64, BOOL_VAL, >); DISPATCH(); }
+                case VAL_I8: { BINARY_OP(int8_t, AS_I8, BOOL_VAL, >); DISPATCH(); }
+                case VAL_U8: { BINARY_OP(uint8_t, AS_U8, BOOL_VAL, >); DISPATCH(); }
+                case VAL_I16: { BINARY_OP(int16_t, AS_I16, BOOL_VAL, >); DISPATCH(); }
+                case VAL_U16: { BINARY_OP(uint16_t, AS_U16, BOOL_VAL, >); DISPATCH(); }
+                case VAL_I32: { BINARY_OP(int32_t, AS_I32, BOOL_VAL, >); DISPATCH(); }
+                case VAL_U32: { BINARY_OP(uint32_t, AS_U32, BOOL_VAL, >); DISPATCH(); }
+                case VAL_I64: { BINARY_OP(int64_t, AS_I64, BOOL_VAL, >); DISPATCH(); }
+                case VAL_U64: { BINARY_OP(uint64_t, AS_U64, BOOL_VAL, >); DISPATCH(); }
             }
         }
         CASE_CODE(INT_SIGN): {
             switch (READ_BYTE()) {
-                case INT_INSTR_I8: { SIGN_OP(int8_t, AS_I8); DISPATCH(); }
-                case INT_INSTR_I16: { SIGN_OP(int16_t, AS_I16); DISPATCH(); }
-                case INT_INSTR_I32: { SIGN_OP(int32_t, AS_I32); DISPATCH(); }
-                case INT_INSTR_I64: { SIGN_OP(int64_t, AS_I64); DISPATCH(); }
+                case VAL_I8: { SIGN_OP(int8_t, AS_I8); DISPATCH(); }
+                case VAL_I16: { SIGN_OP(int16_t, AS_I16); DISPATCH(); }
+                case VAL_I32: { SIGN_OP(int32_t, AS_I32); DISPATCH(); }
+                case VAL_I64: { SIGN_OP(int64_t, AS_I64); DISPATCH(); }
             }
         }
 
@@ -525,6 +525,72 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         CASE_CODE(DOUBLE_LESS): { BINARY_OP(double, AS_DOUBLE, BOOL_VAL, <); DISPATCH(); }
         CASE_CODE(DOUBLE_GREATER): { BINARY_OP(double, AS_DOUBLE, BOOL_VAL, >); DISPATCH(); }
         CASE_CODE(DOUBLE_SIGN): { SIGN_OP(double, AS_DOUBLE); DISPATCH(); }
+
+#define CAST_FROM(fromC, fromMacro) \
+                switch (to) { \
+                    case VAL_BOOL: { UNARY_OP(fromC, fromMacro, BOOL_VAL, (bool)); DISPATCH(); } \
+                    case VAL_I8: { UNARY_OP(fromC, fromMacro, I8_VAL, (int8_t)); DISPATCH(); } \
+                    case VAL_U8: { UNARY_OP(fromC, fromMacro, U8_VAL, (uint8_t)); DISPATCH(); } \
+                    case VAL_I16: { UNARY_OP(fromC, fromMacro, I16_VAL, (int16_t)); DISPATCH(); } \
+                    case VAL_U16: { UNARY_OP(fromC, fromMacro, U16_VAL, (uint16_t)); DISPATCH(); } \
+                    case VAL_I32: { UNARY_OP(fromC, fromMacro, I32_VAL, (int32_t)); DISPATCH(); } \
+                    case VAL_U32: { UNARY_OP(fromC, fromMacro, U32_VAL, (uint32_t)); DISPATCH(); } \
+                    case VAL_I64: { UNARY_OP(fromC, fromMacro, I64_VAL, (int64_t)); DISPATCH(); } \
+                    case VAL_U64: { UNARY_OP(fromC, fromMacro, U64_VAL, (uint64_t)); DISPATCH(); } \
+                    case VAL_SINGLE: { UNARY_OP(fromC, fromMacro, SINGLE_VAL, (float)); DISPATCH(); } \
+                    case VAL_DOUBLE: { UNARY_OP(fromC, fromMacro, DOUBLE_VAL, (double)); DISPATCH(); } \
+                }
+
+        CASE_CODE(VALUE_CONV): {
+            uint8_t from = READ_BYTE();
+            uint8_t to = READ_BYTE();
+            switch (from) {
+                case VAL_BOOL: {
+                    CAST_FROM(bool, AS_BOOL)
+                    break;
+                }
+                case VAL_I8: {
+                    CAST_FROM(int8_t, AS_I8)
+                    break;
+                }
+                case VAL_U8: {
+                    CAST_FROM(uint8_t, AS_U8)
+                    break;
+                }
+                case VAL_I16: {
+                    CAST_FROM(int16_t, AS_I16)
+                    break;
+                }
+                case VAL_U16: {
+                    CAST_FROM(uint16_t, AS_U16)
+                    break;
+                }
+                case VAL_I32: {
+                    CAST_FROM(int32_t, AS_I32)
+                    break;
+                }
+                case VAL_U32: {
+                    CAST_FROM(uint32_t, AS_U32)
+                    break;
+                }
+                case VAL_I64: {
+                    CAST_FROM(int64_t, AS_I64)
+                    break;
+                }
+                case VAL_U64: {
+                    CAST_FROM(uint64_t, AS_U64)
+                    break;
+                }
+                case VAL_SINGLE: {
+                    CAST_FROM(float, AS_SINGLE)
+                    break;
+                }
+                case VAL_DOUBLE: {
+                    CAST_FROM(double, AS_DOUBLE)
+                    break;
+                }
+            }
+        }
 
         CASE_CODE(STORE): {
             uint8_t varCount = READ_BYTE();

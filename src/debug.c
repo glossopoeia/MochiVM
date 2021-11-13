@@ -204,6 +204,15 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("DOUBLE_GREATER", offset);
         case CODE_DOUBLE_SIGN:
             return simpleInstruction("DOUBLE_SIGN", offset);
+        case CODE_VALUE_CONV: {
+            uint8_t* code = vm->block->code.data;
+            offset += 1;
+
+            uint8_t from = code[offset]; offset += 1;
+            uint8_t to = code[offset]; offset += 1;
+            printf("%-16s %d -> %d", "VALUE_CONV", from, to);
+            return offset;
+        }
         case CODE_STORE:
             return byteArgInstruction("STORE", vm, offset);
         case CODE_FIND: {
