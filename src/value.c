@@ -339,6 +339,92 @@ ObjArray* mochiSliceCopy(MochiVM* vm, ObjSlice* slice) {
     return copy;
 }
 
+
+
+
+ObjByteArray* mochiByteArrayNil(MochiVM* vm) {
+    ObjByteArray* arr = ALLOCATE(vm, ObjByteArray);
+    initObj(vm, (Obj*)arr, OBJ_BYTE_ARRAY);
+    mochiByteBufferInit(&arr->elems);
+    return arr;
+}
+
+ObjByteArray* mochiByteArrayFill(MochiVM* vm, int amount, uint8_t elem, ObjByteArray* array) {
+    mochiByteBufferFill(vm, &array->elems, elem, amount);
+    return array;
+}
+
+ObjByteArray* mochiByteArraySnoc(MochiVM* vm, uint8_t elem, ObjByteArray* array) {
+    mochiByteBufferWrite(vm, &array->elems, elem);
+    return array;
+}
+
+uint8_t mochiByteArrayGetAt(int index, ObjByteArray* array) {
+    ASSERT(array->elems.count > index, "Tried to access an element beyond the bounds of the Array.");
+    return array->elems.data[index];
+}
+
+void mochiByteArraySetAt(int index, uint8_t value, ObjByteArray* array) {
+    ASSERT(array->elems.count > index, "Tried to modify an element beyond the bounds of the Array.");
+    array->elems.data[index] = value;
+}
+
+int mochiByteArrayLength(ObjByteArray* array) {
+    return array->elems.count;
+}
+
+ObjByteArray* mochiByteArrayCopy(MochiVM* vm, int start, int length, ObjByteArray* array) {
+    ObjByteArray* copy = mochiByteArrayNil(vm);
+    mochiFiberPushRoot(vm->fiber, (Obj*)copy);
+    for (int i = 0; i < array->elems.count; i++) {
+        mochiByteBufferWrite(vm, &copy->elems, array->elems.data[i]);
+    }
+    mochiFiberPopRoot(vm->fiber);
+    return copy;
+}
+
+ObjByteSlice* mochiByteArraySlice(MochiVM* vm, int start, int length, ObjByteArray* array) {
+    ASSERT(start + length <= array->elems.count, "Tried to creat a Slice that accesses elements beyond the length of the source Array.");
+    ObjByteSlice* slice = ALLOCATE(vm, ObjByteSlice);
+    initObj(vm, (Obj*)slice, OBJ_BYTE_SLICE);
+    slice->start = start;
+    slice->count = length;
+    slice->source = array;
+    return slice;
+}
+
+ObjByteSlice* mochiByteSubslice(MochiVM* vm, int start, int length, ObjByteSlice* slice) {
+    return mochiByteArraySlice(vm, start + slice->start, length, slice->source);
+}
+
+uint8_t mochiByteSliceGetAt(int index, ObjByteSlice* slice) {
+    ASSERT(slice->count > index, "Tried to access an element beyond the bounds of the Slice.");
+    return slice->source->elems.data[slice->start + index];
+}
+
+void mochiByteSliceSetAt(int index, uint8_t value, ObjByteSlice* slice) {
+    ASSERT(slice->count > index, "Tried to modify an element beyond the bounds of the Slice.");
+    slice->source->elems.data[slice->start + index] = value;
+}
+
+int mochiByteSliceLength(ObjByteSlice* slice) {
+    return slice->count;
+}
+
+ObjByteArray* mochiByteSliceCopy(MochiVM* vm, ObjByteSlice* slice) {
+    ObjByteArray* copy = mochiByteArrayNil(vm);
+    mochiFiberPushRoot(vm->fiber, (Obj*)copy);
+    for (int i = 0; i < slice->count; i++) {
+        mochiByteBufferWrite(vm, &copy->elems, slice->source->elems.data[i]);
+    }
+    mochiFiberPopRoot(vm->fiber);
+    return copy;
+}
+
+
+
+
+
 static void freeVarFrame(MochiVM* vm, ObjVarFrame* frame) {
     DEALLOCATE(vm, frame->slots);
 }
@@ -398,6 +484,11 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
             mochiValueBufferClear(vm, &arr->elems);
             break;
         }
+        case OBJ_BYTE_ARRAY: {
+            ObjByteArray* arr = (ObjByteArray*)object;
+            mochiByteBufferClear(vm, &arr->elems);
+            break;
+        }
         case OBJ_REF: {
             ObjRef* ref = (ObjRef*)object;
             // NOTE: this assumes garbage collection, i.e. there are
@@ -418,6 +509,7 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
         case OBJ_LIST: break;
         case OBJ_FOREIGN_RESUME: break;
         case OBJ_SLICE: break;
+        case OBJ_BYTE_SLICE: break;
         case OBJ_STRUCT: break;
         case OBJ_I64: break;
         case OBJ_U64: break;
@@ -533,6 +625,30 @@ void printObject(MochiVM* vm, Value object) {
             printf("slice(");
             for (int i = 0; i < slice->count; i++) {
                 printValue(vm, slice->source->elems.data[slice->start + i]);
+                if (i < slice->count - 1) {
+                    printf(",");
+                }
+            }
+            printf(")");
+            break;
+        }
+        case OBJ_BYTE_ARRAY: {
+            ObjByteArray* arr = AS_BYTE_ARRAY(object);
+            printf("barray(");
+            for (int i = 0; i < arr->elems.count; i++) {
+                printf("%d", arr->elems.data[i]);
+                if (i < arr->elems.count - 1) {
+                    printf(",");
+                }
+            }
+            printf(")");
+            break;
+        }
+        case OBJ_BYTE_SLICE: {
+            ObjByteSlice* slice = AS_BYTE_SLICE(object);
+            printf("bslice(");
+            for (int i = 0; i < slice->count; i++) {
+                printf("%d", slice->source->elems.data[slice->start + i]);
                 if (i < slice->count - 1) {
                     printf(",");
                 }
@@ -729,6 +845,12 @@ static void markSlice(MochiVM* vm, ObjSlice* slice) {
     vm->bytesAllocated += sizeof(ObjSlice);
 }
 
+static void markByteSlice(MochiVM* vm, ObjByteSlice* slice) {
+    mochiGrayObj(vm, (Obj*)slice->source);
+
+    vm->bytesAllocated += sizeof(ObjByteSlice);
+}
+
 static void markRef(MochiVM* vm, ObjRef* ref) {
     // TODO: investigate iterating over the heap itself to gray set values, determine if performance benefit/degradation
     Value val;
@@ -782,7 +904,9 @@ static void blackenObject(MochiVM* vm, Obj* obj)
         case OBJ_LIST:              markList(vm, (ObjList*)obj); break;
         case OBJ_FOREIGN_RESUME:    markForeignResume(vm, (ForeignResume*)obj); break;
         case OBJ_ARRAY:             markArray(vm, (ObjArray*)obj); break;
+        case OBJ_BYTE_ARRAY:        MARK_SIMPLE(vm, ObjByteArray); break;
         case OBJ_SLICE:             markSlice(vm, (ObjSlice*)obj); break;
+        case OBJ_BYTE_SLICE:        markByteSlice(vm, (ObjByteSlice*)obj); break;
         case OBJ_REF:               markRef(vm, (ObjRef*)obj); break;
         case OBJ_STRUCT:            markStruct(vm, (ObjStruct*)obj); break;
     }

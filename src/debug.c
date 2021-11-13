@@ -368,6 +368,32 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("SLICE_LENGTH", offset);
         case CODE_SLICE_COPY:
             return simpleInstruction("SLICE_COPY", offset);
+        case CODE_BYTE_ARRAY_NIL:
+            return simpleInstruction("BYTE_ARRAY_NIL", offset);
+        case CODE_BYTE_ARRAY_FILL:
+            return simpleInstruction("BYTE_ARRAY_FILL", offset);
+        case CODE_BYTE_ARRAY_SNOC:
+            return simpleInstruction("BYTE_ARRAY_SNOC", offset);
+        case CODE_BYTE_ARRAY_GET_AT:
+            return simpleInstruction("BYTE_ARRAY_GET_AT", offset);
+        case CODE_BYTE_ARRAY_SET_AT:
+            return simpleInstruction("BYTE_ARRAY_SET_AT", offset);
+        case CODE_BYTE_ARRAY_LENGTH:
+            return simpleInstruction("BYTE_ARRAY_LENGTH", offset);
+        case CODE_BYTE_ARRAY_COPY:
+            return simpleInstruction("BYTE_ARRAY_COPY", offset);
+        case CODE_BYTE_ARRAY_SLICE:
+            return simpleInstruction("BYTE_ARRAY_SLICE", offset);
+        case CODE_BYTE_SUBSLICE:
+            return simpleInstruction("BYTE_SUBSLICE", offset);
+        case CODE_BYTE_SLICE_GET_AT:
+            return simpleInstruction("BYTE_SLICE_GET_AT", offset);
+        case CODE_BYTE_SLICE_SET_AT:
+            return simpleInstruction("BYTE_SLICE_SET_AT", offset);
+        case CODE_BYTE_SLICE_LENGTH:
+            return simpleInstruction("BYTE_SLICE_LENGTH", offset);
+        case CODE_BYTE_SLICE_COPY:
+            return simpleInstruction("BYTE_SLICE_COPY", offset);
         default:
             printf("Unknown opcode %d\n", instruction);
             return offset + 1;

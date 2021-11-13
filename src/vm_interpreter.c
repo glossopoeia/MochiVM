@@ -1183,6 +1183,94 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             PUSH_VAL(OBJ_VAL(mochiSliceCopy(vm, slice)));
             DISPATCH();
         }
+
+        CASE_CODE(BYTE_ARRAY_NIL): {
+            PUSH_VAL(OBJ_VAL(mochiByteArrayNil(vm)));
+            DISPATCH();
+        }
+        CASE_CODE(BYTE_ARRAY_FILL): {
+            uint8_t v = AS_U8(POP_VAL());
+            int amt = (int)AS_U32(POP_VAL());
+            ObjByteArray* arr = mochiByteArrayNil(vm);
+            mochiFiberPushRoot(fiber, (Obj*)arr);
+            arr = mochiByteArrayFill(vm, amt, v, arr);
+            mochiFiberPopRoot(fiber);
+            PUSH_VAL(OBJ_VAL(arr));
+            DISPATCH();
+        }
+        CASE_CODE(BYTE_ARRAY_SNOC): {
+            uint8_t v = AS_U8(POP_VAL());
+            ObjByteArray* arr = AS_BYTE_ARRAY(PEEK_VAL(1));
+            mochiByteArraySnoc(vm, v, arr);
+            DISPATCH();
+        }
+        CASE_CODE(BYTE_ARRAY_GET_AT): {
+            int idx = (int)AS_U32(POP_VAL());
+            ObjByteArray* arr = AS_BYTE_ARRAY(POP_VAL());
+            PUSH_VAL(U8_VAL(vm, mochiByteArrayGetAt(idx, arr)));
+            DISPATCH();
+        }
+        CASE_CODE(BYTE_ARRAY_SET_AT): {
+            int idx = (int)AS_U32(POP_VAL());
+            uint8_t val = AS_U8(POP_VAL());
+            ObjByteArray* arr = AS_BYTE_ARRAY(PEEK_VAL(1));
+            mochiByteArraySetAt(idx, val, arr);
+            DISPATCH();
+        }
+        CASE_CODE(BYTE_ARRAY_LENGTH): {
+            ObjByteArray* arr = AS_BYTE_ARRAY(POP_VAL());
+            PUSH_VAL(AS_U32(mochiByteArrayLength(arr)));
+            DISPATCH();
+        }
+        CASE_CODE(BYTE_ARRAY_COPY): {
+            int start = (int)AS_U32(POP_VAL());
+            int length = (int)AS_U32(POP_VAL());
+            ObjByteArray* arr = AS_BYTE_ARRAY(PEEK_VAL(1));
+            PUSH_VAL(OBJ_VAL(mochiByteArrayCopy(vm, start, length, arr)));
+            DISPATCH();
+        }
+
+        CASE_CODE(BYTE_ARRAY_SLICE): {
+            int start = (int)AS_U32(POP_VAL());
+            int length = (int)AS_U32(POP_VAL());
+            ObjByteArray* arr = AS_BYTE_ARRAY(PEEK_VAL(1));
+            ObjByteSlice* slice = mochiByteArraySlice(vm, start, length, arr);
+            DROP_VALS(1);
+            PUSH_VAL(OBJ_VAL(slice));
+            DISPATCH();
+        }
+        CASE_CODE(BYTE_SUBSLICE): {
+            int start = (int)AS_U32(POP_VAL());
+            int length = (int)AS_U32(POP_VAL());
+            ObjByteSlice* orig = AS_BYTE_SLICE(PEEK_VAL(1));
+            ObjByteSlice* sub = mochiByteSubslice(vm, start, length, orig);
+            DROP_VALS(1);
+            PUSH_VAL(OBJ_VAL(sub));
+            DISPATCH();
+        }
+        CASE_CODE(BYTE_SLICE_GET_AT): {
+            int idx = (int)AS_U32(POP_VAL());
+            ObjByteSlice* slice = AS_BYTE_SLICE(POP_VAL());
+            PUSH_VAL(U8_VAL(vm, mochiByteSliceGetAt(idx, slice)));
+            DISPATCH();
+        }
+        CASE_CODE(BYTE_SLICE_SET_AT): {
+            int idx = (int)AS_U32(POP_VAL());
+            uint8_t val = POP_VAL();
+            ObjByteSlice* slice = AS_BYTE_SLICE(PEEK_VAL(1));
+            mochiByteSliceSetAt(idx, val, slice);
+            DISPATCH();
+        }
+        CASE_CODE(BYTE_SLICE_LENGTH): {
+            ObjByteSlice* slice = AS_BYTE_SLICE(POP_VAL());
+            PUSH_VAL(AS_U32(mochiByteSliceLength(slice)));
+            DISPATCH();
+        }
+        CASE_CODE(BYTE_SLICE_COPY): {
+            ObjByteSlice* slice = AS_BYTE_SLICE(PEEK_VAL(1));
+            PUSH_VAL(OBJ_VAL(mochiByteSliceCopy(vm, slice)));
+            DISPATCH();
+        }
     }
 
     UNREACHABLE();

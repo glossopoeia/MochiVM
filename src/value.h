@@ -35,6 +35,8 @@
 #define AS_LIST(v)              ((ObjList*)AS_OBJ(v))
 #define AS_ARRAY(v)             ((ObjArray*)AS_OBJ(v))
 #define AS_SLICE(v)             ((ObjSlice*)AS_OBJ(v))
+#define AS_BYTE_ARRAY(v)        ((ObjByteArray*)AS_OBJ(v))
+#define AS_BYTE_SLICE(v)        ((ObjByteSlice*)AS_OBJ(v))
 #define AS_REF(v)               ((ObjRef*)AS_OBJ(v))
 #define AS_STRUCT(v)            ((ObjStruct*)AS_OBJ(v))
 #define AS_STRING(v)            ((ObjString*)AS_OBJ(v))
@@ -69,6 +71,8 @@ typedef enum {
     OBJ_FOREIGN_RESUME,
     OBJ_ARRAY,
     OBJ_SLICE,
+    OBJ_BYTE_ARRAY,
+    OBJ_BYTE_SLICE,
     OBJ_REF,
     OBJ_STRUCT
 } ObjType;
@@ -260,6 +264,18 @@ typedef struct ObjSlice {
     ObjArray* source;
 } ObjSlice;
 
+typedef struct ObjByteArray {
+    Obj obj;
+    ByteBuffer elems;
+} ObjByteArray;
+
+typedef struct ObjByteSlice {
+    Obj obj;
+    int start;
+    int count;
+    ObjByteArray* source;
+} ObjByteSlice;
+
 typedef struct ObjRef {
     Obj obj;
     HeapKey ptr;
@@ -334,9 +350,24 @@ ObjArray* mochiArrayCopy(MochiVM* vm, int start, int length, ObjArray* array);
 ObjSlice* mochiArraySlice(MochiVM* vm, int start, int length, ObjArray* array);
 ObjSlice* mochiSubslice(MochiVM* vm, int start, int length, ObjSlice* slice);
 Value mochiSliceGetAt(int index, ObjSlice* slice);
-void mochiSliceSetAt(int index, Value vlaue, ObjSlice* slice);
+void mochiSliceSetAt(int index, Value value, ObjSlice* slice);
 int mochiSliceLength(ObjSlice* slice);
 ObjArray* mochiSliceCopy(MochiVM* vm, ObjSlice* slice);
+
+ObjByteArray* mochiByteArrayNil(MochiVM* vm);
+ObjByteArray* mochiByteArrayFill(MochiVM* vm, int amount, uint8_t elem, ObjByteArray* array);
+ObjByteArray* mochiByteArraySnoc(MochiVM* vm, uint8_t elem, ObjByteArray* array);
+uint8_t mochiByteArrayGetAt(int index, ObjByteArray* array);
+void mochiByteArraySetAt(int index, uint8_t value, ObjByteArray* array);
+int mochiByteArrayLength(ObjByteArray* array);
+ObjByteArray* mochiByteArrayCopy(MochiVM* vm, int start, int length, ObjByteArray* array);
+
+ObjByteSlice* mochiByteArraySlice(MochiVM* vm, int start, int length, ObjByteArray* array);
+ObjByteSlice* mochiByteSubslice(MochiVM* vm, int start, int length, ObjByteSlice* slice);
+uint8_t mochiByteSliceGetAt(int index, ObjByteSlice* slice);
+void mochiByteSliceSetAt(int index, uint8_t value, ObjByteSlice* slice);
+int mochiByteSliceLength(ObjByteSlice* slice);
+ObjByteArray* mochiByteSliceCopy(MochiVM* vm, ObjByteSlice* slice);
 
 // Logs a textual representation of the given value to the output
 void printValue(MochiVM* vm, Value value);
