@@ -11,6 +11,10 @@
     #include "battery_uv.h"
 #endif
 
+#if MOCHIVM_BATTERY_SDL
+    #include "battery_sdl.h"
+#endif
+
 // Generic function to create a call frame from a closure based on some data known about it. Can supply a var frame
 // that will be spliced between the parameters and the captured values, but if this isn't needed, supply NULL for it.
 // Modifies the fiber stack, and expects the parameters to be in correct order at the top of the stack.

@@ -15,6 +15,10 @@
     #include "battery_uv.h"
 #endif
 
+#if MOCHIVM_BATTERY_SDL
+    #include "battery_sdl.h"
+#endif
+
 // TODO: Tune these.
 // The initial (and minimum) capacity of a non-empty list or map object.
 #define HEAP_MIN_CAPACITY 16
@@ -114,6 +118,11 @@ MochiVM* mochiNewVM(MochiVMConfiguration* config) {
     mochiAddForeign(vm, uvmochiNewTimer);
     mochiAddForeign(vm, uvmochiCloseTimer);
     mochiAddForeign(vm, uvmochiTimerStart);
+#endif
+
+#if MOCHIVM_BATTERY_SDL
+    mochiAddForeign(vm, sdlmochiInit);
+    mochiAddForeign(vm, sdlmochiQuit);
 #endif
 
     return vm;

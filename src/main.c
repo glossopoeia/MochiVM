@@ -6,8 +6,10 @@
 #include "debug.h"
 #include "memory.h"
 #include "uv.h"
+#include <SDL.h>
 
 #define TEST_DOUBLE_VAL(val)    DOUBLE_VAL(vm, val)
+#define TEST_I32_VAL(val)       I32_VAL(vm, val)
 
 #define BEGIN_TEST(header)      \
     do {                        \

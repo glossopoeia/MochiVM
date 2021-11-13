@@ -3,7 +3,7 @@
 #
 # MODE			"debug" or "release"
 
-CFLAGS := -std=gnu99 -Wall -Wextra -Werror -Wno-unused-parameter -Ideps/libuv/include/ -Itest/ -Lbuild -Lbuild/utf8proc `sdl2-config --cflags sdl2_mixer sdl2_image sdl2_ttf`
+CFLAGS := -std=gnu99 -Wall -Wextra -Werror -Wno-unused-parameter -Ideps/libuv/include/ -Itest/ -Lbuild -Lbuild/utf8proc `sdl2-config --cflags`
 
 BUILD_TOP := build
 
@@ -19,7 +19,7 @@ endif
 HEADERS := $(wildcard src/*.h test/*.h)
 SOURCES := $(wildcard src/*.c)
 OBJECTS := $(addprefix $(BUILD_DIR)/, $(notdir $(SOURCES:.c=.o)))
-LIBS := -luv_a -lutf8proc `sdl2-config --libs sdl2_image sdl2_mixer sdl2_ttf` -pthread -Wl,--no-as-needed -ldl
+LIBS := -luv_a -lutf8proc `sdl2-config --libs` -pthread -Wl,--no-as-needed -ldl
 
 # Targets ---------------------------------------------------------------------
 

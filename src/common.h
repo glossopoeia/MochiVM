@@ -76,7 +76,7 @@
 #endif
 
 #ifndef MOCHIVM_BATTERY_SDL
-    #define MOCHIVM_BATTERY_SDL 0   // SDL2 included by default for windowing, graphics, audio, input, etc.
+    #define MOCHIVM_BATTERY_SDL 1   // SDL2 included by default for windowing, graphics, audio, input, etc.
 #endif
 
 // These flags are useful for debugging and hacking on Zhenzhu itself. They are not
