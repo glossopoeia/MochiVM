@@ -111,6 +111,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 #define READ_BYTE() (*fiber->ip++)
 #define READ_SHORT() (fiber->ip += 2, (int16_t)((fiber->ip[-2] << 8) | fiber->ip[-1]))
 #define READ_USHORT() (fiber->ip += 2, (uint16_t)((fiber->ip[-2] << 8) | fiber->ip[-1]))
+#define READ_INT() (fiber->ip += 4, (int32_t)((fiber->ip[-4] << 24) | (fiber->ip[-3] << 16) | (fiber->ip[-2] << 8) | fiber->ip[-1]))
 #define READ_UINT() (fiber->ip += 4, (uint32_t)((fiber->ip[-4] << 24) | (fiber->ip[-3] << 16) | (fiber->ip[-2] << 8) | fiber->ip[-1]))
 #define READ_CONSTANT() (vm->block->constants.data[READ_BYTE()])
 #define UNARY_OP(paramType, paramExtract, retConstruct, op) \
@@ -257,6 +258,46 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             PUSH_VAL(constant);
             DISPATCH();
         }
+
+        CASE_CODE(PERM_QUERY): {
+            int permId = READ_USHORT();
+            PUSH_VAL(mochiHasPermission(vm, permId));
+            DISPATCH();
+        }
+        CASE_CODE(PERM_REQUEST): {
+            int permId = READ_USHORT();
+            // TODO: this instruction probably needs to be integrated with async/callbacks
+            PUSH_VAL(mochiRequestPermission(vm, permId));
+            DISPATCH();
+        }
+        CASE_CODE(PERM_REQUEST_ALL): {
+            int permId = READ_USHORT();
+            // TODO: this instruction probably needs to be integrated with async/callbacks
+            PUSH_VAL(mochiRequestAllPermissions(vm, permId));
+            DISPATCH();
+        }
+        CASE_CODE(PERM_REVOKE): {
+            int permId = READ_USHORT();
+            mochiRevokePermission(vm, permId);
+            DISPATCH();
+        }
+        CASE_CODE(JUMP_PERMISSION): {
+            int permId = READ_USHORT();
+            uint8_t* newLoc = FROM_START(READ_UINT());
+            if (mochiHasPermission(vm, permId)) {
+                fiber->ip = newLoc;
+            }
+            DISPATCH();
+        }
+        CASE_CODE(OFFSET_PERMISSION): {
+            int permId = READ_USHORT();
+            int offset = READ_INT();
+            if (mochiHasPermission(vm, permId)) {
+                fiber->ip += offset;
+            }
+            DISPATCH();
+        }
+
         CASE_CODE(TRUE):     PUSH_VAL(TRUE_VAL); DISPATCH();
         CASE_CODE(FALSE):    PUSH_VAL(FALSE_VAL); DISPATCH();
         CASE_CODE(BOOL_NOT): {
@@ -713,7 +754,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(OFFSET_TRUE): {
-            int offset = READ_UINT();
+            int offset = READ_INT();
             bool val = AS_BOOL(POP_VAL());
             if (val) {
                 fiber->ip += offset;
@@ -721,7 +762,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(OFFSET_FALSE): {
-            int offset = READ_UINT();
+            int offset = READ_INT();
             bool val = AS_BOOL(POP_VAL());
             if (!val) {
                 fiber->ip += offset;
@@ -815,7 +856,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         }
 
         CASE_CODE(HANDLE): {
-            uint16_t afterOffset = READ_SHORT();
+            int16_t afterOffset = READ_SHORT();
             int handleId = (int)READ_UINT();
             uint8_t paramCount = READ_BYTE();
             uint8_t handlerCount = READ_BYTE();
@@ -1135,7 +1176,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         }
         CASE_CODE(OFFSET_STRUCT): {
             StructId structId = READ_UINT();
-            int offset = READ_UINT();
+            int offset = READ_INT();
             ObjStruct* stru = AS_STRUCT(POP_VAL());
             if (stru->id == structId) {
                 fiber->ip += offset;

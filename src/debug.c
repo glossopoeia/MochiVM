@@ -116,6 +116,14 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return byteArgInstruction("ABORT", vm, offset);
         case CODE_CONSTANT:
             return constantInstruction("CONSTANT", vm, offset);
+        case CODE_PERM_QUERY:
+            return shortArgInstruction("PERM_QUERY", vm, offset);
+        case CODE_PERM_REQUEST:
+            return shortArgInstruction("PERM_REQUEST", vm, offset);
+        case CODE_PERM_REQUEST_ALL:
+            return shortArgInstruction("PERM_REQUEST_ALL", vm, offset);
+        case CODE_PERM_REVOKE:
+            return shortArgInstruction("PERM_REVOKE", vm, offset);
         case CODE_TRUE:
             return simpleInstruction("TRUE", offset);
         case CODE_FALSE:

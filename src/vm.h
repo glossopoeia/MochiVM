@@ -89,6 +89,11 @@ struct MochiVM {
     ForeignFunctionBuffer foreignFns;
 };
 
+bool mochiHasPermission(MochiVM* vm, int permissionId);
+bool mochiRequestPermission(MochiVM* vm, int permissionId);
+bool mochiRequestAllPermissions(MochiVM* vm, int permissionGroup);
+void mochiRevokePermission(MochiVM* vm, int permissionId);
+
 // Creates a new empty heap.
 Heap* mochiNewHeap(MochiVM* vm);
 // Looks up [key] in [heap]. If found, returns true and sets the out Value from the entry.

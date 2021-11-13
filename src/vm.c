@@ -137,6 +137,25 @@ void mochiFreeVM(MochiVM* vm) {
     DEALLOCATE(vm, vm);
 }
 
+bool mochiHasPermission(MochiVM* vm, int permissionId) {
+    ASSERT(false, "Permission querying not yet implemented.");
+    return false;
+}
+
+bool mochiRequestPermission(MochiVM* vm, int permissionId) {
+    ASSERT(false, "Permission requesting not yet implemented.");
+    return false;
+}
+
+bool mochiRequestAllPermissions(MochiVM* vm, int permissionId) {
+    ASSERT(false, "Permission requesting not yet implemented.");
+    return false;
+}
+
+void mochiRevokePermission(MochiVM* vm, int permissionId) {
+    ASSERT(false, "Permission revoking not yet implemented.");
+}
+
 void mochiCollectGarbage(MochiVM* vm) {
 #if MOCHIVM_DEBUG_TRACE_MEMORY || MOCHIVM_DEBUG_TRACE_GC
     printf("-- gc --\n");
