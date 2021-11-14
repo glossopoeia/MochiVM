@@ -406,6 +406,72 @@ ObjByteArray* mochiByteSliceCopy(MochiVM* vm, ObjByteSlice* slice) {
 
 
 
+ObjRecord* mochiNewRecord(MochiVM* vm) {
+    ObjRecord* rec = ALLOCATE(vm, ObjRecord);
+    initObj(vm, (Obj*)rec, OBJ_RECORD);
+    mochiTableInit(&rec->fields);
+    return rec;
+}
+
+ObjRecord* mochiRecordExtend(MochiVM* vm, TableKey field, Value value, ObjRecord* rec) {
+    Table* fields = mochiTableClone(vm, &rec->fields, true);
+    ObjRecord* cloned = mochiNewRecord(vm);
+    cloned->fields = *fields;
+    mochiFiberPushRoot(vm->fiber, (Obj*)cloned);
+    DEALLOCATE(vm, fields);
+    mochiTableSetScoped(vm, &cloned->fields, field, value);
+    mochiFiberPopRoot(vm->fiber);
+    return cloned;
+}
+
+ObjRecord* mochiRecordRestrict(MochiVM* vm, TableKey field, ObjRecord* rec) {
+    Table* fields = mochiTableClone(vm, &rec->fields, true);
+    ObjRecord* cloned = mochiNewRecord(vm);
+    cloned->fields = *fields;
+    mochiFiberPushRoot(vm->fiber, (Obj*)cloned);
+    DEALLOCATE(vm, fields);
+    mochiTableTryRemoveScoped(vm, &cloned->fields, field);
+    mochiFiberPopRoot(vm->fiber);
+    return cloned;
+}
+
+ObjRecord* mochiRecordUpdate(MochiVM* vm, TableKey field, Value value, ObjRecord* rec) {
+    // TODO: this does two objects allocations, make it just do one
+    ObjRecord* restr = mochiRecordRestrict(vm, field, rec);
+    mochiFiberPushRoot(vm->fiber, (Obj*)restr);
+    ObjRecord* upd = mochiRecordExtend(vm, field, value, restr);
+    mochiFiberPopRoot(vm->fiber);
+    return upd;
+}
+
+Value mochiRecordSelect(MochiVM* vm, TableKey field, ObjRecord* rec) {
+    Value val;
+    if (mochiTableGet(&rec->fields, field, &val)) {
+        return val;
+    }
+    ASSERT(false, "Record does not contain field for selection.");
+    return FALSE_VAL;
+}
+
+ObjVariant* mochiNewVariant(MochiVM* vm, TableKey label, Value elem) {
+    ObjVariant* var = ALLOCATE(vm, ObjVariant);
+    initObj(vm, (Obj*)var, OBJ_VARIANT);
+    var->label = label;
+    var->nesting = 0;
+    var->elem = elem;
+    return var;
+}
+
+ObjVariant* mochiVariantEmbed(MochiVM* vm, TableKey label, ObjVariant* var) {
+    ObjVariant* cloned = mochiNewVariant(vm, var->label, var->elem);
+    cloned->nesting = var->nesting;
+    if (label == cloned->label) {
+        cloned->nesting += 1;
+    }
+    return cloned;
+}
+
+
 
 
 static void freeVarFrame(MochiVM* vm, ObjVarFrame* frame) {

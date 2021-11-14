@@ -38,17 +38,19 @@ void printValue(MochiVM* vm, Value value) {
     }
 }
 
-Table* mochiNewTable(MochiVM* vm)
-{
+Table* mochiNewTable(MochiVM* vm) {
     Table* table = ALLOCATE(vm, Table);
-    table->capacity = 0;
-    table->count = 0;
-    table->entries = NULL;
+    mochiTableInit(table);
     return table;
 }
 
-static inline uint32_t hashBits(uint64_t hash)
-{
+void mochiTableInit(Table* table) {
+    table->capacity = 0;
+    table->count = 0;
+    table->entries = NULL;
+}
+
+static inline uint32_t hashBits(uint64_t hash) {
     // From v8's ComputeLongHash() which in turn cites:
     // Thomas Wang, Integer Hash Functions.
     // http://www.concentric.net/~Ttwang/tech/inthash.htm
@@ -66,8 +68,7 @@ static inline uint32_t hashBits(uint64_t hash)
 // If found, sets [result] to point to it and returns `true`. Otherwise,
 // returns `false` and points [result] to the entry where the key/value pair
 // should be inserted.
-static bool findEntry(TableEntry* entries, uint32_t capacity, TableKey key, TableEntry** result)
-{
+static bool findEntry(TableEntry* entries, uint32_t capacity, TableKey key, TableEntry** result) {
     // If there is no entry array (an empty map), we definitely won't find it.
     if (capacity == 0) { return false; }
 
@@ -97,8 +98,8 @@ static bool findEntry(TableEntry* entries, uint32_t capacity, TableKey key, Tabl
                 // We found a tombstone. We need to keep looking in case the key is after it.
                 if (tombstone == NULL) { tombstone = entry; }
             }
-        } else if (entry->key == key) {
-            // We found the key.
+        } else if (entry->key == key && entry->nesting == 0) {
+            // We found the most recent key.
             *result = entry;
             return true;
         }
@@ -109,17 +110,44 @@ static bool findEntry(TableEntry* entries, uint32_t capacity, TableKey key, Tabl
     while (index != startIndex);
 
     // If we get here, the table is full of tombstones. Return the first one we found.
-    ASSERT(tombstone != NULL, "Map should have tombstones or empty entries.");
+    ASSERT(tombstone != NULL, "Map should have tombstones or empty entries in findEntry.");
     *result = tombstone;
     return false;
 }
 
+static TableEntry* insertScopedEntry(TableEntry* entries, uint32_t capacity, TableKey key, Value value) {
+    // scoped tables are treated as association lists, so just go to the end, incrementing along the way
+    uint32_t index = 0;
+    TableEntry* entry;
+    do {
+        entry = &entries[index];
+        if (entry->key >= TABLE_KEY_RANGE_START) {
+            if (entry->key == key) {
+                entry->nesting += 1;
+            }
+        } else if (entry->key == TABLE_KEY_UNUSED) {
+            // we don't break out on tombstones because there might be more
+            // entries with the same key beyond (due to deletion)
+            break;
+        }
+    } while (index < capacity);
+
+    ASSERT(index < capacity, "Could not find room in table to add scoped entry.");
+
+    entry->key = key;
+    entry->nesting = 0;
+    entry->value = value;
+    return entry;
+}
+
 // Inserts [key] and [value] in the array of [entries] with the given
-// [capacity].
+// [capacity]. If overwrite is true and the key already has a value in the table,
+// the existing value will be overwritten. If overwrite is false, a new entry
+// with the same key will be added at nesting level 0, and the nesting level of
+// existing entries with the same key will be incremented.
 //
-// Returns `true` if this is the first time [key] was added to the map.
-static bool insertEntry(TableEntry* entries, uint32_t capacity, TableKey key, Value value)
-{
+// Returns `true` if a new entry was set, `false` if an entry was overwritten.
+static bool insertEntry(TableEntry* entries, uint32_t capacity, TableKey key, Value value) {
     ASSERT(entries != NULL, "Should ensure capacity before inserting.");
     
     TableEntry* entry;
@@ -129,14 +157,14 @@ static bool insertEntry(TableEntry* entries, uint32_t capacity, TableKey key, Va
         return false;
     } else {
         entry->key = key;
+        entry->nesting = 0;
         entry->value = value;
         return true;
     }
 }
 
 // Updates [table]'s entry array to [capacity].
-static void resizeTable(MochiVM* vm, Table* table, uint32_t capacity)
-{
+static void resizeTable(MochiVM* vm, Table* table, uint32_t capacity, bool scoped) {
     // Create the new empty hash table.
     TableEntry* entries = ALLOCATE_ARRAY(vm, TableEntry, capacity);
     for (uint32_t i = 0; i < capacity; i++) {
@@ -152,7 +180,11 @@ static void resizeTable(MochiVM* vm, Table* table, uint32_t capacity)
             // Don't copy empty entries or tombstones.
             if (entry->key < TABLE_KEY_RANGE_START) { continue; }
 
-            insertEntry(entries, capacity, entry->key, entry->value);
+            if (scoped) {
+                insertScopedEntry(entries, capacity, entry->key, entry->value);
+            } else {
+                insertEntry(entries, capacity, entry->key, entry->value);
+            }
         }
     }
 
@@ -162,25 +194,38 @@ static void resizeTable(MochiVM* vm, Table* table, uint32_t capacity)
     table->capacity = capacity;
 }
 
-bool mochiTableGet(Table* table, TableKey key, Value* out)
-{
+Table* mochiTableClone(MochiVM* vm, Table* table, bool scoped) {
+    Table* cloned = ALLOCATE(vm, Table);
+    mochiTableInit(cloned);
+    resizeTable(vm, cloned, table->capacity, scoped);
+    // TODO: this also copies tombstones, is that desirable?
+    for (uint32_t i = 0; i < table->capacity; i++) {
+        cloned->entries[i] = table->entries[i];
+    }
+    return cloned;
+}
+
+bool mochiTableGet(Table* table, TableKey key, Value* out) {
+    ASSERT(out != NULL, "Cannot pass null pointer for Value out in mochiTableGet.");
     TableEntry* entry;
     bool found = findEntry(table->entries, table->capacity, key, &entry);
-    ASSERT(out != NULL, "Cannot pass null pointer for Value out in mochiTableGet.");
     *out = found ? entry->value : FALSE_VAL;
     return found;
 }
 
-void mochiTableSet(MochiVM* vm, Table* table, TableKey key, Value value)
-{
-    // If the map is getting too full, make room first.
+static void ensureTableCapacity(MochiVM* vm, Table* table, bool scoped) {
+    // If the table is getting too full, make room first.
     if (table->count + 1 > table->capacity * TABLE_LOAD_PERCENT / 100) {
         // Figure out the new hash table size.
         uint32_t capacity = table->capacity * TABLE_GROW_FACTOR;
         if (capacity < TABLE_MIN_CAPACITY) { capacity = TABLE_MIN_CAPACITY; }
 
-        resizeTable(vm, table, capacity);
+        resizeTable(vm, table, capacity, scoped);
     }
+}
+
+void mochiTableSet(MochiVM* vm, Table* table, TableKey key, Value value) {
+    ensureTableCapacity(vm, table, false);
 
     if (insertEntry(table->entries, table->capacity, key, value)) {
         // A new key was added.
@@ -188,28 +233,20 @@ void mochiTableSet(MochiVM* vm, Table* table, TableKey key, Value value)
     }
 }
 
-void mochiTableClear(MochiVM* vm, Table* table)
-{
-    DEALLOCATE(vm, table->entries);
-    table->entries = NULL;
-    table->capacity = 0;
-    table->count = 0;
+void mochiTableSetScoped(MochiVM* vm, Table* table, TableKey key, Value value) {
+    ensureTableCapacity(vm, table, true);
+
+    insertScopedEntry(table->entries, table->capacity, key, value);
+    table->count += 1;
 }
 
-bool mochiTableTryRemove(MochiVM* vm, Table* table, TableKey key)
-{
-    TableEntry* entry;
-    if (!findEntry(table->entries, table->capacity, key, &entry)) { return false; }
+void mochiTableClear(MochiVM* vm, Table* table) {
+    DEALLOCATE(vm, table->entries);
+    mochiTableInit(table);
+}
 
-    // Remove the entry from the table. Set this key to 1, which marks it as a
-    // deleted slot. When searching for a key, we will stop on empty slots, but
-    // continue past deleted slots.
-    entry->key = TABLE_KEY_TOMBSTONE;
-    entry->value = FALSE_VAL;
-
-    table->count--;
-
-    if (table->count == TABLE_KEY_UNUSED) {
+void shrinkTableCapacity(MochiVM* vm, Table* table, bool scoped) {
+    if (table->count == 0) {
         // Removed the last item, so free the array.
         mochiTableClear(vm, table);
     }
@@ -220,8 +257,51 @@ bool mochiTableTryRemove(MochiVM* vm, Table* table, TableKey key)
 
         // The table is getting empty, so shrink the entry array back down.
         // TODO: Should we do this less aggressively than we grow?
-        resizeTable(vm, table, capacity);
+        resizeTable(vm, table, capacity, scoped);
     }
+}
+
+bool mochiTableTryRemove(MochiVM* vm, Table* table, TableKey key) {
+    TableEntry* entry;
+    if (!findEntry(table->entries, table->capacity, key, &entry)) { return false; }
+
+    // Remove the entry from the table. Set this key to 1, which marks it as a
+    // deleted slot. When searching for a key, we will stop on empty slots, but
+    // continue past deleted slots.
+    entry->key = TABLE_KEY_TOMBSTONE;
+    entry->nesting = 0;
+    entry->value = FALSE_VAL;
+
+    table->count -= 1;
+    shrinkTableCapacity(vm, table, false);
+
+    return true;
+}
+
+bool mochiTableTryRemoveScoped(MochiVM* vm, Table* table, TableKey key) {
+    // scoped tables are treated as association lists, so just go to the end, incrementing along the way
+    uint32_t index = 0;
+    TableEntry* entry;
+    do {
+        entry = &table->entries[index];
+        if (entry->key == key) {
+            entry->nesting -= 1;
+            if (entry->nesting < 0) {
+                break;
+            }
+        }
+    } while (index < table->capacity);
+
+    if (index >= table->capacity) {
+        return false;
+    }
+
+    entry->key = TABLE_KEY_TOMBSTONE;
+    entry->nesting = 0;
+    entry->value = FALSE_VAL;
+
+    table->count -= 1;
+    shrinkTableCapacity(vm, table, true);
 
     return true;
 }

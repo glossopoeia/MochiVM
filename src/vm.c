@@ -91,9 +91,7 @@ MochiVM* mochiNewVM(MochiVMConfiguration* config) {
 
     vm->block = mochiNewCodeBlock(vm);
     mochiForeignFunctionBufferInit(&vm->foreignFns);
-    vm->heap.count = 0;
-    vm->heap.capacity = 0;
-    vm->heap.entries = NULL;
+    mochiTableInit(&vm->heap);
     // start at 2 since 0 and 1 are reserved for available/tombstoned slots
     vm->nextHeapKey = 2;
 
@@ -439,7 +437,9 @@ static void markStruct(MochiVM* vm, ObjStruct* stru) {
 
 static void markRecord(MochiVM* vm, ObjRecord* rec) {
     for (uint32_t i = 0; i < rec->fields.capacity; i++) {
-        mochiGrayValue(vm, rec->fields.entries[i].value);
+        if (rec->fields.entries[i].key >= TABLE_KEY_RANGE_START) {
+            mochiGrayValue(vm, rec->fields.entries[i].value);
+        }
     }
 
     vm->bytesAllocated += sizeof(ObjRecord);
