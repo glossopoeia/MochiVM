@@ -444,7 +444,7 @@ ObjRecord* mochiRecordUpdate(MochiVM* vm, TableKey field, Value value, ObjRecord
     return upd;
 }
 
-Value mochiRecordSelect(MochiVM* vm, TableKey field, ObjRecord* rec) {
+Value mochiRecordSelect(TableKey field, ObjRecord* rec) {
     Value val;
     if (mochiTableGet(&rec->fields, field, &val)) {
         return val;

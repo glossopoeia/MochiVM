@@ -284,7 +284,7 @@ ObjRecord* mochiNewRecord(MochiVM* vm);
 ObjRecord* mochiRecordExtend(MochiVM* vm, TableKey field, Value value, ObjRecord* rec);
 ObjRecord* mochiRecordRestrict(MochiVM* vm, TableKey field, ObjRecord* rec);
 ObjRecord* mochiRecordUpdate(MochiVM* vm, TableKey field, Value value, ObjRecord* rec);
-Value mochiRecordSelect(MochiVM* vm, TableKey field, ObjRecord* rec);
+Value mochiRecordSelect(TableKey field, ObjRecord* rec);
 
 ObjVariant* mochiNewVariant(MochiVM* vm, TableKey label, Value elem);
 ObjVariant* mochiVariantEmbed(MochiVM* vm, TableKey label, ObjVariant* variant);

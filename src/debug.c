@@ -37,6 +37,16 @@ static int intArgInstruction(const char* name, MochiVM* vm, int offset) {
     return offset + 5;
 }
 
+static int twoIntArgInstruction(const char* name, MochiVM* vm, int offset) {
+    uint8_t* code = vm->block->code.data;
+    offset += 1;
+
+    int argOne = getInt(code, offset); offset += 4;
+    int argTwo = getInt(code, offset); offset += 4;
+    printf("%-16s %-8d %-8d\n", name, argOne, argTwo);
+    return offset;
+}
+
 static int callInstruction(const char* name, MochiVM* vm, int offset) {
     uint8_t* code = vm->block->code.data;
     int instrIndex = getInt(code, offset+1);
@@ -329,24 +339,30 @@ int disassembleInstruction(MochiVM* vm, int offset) {
             return simpleInstruction("DESTRUCT", offset);
         case CODE_IS_STRUCT:
             return intArgInstruction("IS_STRUCT", vm, offset);
-        case CODE_JUMP_STRUCT: {
-            uint8_t* code = vm->block->code.data;
-            offset += 1;
-
-            int structId = getInt(code, offset); offset += 4;
-            int fnIndex = getInt(code, offset); offset += 4;
-            printf("%-16s %-8d %-8d\n", "JUMP_STRUCT", structId, fnIndex);
-            return offset;
-        }
-        case CODE_OFFSET_STRUCT: {
-            uint8_t* code = vm->block->code.data;
-            offset += 1;
-
-            int structId = getInt(code, offset); offset += 4;
-            int jmpRelative = getInt(code, offset); offset += 4;
-            printf("%-16s %-8d %-8d\n", "OFFSET_STRUCT", structId, jmpRelative);
-            return offset;
-        }
+        case CODE_JUMP_STRUCT:
+            return twoIntArgInstruction("JUMP_STRUCT", vm, offset);
+        case CODE_OFFSET_STRUCT:
+            return twoIntArgInstruction("OFFSET_STRUCT", vm, offset);
+        case CODE_RECORD_NIL:
+            return simpleInstruction("RECORD_NIL", offset);
+        case CODE_RECORD_EXTEND:
+            return intArgInstruction("RECORD_EXTEND", vm, offset);
+        case CODE_RECORD_SELECT:
+            return intArgInstruction("RECORD_SELECT", vm, offset);
+        case CODE_RECORD_RESTRICT:
+            return intArgInstruction("RECORD_RESTRICT", vm, offset);
+        case CODE_RECORD_UPDATE:
+            return intArgInstruction("RECORD_UPDATE", vm, offset);
+        case CODE_VARIANT:
+            return intArgInstruction("VARIANT", vm, offset);
+        case CODE_EMBED:
+            return intArgInstruction("EMBED", vm, offset);
+        case CODE_IS_CASE:
+            return intArgInstruction("IS_CASE", vm, offset);
+        case CODE_JUMP_CASE:
+            return twoIntArgInstruction("JUMP_CASE", vm, offset);
+        case CODE_OFFSET_CASE:
+            return twoIntArgInstruction("OFFSET_CASE", vm, offset);
         case CODE_LIST_NIL:
             return simpleInstruction("LIST_NIL", offset);
         case CODE_LIST_CONS:

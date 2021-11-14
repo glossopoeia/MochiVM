@@ -1196,6 +1196,80 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
 
+        CASE_CODE(RECORD_NIL): {
+            PUSH_VAL(OBJ_VAL(mochiNewRecord(vm)));
+            DISPATCH();
+        }
+        CASE_CODE(RECORD_EXTEND): {
+            TableKey field = READ_UINT();
+            ObjRecord* rec = mochiRecordExtend(vm, field, PEEK_VAL(1), AS_RECORD(PEEK_VAL(2)));
+            DROP_VALS(2);
+            PUSH_VAL(OBJ_VAL(rec));
+            DISPATCH();
+        }
+        CASE_CODE(RECORD_SELECT): {
+            TableKey field = READ_UINT();
+            Value v = mochiRecordSelect(field, AS_RECORD(POP_VAL()));
+            PUSH_VAL(v);
+            DISPATCH();
+        }
+        CASE_CODE(RECORD_RESTRICT): {
+            TableKey field = READ_UINT();
+            ObjRecord* restr = mochiRecordRestrict(vm, field, AS_RECORD(PEEK_VAL(1)));
+            PUSH_VAL(OBJ_VAL(restr));
+            DROP_VALS(1);
+            DISPATCH();
+        }
+        CASE_CODE(RECORD_UPDATE): {
+            TableKey field = READ_UINT();
+            ObjRecord* rec = mochiRecordUpdate(vm, field, PEEK_VAL(1), AS_RECORD(PEEK_VAL(2)));
+            DROP_VALS(2);
+            PUSH_VAL(OBJ_VAL(rec));
+            DISPATCH();
+        }
+
+        CASE_CODE(VARIANT): {
+            ObjVariant* var = mochiNewVariant(vm, READ_UINT(), POP_VAL());
+            PUSH_VAL(OBJ_VAL(var));
+            DISPATCH();
+        }
+        CASE_CODE(EMBED): {
+            TableKey label = READ_UINT();
+            ObjVariant* var = mochiVariantEmbed(vm, label, AS_VARIANT(POP_VAL()));
+            PUSH_VAL(OBJ_VAL(var));
+            DISPATCH();
+        }
+        CASE_CODE(IS_CASE): {
+            TableKey label = READ_UINT();
+            ObjVariant* var = AS_VARIANT(POP_VAL());
+            PUSH_VAL(BOOL_VAL(vm, var->label == label));
+            DISPATCH();
+        }
+        CASE_CODE(JUMP_CASE): {
+            TableKey label = READ_UINT();
+            uint8_t* newLoc = FROM_START(READ_UINT());
+            ObjVariant* var = AS_VARIANT(POP_VAL());
+            if (var->label == label) {
+                PUSH_VAL(var->elem);
+                fiber->ip = newLoc;
+            } else {
+                PUSH_VAL(OBJ_VAL(var));
+            }
+            DISPATCH();
+        }
+        CASE_CODE(OFFSET_CASE): {
+            TableKey label = READ_UINT();
+            int offset = READ_INT();
+            ObjVariant* var = AS_VARIANT(POP_VAL());
+            if (var->label == label) {
+                PUSH_VAL(var->elem);
+                fiber->ip += offset;
+            } else {
+                PUSH_VAL(OBJ_VAL(var));
+            }
+            DISPATCH();
+        }
+
         CASE_CODE(ARRAY_NIL): {
             PUSH_VAL(OBJ_VAL(mochiArrayNil(vm)));
             DISPATCH();
