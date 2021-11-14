@@ -734,7 +734,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             DISPATCH();
         }
         CASE_CODE(OFFSET): {
-            int offset = READ_UINT();
+            int offset = READ_INT();
             fiber->ip = fiber->ip + offset;
             DISPATCH();
         }
