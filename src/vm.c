@@ -19,21 +19,6 @@
     #include "battery_sdl.h"
 #endif
 
-// TODO: Tune these.
-// The initial (and minimum) capacity of a non-empty list or map object.
-#define HEAP_MIN_CAPACITY 16
-
-// The rate at which a collection's capacity grows when the size exceeds the
-// current capacity. The new capacity will be determined by *multiplying* the
-// old capacity by this. Growing geometrically is necessary to ensure that
-// adding to a collection has O(1) amortized complexity.
-#define HEAP_GROW_FACTOR 2
-
-// The maximum percentage of map entries that can be filled before the map is
-// grown. A lower load takes more memory but reduces collisions which makes
-// lookup faster.
-#define HEAP_LOAD_PERCENT 75
-
 DEFINE_BUFFER(ForeignFunction, MochiVMForeignMethodFn);
 
 // The behavior of realloc() when the size is 0 is implementation defined. It
@@ -142,7 +127,7 @@ void mochiFreeVM(MochiVM* vm) {
     vm->gray = (Obj**)vm->config.reallocateFn(vm->gray, 0, vm->config.userData);
 
     mochiForeignFunctionBufferClear(vm, &vm->foreignFns);
-    mochiHeapClear(vm, &vm->heap);
+    mochiTableClear(vm, &vm->heap);
     DEALLOCATE(vm, vm);
 }
 
@@ -276,207 +261,243 @@ int mochiAddForeign(MochiVM* vm, MochiVMForeignMethodFn fn) {
     return vm->foreignFns.count - 1;
 }
 
-Heap* mochiNewHeap(MochiVM* vm)
-{
-    Heap* heap = ALLOCATE(vm, Heap);
-    heap->capacity = 0;
-    heap->count = 0;
-    heap->entries = NULL;
-    return heap;
-}
+void mochiGrayObj(MochiVM* vm, Obj* obj) {
+    if (obj == NULL) return;
 
-static inline uint32_t hashBits(uint64_t hash)
-{
-    // From v8's ComputeLongHash() which in turn cites:
-    // Thomas Wang, Integer Hash Functions.
-    // http://www.concentric.net/~Ttwang/tech/inthash.htm
-    hash = ~hash + (hash << 18);  // hash = (hash << 18) - hash - 1;
-    hash = hash ^ (hash >> 31);
-    hash = hash * 21;  // hash = (hash + (hash << 2)) + (hash << 4);
-    hash = hash ^ (hash >> 11);
-    hash = hash + (hash << 6);
-    hash = hash ^ (hash >> 22);
-    return (uint32_t)(hash & 0x3fffffff);
-}
+    // Stop if the object is already darkened so we don't get stuck in a cycle.
+    if (obj->isMarked) return;
 
-// Looks for an entry with [key] in an array of [capacity] [entries].
-//
-// If found, sets [result] to point to it and returns `true`. Otherwise,
-// returns `false` and points [result] to the entry where the key/value pair
-// should be inserted.
-static bool findEntry(HeapEntry* entries, uint32_t capacity, HeapKey key, HeapEntry** result)
-{
-    // If there is no entry array (an empty map), we definitely won't find it.
-    if (capacity == 0) { return false; }
+    // It's been reached.
+    obj->isMarked = true;
 
-    // Figure out where to insert it in the table. Use open addressing and
-    // basic linear probing.
-    uint32_t startIndex = hashBits(key) % capacity;
-    uint32_t index = startIndex;
-
-    // If we pass a tombstone and don't end up finding the key, its entry will
-    // be re-used for the insert.
-    HeapEntry* tombstone = NULL;
-
-    // Walk the probe sequence until we've tried every slot.
-    do
-    {
-        HeapEntry* entry = &entries[index];
-
-        // 0 or 1 signifies an empty slot.
-        if (entry->key < 2)
-        {
-            // If we found an empty slot, the key is not in the table. If we found a
-            // slot that contains a deleted key, we have to keep looking.
-            if (entry->key == 0)
-            {
-                // We found an empty non-deleted slot, so we've reached the end of the probe
-                // sequence without finding the key.
-                *result = tombstone != NULL ? tombstone : entry;
-                return false;
-            }
-            else
-            {
-                // We found a tombstone. We need to keep looking in case the key is after it.
-                if (tombstone == NULL) { tombstone = entry; }
-            }
-        }
-        else if (entry->key == key)
-        {
-            // We found the key.
-            *result = entry;
-            return true;
-        }
-
-        // Try the next slot.
-        index = (index + 1) % capacity;
+    // Add it to the gray list so it can be recursively explored for
+    // more marks later.
+    if (vm->grayCount >= vm->grayCapacity) {
+        vm->grayCapacity = vm->grayCount * 2;
+        vm->gray = (Obj**)vm->config.reallocateFn(vm->gray,
+                                                  vm->grayCapacity * sizeof(Obj*),
+                                                  vm->config.userData);
     }
-    while (index != startIndex);
 
-    // If we get here, the table is full of tombstones. Return the first one we found.
-    ASSERT(tombstone != NULL, "Map should have tombstones or empty entries.");
-    *result = tombstone;
-    return false;
+    vm->gray[vm->grayCount++] = obj;
 }
 
-// Inserts [key] and [value] in the array of [entries] with the given
-// [capacity].
-//
-// Returns `true` if this is the first time [key] was added to the map.
-static bool insertEntry(HeapEntry* entries, uint32_t capacity, HeapKey key, Value value)
-{
-    ASSERT(entries != NULL, "Should ensure capacity before inserting.");
-    
-    HeapEntry* entry;
-    if (findEntry(entries, capacity, key, &entry))
-    {
-        // Already present, so just replace the value.
-        entry->value = value;
-        return false;
-    }
-    else
-    {
-        entry->key = key;
-        entry->value = value;
-        return true;
+void mochiGrayValue(MochiVM* vm, Value value) {
+    if (!IS_OBJ(value)) return;
+    mochiGrayObj(vm, AS_OBJ(value));
+}
+
+void mochiGrayBuffer(MochiVM* vm, ValueBuffer* buffer) {
+    for (int i = 0; i < buffer->count; i++) {
+        mochiGrayValue(vm, buffer->data[i]);
     }
 }
 
-// Updates [heap]'s entry array to [capacity].
-static void resizeHeap(MochiVM* vm, Heap* heap, uint32_t capacity)
-{
-    // Create the new empty hash table.
-    HeapEntry* entries = ALLOCATE_ARRAY(vm, HeapEntry, capacity);
-    for (uint32_t i = 0; i < capacity; i++)
-    {
-        entries[i].key = 0;
-        entries[i].value = FALSE_VAL;
-    }
+#define MARK_SIMPLE(vm, type)   ((vm)->bytesAllocated += sizeof(type))
 
-    // Re-add the existing entries.
-    if (heap->capacity > 0)
-    {
-        for (uint32_t i = 0; i < heap->capacity; i++)
-        {
-            HeapEntry* entry = &heap->entries[i];
-            
-            // Don't copy empty entries or tombstones.
-            if (entry->key < 2) { continue; }
+static void markCodeBlock(MochiVM* vm, ObjCodeBlock* block) {
+    mochiGrayBuffer(vm, &block->constants);
+    mochiGrayBuffer(vm, &block->labels);
 
-            insertEntry(entries, capacity, entry->key, entry->value);
-        }
-    }
-
-    // Replace the array.
-    DEALLOCATE(vm, heap->entries);
-    heap->entries = entries;
-    heap->capacity = capacity;
+    vm->bytesAllocated += sizeof(ObjCodeBlock);
+    vm->bytesAllocated += sizeof(uint8_t) * block->code.capacity;
+    vm->bytesAllocated += sizeof(Value) * block->constants.capacity;
+    vm->bytesAllocated += sizeof(int) * block->lines.capacity;
+    vm->bytesAllocated += sizeof(int) * block->labelIndices.capacity;
+    vm->bytesAllocated += sizeof(Value) * block->labels.capacity;
 }
 
-bool mochiHeapGet(Heap* heap, HeapKey key, Value* out)
-{
-    HeapEntry* entry;
-    bool found = findEntry(heap->entries, heap->capacity, key, &entry);
-    ASSERT(out != NULL, "Cannot pass null pointer for Value out in mochiHeapGet.");
-    *out = found ? entry->value : FALSE_VAL;
-    return found;
+static void markVarFrame(MochiVM* vm, ObjVarFrame* frame) {
+    for (int i = 0; i < frame->slotCount; i++) {
+        mochiGrayValue(vm, frame->slots[i]);
+    }
+
+    vm->bytesAllocated += sizeof(ObjVarFrame);
+    vm->bytesAllocated += sizeof(Value) * frame->slotCount;
 }
 
-void mochiHeapSet(MochiVM* vm, Heap* heap, HeapKey key, Value value)
-{
-    // If the map is getting too full, make room first.
-    if (heap->count + 1 > heap->capacity * HEAP_LOAD_PERCENT / 100)
-    {
-        // Figure out the new hash table size.
-        uint32_t capacity = heap->capacity * HEAP_GROW_FACTOR;
-        if (capacity < HEAP_MIN_CAPACITY) { capacity = HEAP_MIN_CAPACITY; }
-
-        resizeHeap(vm, heap, capacity);
+static void markCallFrame(MochiVM* vm, ObjCallFrame* frame) {
+    for (int i = 0; i < frame->vars.slotCount; i++) {
+        mochiGrayValue(vm, frame->vars.slots[i]);
     }
 
-    if (insertEntry(heap->entries, heap->capacity, key, value))
+    vm->bytesAllocated += sizeof(ObjCallFrame);
+    vm->bytesAllocated += sizeof(Value) * frame->vars.slotCount;
+}
+
+static void markHandleFrame(MochiVM* vm, ObjHandleFrame* frame) {
+    for (int i = 0; i < frame->call.vars.slotCount; i++) {
+        mochiGrayValue(vm, frame->call.vars.slots[i]);
+    }
+
+    mochiGrayObj(vm, (Obj*)frame->afterClosure);
+    for (int i = 0; i < frame->handlerCount; i++) {
+        mochiGrayObj(vm, (Obj*)frame->handlers[i]);
+    }
+
+    vm->bytesAllocated += sizeof(ObjHandleFrame);
+    vm->bytesAllocated += sizeof(Value) * frame->call.vars.slotCount;
+    vm->bytesAllocated += sizeof(ObjClosure*) * frame->handlerCount;
+}
+
+static void markClosure(MochiVM* vm, ObjClosure* closure) {
+    for (int i = 0; i < closure->capturedCount; i++) {
+        mochiGrayValue(vm, closure->captured[i]);
+    }
+
+    vm->bytesAllocated += sizeof(ObjClosure);
+    vm->bytesAllocated += sizeof(Value) * closure->capturedCount;
+}
+
+static void markContinuation(MochiVM* vm, ObjContinuation* cont) {
+    for (int i = 0; i < cont->savedStackCount; i++) {
+        mochiGrayValue(vm, cont->savedStack[i]);
+    }
+    for (int i = 0; i < cont->savedFramesCount; i++) {
+        mochiGrayObj(vm, (Obj*)cont->savedFrames[i]);
+    }
+
+    vm->bytesAllocated += sizeof(ObjContinuation);
+    vm->bytesAllocated += sizeof(Value) * cont->savedStackCount;
+    vm->bytesAllocated += sizeof(ObjVarFrame*) * cont->savedFramesCount;
+}
+
+static void markFiber(MochiVM* vm, ObjFiber* fiber) {
+    // Stack variables.
+    for (Value* slot = fiber->valueStack; slot < fiber->valueStackTop; slot++) {
+        mochiGrayValue(vm, *slot);
+    }
+
+    // Call stack frames.
+    for (ObjVarFrame** slot = fiber->frameStack; slot < fiber->frameStackTop; slot++) {
+        mochiGrayObj(vm, (Obj*)*slot);
+    }
+
+    // Root stack.
+    for (Obj** slot = fiber->rootStack; slot < fiber->rootStackTop; slot++) {
+        mochiGrayObj(vm, *slot);
+    }
+
+    // The caller.
+    mochiGrayObj(vm, (Obj*)fiber->caller);
+
+    vm->bytesAllocated += sizeof(ObjFiber);
+    vm->bytesAllocated += vm->config.frameStackCapacity * sizeof(ObjVarFrame*);
+    vm->bytesAllocated += vm->config.valueStackCapacity * sizeof(Value);
+    vm->bytesAllocated += vm->config.rootStackCapacity * sizeof(Obj*);
+}
+
+static void markForeign(MochiVM* vm, ObjForeign* foreign) {
+    vm->bytesAllocated += sizeof(Obj) + sizeof(int);
+    vm->bytesAllocated += sizeof(uint8_t) * foreign->dataCount;
+}
+
+static void markList(MochiVM* vm, ObjList* list) {
+    mochiGrayValue(vm, list->elem);
+    mochiGrayObj(vm, (Obj*)list->next);
+
+    vm->bytesAllocated += sizeof(ObjList);
+}
+
+static void markArray(MochiVM* vm, ObjArray* arr) {
+    mochiGrayBuffer(vm, &arr->elems);
+
+    vm->bytesAllocated += sizeof(ObjArray);
+}
+
+static void markSlice(MochiVM* vm, ObjSlice* slice) {
+    mochiGrayObj(vm, (Obj*)slice->source);
+
+    vm->bytesAllocated += sizeof(ObjSlice);
+}
+
+static void markByteSlice(MochiVM* vm, ObjByteSlice* slice) {
+    mochiGrayObj(vm, (Obj*)slice->source);
+
+    vm->bytesAllocated += sizeof(ObjByteSlice);
+}
+
+static void markRef(MochiVM* vm, ObjRef* ref) {
+    // TODO: investigate iterating over the table itself to gray set values, determine if performance benefit/degradation
+    Value val;
+    if (mochiTableGet(&vm->heap, ref->ptr, &val)) {
+        mochiGrayValue(vm, val);
+    } else {
+        ASSERT(false, "Ref does not point to a heap slot.");
+    }
+
+    vm->bytesAllocated += sizeof(ObjRef);
+}
+
+static void markStruct(MochiVM* vm, ObjStruct* stru) {
+    for (int i = 0; i < stru->count; i++) {
+        mochiGrayValue(vm, stru->elems[i]);
+    }
+
+    vm->bytesAllocated += sizeof(ObjStruct) + stru->count * sizeof(Value);
+}
+
+static void markRecord(MochiVM* vm, ObjRecord* rec) {
+    for (uint32_t i = 0; i < rec->fields.capacity; i++) {
+        mochiGrayValue(vm, rec->fields.entries[i].value);
+    }
+
+    vm->bytesAllocated += sizeof(ObjRecord);
+    vm->bytesAllocated += sizeof(TableEntry) * rec->fields.capacity;
+}
+
+static void markVariant(MochiVM* vm, ObjVariant* var) {
+    mochiGrayValue(vm, var->elem);
+
+    vm->bytesAllocated += sizeof(ObjVariant);
+}
+
+static void markForeignResume(MochiVM* vm, ForeignResume* resume) {
+    mochiGrayObj(vm, (Obj*)resume->fiber);
+
+    vm->bytesAllocated += sizeof(ForeignResume);
+}
+
+static void blackenObject(MochiVM* vm, Obj* obj)
+{
+#if ZHEnZHU_DEBUG_TRACE_MEMORY
+    printf("mark ");
+    printValue(OBJ_VAL(obj));
+    printf(" @ %p\n", obj);
+#endif
+
+    // Traverse the object's fields.
+    switch (obj->type)
     {
-        // A new key was added.
-        heap->count++;
+        case OBJ_I64:               MARK_SIMPLE(vm, ObjI64); break;
+        case OBJ_U64:               MARK_SIMPLE(vm, ObjU64); break;
+        case OBJ_DOUBLE:            MARK_SIMPLE(vm, ObjDouble); break;
+        case OBJ_CODE_BLOCK:        markCodeBlock(vm, (ObjCodeBlock*)obj); break;
+        case OBJ_VAR_FRAME:         markVarFrame(vm, (ObjVarFrame*)obj); break;
+        case OBJ_CALL_FRAME:        markCallFrame(vm, (ObjCallFrame*)obj); break;
+        case OBJ_HANDLE_FRAME:      markHandleFrame(vm, (ObjHandleFrame*)obj); break;
+        case OBJ_CLOSURE:           markClosure( vm, (ObjClosure*) obj); break;
+        case OBJ_CONTINUATION:      markContinuation(vm, (ObjContinuation*)obj); break;
+        case OBJ_FIBER:             markFiber(vm, (ObjFiber*)obj); break;
+        case OBJ_FOREIGN:           markForeign(vm, (ObjForeign*)obj); break;
+        case OBJ_C_POINTER:         MARK_SIMPLE(vm, ObjCPointer); break;
+        case OBJ_LIST:              markList(vm, (ObjList*)obj); break;
+        case OBJ_FOREIGN_RESUME:    markForeignResume(vm, (ForeignResume*)obj); break;
+        case OBJ_ARRAY:             markArray(vm, (ObjArray*)obj); break;
+        case OBJ_BYTE_ARRAY:        MARK_SIMPLE(vm, ObjByteArray); break;
+        case OBJ_SLICE:             markSlice(vm, (ObjSlice*)obj); break;
+        case OBJ_BYTE_SLICE:        markByteSlice(vm, (ObjByteSlice*)obj); break;
+        case OBJ_REF:               markRef(vm, (ObjRef*)obj); break;
+        case OBJ_STRUCT:            markStruct(vm, (ObjStruct*)obj); break;
+        case OBJ_RECORD:            markRecord(vm, (ObjRecord*)obj); break;
+        case OBJ_VARIANT:           markVariant(vm, (ObjVariant*)obj); break;
     }
 }
 
-void mochiHeapClear(MochiVM* vm, Heap* heap)
-{
-    DEALLOCATE(vm, heap->entries);
-    heap->entries = NULL;
-    heap->capacity = 0;
-    heap->count = 0;
-}
-
-bool mochiHeapTryRemove(MochiVM* vm, Heap* heap, HeapKey key)
-{
-    HeapEntry* entry;
-    if (!findEntry(heap->entries, heap->capacity, key, &entry)) { return false; }
-
-    // Remove the entry from the heap. Set this key to 1, which marks it as a
-    // deleted slot. When searching for a key, we will stop on empty slots, but
-    // continue past deleted slots.
-    entry->key = 1;
-    entry->value = FALSE_VAL;
-
-    heap->count--;
-
-    if (heap->count == 0)
-    {
-        // Removed the last item, so free the array.
-        mochiHeapClear(vm, heap);
+void mochiBlackenObjects(MochiVM* vm) {
+    while (vm->grayCount > 0) {
+        // Pop an item from the gray stack.
+        Obj* obj = vm->gray[--vm->grayCount];
+        blackenObject(vm, obj);
     }
-    else if (heap->capacity > HEAP_MIN_CAPACITY &&
-            heap->count < heap->capacity / HEAP_GROW_FACTOR * HEAP_LOAD_PERCENT / 100)
-    {
-        uint32_t capacity = heap->capacity / HEAP_GROW_FACTOR;
-        if (capacity < HEAP_MIN_CAPACITY) { capacity = HEAP_MIN_CAPACITY; }
-
-        // The heap is getting empty, so shrink the entry array back down.
-        // TODO: Should we do this less aggressively than we grow?
-        resizeHeap(vm, heap, capacity);
-    }
-
-    return true;
 }

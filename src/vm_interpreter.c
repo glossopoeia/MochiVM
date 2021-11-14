@@ -1125,26 +1125,26 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
         CASE_CODE(NEWREF): {
             Value refInit = POP_VAL();
-            // TODO: make this into a function: HeapKey nextKey(vm)
+            // TODO: make this into a function: TableKey nextKey(vm)
             // TODO: make these two lines atomic/thread safe
             uint64_t key = vm->nextHeapKey;
             vm->nextHeapKey += 1;
 
-            mochiHeapSet(vm, &vm->heap, (HeapKey)key, refInit);
+            mochiTableSet(vm, &vm->heap, (TableKey)key, refInit);
             PUSH_VAL(OBJ_VAL(mochiNewRef(vm, key)));
             DISPATCH();
         }
         CASE_CODE(GETREF): {
             ObjRef* ref = AS_REF(POP_VAL());
             Value val;
-            mochiHeapGet(&vm->heap, ref->ptr, &val);
+            mochiTableGet(&vm->heap, ref->ptr, &val);
             PUSH_VAL(val);
             DISPATCH();
         }
         CASE_CODE(PUTREF): {
             Value val = PEEK_VAL(1);
             ObjRef* ref = AS_REF(PEEK_VAL(2));
-            mochiHeapSet(vm, &vm->heap, ref->ptr, val);
+            mochiTableSet(vm, &vm->heap, ref->ptr, val);
             DROP_VALS(2);
             DISPATCH();
         }
@@ -1430,6 +1430,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 #undef READ_BYTE
 #undef READ_SHORT
 #undef READ_USHORT
+#undef READ_INT
 #undef READ_UINT
 #undef READ_CONSTANT
 }

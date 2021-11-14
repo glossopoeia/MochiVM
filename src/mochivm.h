@@ -33,7 +33,7 @@
 // MochiVM has no global state, so all state stored by a running interpreter lives
 // here.
 typedef struct MochiVM MochiVM;
-typedef uint64_t HeapKey;
+typedef uint64_t TableKey;
 typedef struct ObjFiber ObjFiber;
 
 // A generic allocation function that handles all explicit memory management
