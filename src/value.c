@@ -108,6 +108,14 @@ Value mochiFiberPopValue(ObjFiber* fiber) {
     return *(--fiber->valueStackTop);
 }
 
+Value mochiFiberPeekValue(ObjFiber* fiber, int index) {
+    return *(fiber->valueStackTop - index);
+}
+
+void mochiFiberDropValues(ObjFiber* fiber, int count) {
+    fiber->valueStackTop -= count;
+}
+
 void mochiFiberPushFrame(ObjFiber* fiber, ObjVarFrame* frame) {
     *fiber->frameStackTop++ = frame;
 }

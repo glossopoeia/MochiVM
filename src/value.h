@@ -300,6 +300,8 @@ ObjDouble* mochiNewDouble(MochiVM* vm, double val);
 ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int initialStackCount);
 void mochiFiberPushValue(ObjFiber* fiber, Value v);
 Value mochiFiberPopValue(ObjFiber* fiber);
+Value mochiFiberPeekValue(ObjFiber* fiber, int index);
+void mochiFiberDropValues(ObjFiber* fiber, int count);
 void mochiFiberPushFrame(ObjFiber* fiber, ObjVarFrame* frame);
 ObjVarFrame* mochiFiberPopFrame(ObjFiber* fiber);
 void mochiFiberPushRoot(ObjFiber* fiber, Obj* root);
