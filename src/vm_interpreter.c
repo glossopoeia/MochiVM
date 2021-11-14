@@ -791,8 +791,10 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
                 uint16_t slotIdx = READ_USHORT();
 
                 ASSERT(FRAME_COUNT() > frameIdx, "Frame index out of range during CLOSURE creation.");
+#if DEBUG
                 ObjVarFrame* frame = PEEK_FRAME(frameIdx + 1);
                 ASSERT(frame->slotCount >= slotIdx, "Slot index out of range during CLOSURE creation.");
+#endif
 
                 mochiClosureCapture(closure, i, FIND(frameIdx, slotIdx));
             }
@@ -814,8 +816,10 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
                 uint16_t slotIdx = READ_USHORT();
 
                 ASSERT(FRAME_COUNT() > frameIdx, "Frame index out of range during CLOSURE creation.");
+#if DEBUG
                 ObjVarFrame* frame = PEEK_FRAME(frameIdx + 1);
                 ASSERT(frame->slotCount >= slotIdx, "Slot index out of range during CLOSURE creation.");
+#endif
 
                 mochiClosureCapture(closure, i + 1, FIND(frameIdx, slotIdx));
             }
@@ -1133,8 +1137,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         CASE_CODE(GETREF): {
             ObjRef* ref = AS_REF(POP_VAL());
             Value val;
-            bool found = mochiHeapGet(&vm->heap, ref->ptr, &val);
-            ASSERT(found, "Heap reference not found in GETREF.");
+            mochiHeapGet(&vm->heap, ref->ptr, &val);
             PUSH_VAL(val);
             DISPATCH();
         }

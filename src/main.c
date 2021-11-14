@@ -81,7 +81,8 @@
 
 int main(int argc, const char * argv[]) {
     printf("MochiVM is under development... watch for bugs!\n");
-
+    
+#if DEBUG
     MochiVM* vm = NULL;
     double assertNumber = 0;
     char* assertString = NULL;
@@ -93,8 +94,9 @@ int main(int argc, const char * argv[]) {
     #include "test_handle.h"
     #include "test_refs.h"
     #include "test_conds.h"
-#if MOCHIVM_BATTERY_UV
+#if MOCHIVM_BATTERY_UV && MOCHIVM_BATTERY_SDL
     #include "test_foreign.h"
+#endif
 #endif
 
     return 0;

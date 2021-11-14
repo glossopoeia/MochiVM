@@ -475,8 +475,7 @@ void mochiFreeObj(MochiVM* vm, Obj* object) {
             // having multiple pointers to ref on the value/frame stack,
             // which is perfectly fine since the heap-clearing logic will
             // only occur when ref becomes fully unreachable.
-            bool removed = mochiHeapTryRemove(vm, &vm->heap, ref->ptr);
-            ASSERT(removed, "Could not clear a reference from the heap.");
+            mochiHeapTryRemove(vm, &vm->heap, ref->ptr);
             break;
         }
         case OBJ_CLOSURE: break;
