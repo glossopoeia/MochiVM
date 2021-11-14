@@ -20,6 +20,10 @@
 // lookup faster.
 #define TABLE_LOAD_PERCENT 75
 
+const TableKey TABLE_KEY_UNUSED = 0;
+const TableKey TABLE_KEY_TOMBSTONE = 1;
+const TableKey TABLE_KEY_RANGE_START = 2;
+
 DEFINE_BUFFER(Byte, uint8_t);
 DEFINE_BUFFER(Int, int);
 DEFINE_BUFFER(Value, Value);

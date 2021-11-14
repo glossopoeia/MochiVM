@@ -9,13 +9,6 @@
 #define OBJ_TYPE(value)        (AS_OBJ(value)->type)
 #define OBJ_VAL(obj)           (mochiObjectToValue((Obj*)(obj)))
 
-#define IS_FIBER(value)        isObjType(value, OBJ_FIBER)
-#define IS_VAR_FRAME(value)    isObjType(value, OBJ_VAR_FRAME)
-#define IS_CALL_FRAME(value)   isObjType(value, OBJ_CALL_FRAME)
-#define IS_HANDLE_FRAME(value) isObjType(value, OBJ_HANDLE_FRAME)
-#define IS_CLOSURE(value)      isObjType(value, OBJ_CLOSURE)
-#define IS_CONTINUATION(value) isObjType(value, OBJ_CONTINUATION)
-
 // These macros cast a Value to one of the specific object types. These do *not*
 // perform any validation, so must only be used after the Value has been
 // ensured to be the right type.
@@ -209,10 +202,6 @@ typedef struct ObjVariant {
     int nesting;
     Value elem;
 } ObjVariant;
-
-static inline bool isObjType(Value value, ObjType type) {
-    return IS_OBJ(value) && AS_OBJ(value)->type == type;
-}
 
 // Creates a new fiber object with the values from the given initial stack.
 ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int initialStackCount);

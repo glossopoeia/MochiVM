@@ -6,9 +6,9 @@
 #include "common.h"
 #include "mochivm.h"
 
-#define TABLE_KEY_UNUSED 0
-#define TABLE_KEY_TOMBSTONE 1
-#define TABLE_KEY_RANGE_START 2
+extern const TableKey TABLE_KEY_UNUSED;
+extern const TableKey TABLE_KEY_TOMBSTONE;
+extern const TableKey TABLE_KEY_RANGE_START;
 
 typedef enum {
     VAL_BOOL,
