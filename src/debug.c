@@ -112,6 +112,8 @@ int disassembleInstruction(MochiVM* vm, int offset) {
     switch (instruction) {
         case CODE_NOP:
             return simpleInstruction("NOP", offset);
+        case CODE_BREAKPOINT:
+            return simpleInstruction("BREAKPOINT", offset);
         case CODE_ABORT:
             return byteArgInstruction("ABORT", vm, offset);
         case CODE_CONSTANT:

@@ -253,6 +253,11 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         CASE_CODE(NOP): {
             DISPATCH();
         }
+        CASE_CODE(BREAKPOINT): {
+            // TODO: implement debugger support, probably involving fiber suspension and fiber resume function accessible as an external api
+            ASSERT(false, "BREAKPOINT support is not yet implemented.");
+            DISPATCH();
+        }
         CASE_CODE(ABORT): {
             uint8_t retCode = READ_BYTE();
             return retCode;
