@@ -46,7 +46,7 @@
 // point arithmetic could benefit from NaN tagging instead of pointer
 // tagging.
 #ifndef MOCHIVM_NAN_TAGGING
-    #define MOCHIVM_NAN_TAGGING 1
+    #define MOCHIVM_NAN_TAGGING 0
 #endif
 
 #if MOCHIVM_POINTER_TAGGING == 1 && MOCHIVM_NAN_TAGGING == 1

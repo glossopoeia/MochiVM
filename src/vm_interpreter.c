@@ -270,19 +270,19 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
 
         CASE_CODE(PERM_QUERY): {
             int permId = READ_USHORT();
-            PUSH_VAL(mochiHasPermission(vm, permId));
+            PUSH_VAL(BOOL_VAL(vm, mochiHasPermission(vm, permId)));
             DISPATCH();
         }
         CASE_CODE(PERM_REQUEST): {
             int permId = READ_USHORT();
             // TODO: this instruction probably needs to be integrated with async/callbacks
-            PUSH_VAL(mochiRequestPermission(vm, permId));
+            PUSH_VAL(BOOL_VAL(vm, mochiRequestPermission(vm, permId)));
             DISPATCH();
         }
         CASE_CODE(PERM_REQUEST_ALL): {
             int permId = READ_USHORT();
             // TODO: this instruction probably needs to be integrated with async/callbacks
-            PUSH_VAL(mochiRequestAllPermissions(vm, permId));
+            PUSH_VAL(BOOL_VAL(vm, mochiRequestAllPermissions(vm, permId)));
             DISPATCH();
         }
         CASE_CODE(PERM_REVOKE): {
@@ -699,7 +699,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             ASSERT(FRAME_COUNT() > 0, "CALL_CLOSURE requires at least one frame on the frame stack.");
             ASSERT(VALUE_COUNT() > 0, "CALL_CLOSURE requires at least one value on the value stack.");
 
-            ObjClosure* closure = (ObjClosure*)POP_VAL();
+            ObjClosure* closure = AS_CLOSURE(POP_VAL());
             uint8_t* next = closure->funcLocation;
 
             // need to populate the frame with the captured values, but also the parameters from the stack
@@ -718,7 +718,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
             ASSERT(FRAME_COUNT() > 0, "TAILCALL_CLOSURE requires at least one frame on the frame stack.");
             ASSERT(VALUE_COUNT() > 0, "TAILCALL_CLOSURE requires at least one value on the value stack.");
 
-            ObjClosure* closure = (ObjClosure*)POP_VAL();
+            ObjClosure* closure = AS_CLOSURE(POP_VAL());
             uint8_t* next = closure->funcLocation;
 
             // create a new frame with the new array of stored values but the same return location as the previous frame
@@ -1231,7 +1231,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         }
         CASE_CODE(ARRAY_LENGTH): {
             ObjArray* arr = AS_ARRAY(POP_VAL());
-            PUSH_VAL(AS_U32(mochiArrayLength(arr)));
+            PUSH_VAL(U32_VAL(vm, mochiArrayLength(arr)));
             DISPATCH();
         }
         CASE_CODE(ARRAY_COPY): {
@@ -1291,7 +1291,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         }
         CASE_CODE(SLICE_LENGTH): {
             ObjSlice* slice = AS_SLICE(POP_VAL());
-            PUSH_VAL(AS_U32(mochiSliceLength(slice)));
+            PUSH_VAL(U32_VAL(vm, mochiSliceLength(slice)));
             DISPATCH();
         }
         CASE_CODE(SLICE_COPY): {
@@ -1335,7 +1335,7 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         }
         CASE_CODE(BYTE_ARRAY_LENGTH): {
             ObjByteArray* arr = AS_BYTE_ARRAY(POP_VAL());
-            PUSH_VAL(AS_U32(mochiByteArrayLength(arr)));
+            PUSH_VAL(U32_VAL(vm, mochiByteArrayLength(arr)));
             DISPATCH();
         }
         CASE_CODE(BYTE_ARRAY_COPY): {
@@ -1387,14 +1387,14 @@ static MochiVMInterpretResult run(MochiVM * vm, register ObjFiber* fiber) {
         }
         CASE_CODE(BYTE_SLICE_SET_AT): {
             int idx = (int)AS_U32(POP_VAL());
-            uint8_t val = POP_VAL();
+            uint8_t val = AS_U8(POP_VAL());
             ObjByteSlice* slice = AS_BYTE_SLICE(PEEK_VAL(1));
             mochiByteSliceSetAt(idx, val, slice);
             DISPATCH();
         }
         CASE_CODE(BYTE_SLICE_LENGTH): {
             ObjByteSlice* slice = AS_BYTE_SLICE(POP_VAL());
-            PUSH_VAL(AS_U32(mochiByteSliceLength(slice)));
+            PUSH_VAL(U32_VAL(vm, mochiByteSliceLength(slice)));
             DISPATCH();
         }
         CASE_CODE(BYTE_SLICE_COPY): {

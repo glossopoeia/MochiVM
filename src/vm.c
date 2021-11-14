@@ -328,7 +328,7 @@ static bool findEntry(HeapEntry* entries, uint32_t capacity, HeapKey key, HeapEn
         {
             // If we found an empty slot, the key is not in the table. If we found a
             // slot that contains a deleted key, we have to keep looking.
-            if (entry->value == 0)
+            if (entry->key == 0)
             {
                 // We found an empty non-deleted slot, so we've reached the end of the probe
                 // sequence without finding the key.

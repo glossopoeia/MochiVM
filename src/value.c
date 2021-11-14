@@ -501,8 +501,10 @@ void printValue(MochiVM* vm, Value value) {
     } else {
 #if MOCHIVM_NAN_TAGGING
         printf("%f", AS_DOUBLE(value));
-#else
+#elif MOCHIVM_POINTER_TAGGING
         printf("%ju", value);
+#else
+        printf("%ju", value.as.u64);
 #endif
     }
 }
