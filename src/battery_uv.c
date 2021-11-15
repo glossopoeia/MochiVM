@@ -5,7 +5,7 @@
 
 // Generic function to create a call frame from a closure that will return to the fiber's 'current' location upon completion.
 static ObjCallFrame* basicClosureFrame(MochiVM* vm, ObjFiber* fiber, ObjClosure* capture) {
-    ASSERT((fiber->valueStackTop - fiber->valueStack) >= capture->paramCount, "basicClosureFrame: Not enough values on the value stack to call the closure.");
+    ASSERT(mochiFiberValueCount(fiber) >= capture->paramCount, "basicClosureFrame: Not enough values on the value stack to call the closure.");
 
     int varCount = capture->paramCount + capture->capturedCount;
     Value* vars = ALLOCATE_ARRAY(vm, Value, varCount);
@@ -57,6 +57,8 @@ static void uvmochiTimerCallback(uv_timer_t* timer) {
 }
 
 void uvmochiTimerStart(MochiVM* vm, ObjFiber* fiber) {
+    ASSERT(mochiFiberValueCount(fiber) >= 3, "Not enough values on the value stack to call uvmochiTimerStart.");
+
     fiber->isSuspended = true;
 
     ObjCPointer* ptr = (ObjCPointer*)AS_OBJ(mochiFiberPopValue(fiber));
@@ -64,11 +66,8 @@ void uvmochiTimerStart(MochiVM* vm, ObjFiber* fiber) {
 
     ForeignResume* res = mochiNewResume(vm, fiber);
     mochiFiberPushRoot(fiber, (Obj*)res);
-    //Obj* next = res->obj.next;
 
     uint64_t duration = (uint64_t)AS_DOUBLE(mochiFiberPopValue(fiber));
-
-    // TODO: assert stack count at least 1 (callback closure)
 
     uv_req_set_data((uv_req_t*)ptr->pointer, res);
     uv_timer_start((uv_timer_t*)ptr->pointer, uvmochiTimerCallback, duration, 0);

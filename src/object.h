@@ -205,14 +205,16 @@ typedef struct ObjVariant {
 
 // Creates a new fiber object with the values from the given initial stack.
 ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int initialStackCount);
-void mochiFiberPushValue(ObjFiber* fiber, Value v);
-Value mochiFiberPopValue(ObjFiber* fiber);
-Value mochiFiberPeekValue(ObjFiber* fiber, int index);
-void mochiFiberDropValues(ObjFiber* fiber, int count);
-void mochiFiberPushFrame(ObjFiber* fiber, ObjVarFrame* frame);
-ObjVarFrame* mochiFiberPopFrame(ObjFiber* fiber);
-void mochiFiberPushRoot(ObjFiber* fiber, Obj* root);
-Obj* mochiFiberPopRoot(ObjFiber* fiber);
+static inline size_t mochiFiberValueCount(ObjFiber* fiber) { return fiber->valueStackTop - fiber->valueStack; }
+static inline size_t mochiFiberFrameCount(ObjFiber* fiber) { return fiber->frameStackTop - fiber->frameStack; }
+static inline void mochiFiberPushValue(ObjFiber* fiber, Value v) { *fiber->valueStackTop++ = v; }
+static inline Value mochiFiberPopValue(ObjFiber* fiber) { return *(--fiber->valueStackTop); }
+static inline Value mochiFiberPeekValue(ObjFiber* fiber, int index) { return *(fiber->valueStackTop - index); }
+static inline void mochiFiberDropValues(ObjFiber* fiber, int count) { fiber->valueStackTop -= count; }
+static inline void mochiFiberPushFrame(ObjFiber* fiber, ObjVarFrame* frame) { *fiber->frameStackTop++ = frame; }
+static inline ObjVarFrame* mochiFiberPopFrame(ObjFiber* fiber) { return *(--fiber->frameStackTop); }
+static inline void mochiFiberPushRoot(ObjFiber* fiber, Obj* root) { *fiber->rootStackTop++ = root; }
+static inline Obj* mochiFiberPopRoot(ObjFiber* fiber) { return *(--fiber->rootStackTop); }
 
 ObjClosure* mochiNewClosure(MochiVM* vm, uint8_t* body, uint8_t paramCount, uint16_t capturedCount);
 void mochiClosureCapture(ObjClosure* closure, int captureIndex, Value value);

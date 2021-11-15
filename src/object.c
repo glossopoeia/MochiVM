@@ -94,38 +94,6 @@ ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int in
     return fiber;
 }
 
-void mochiFiberPushValue(ObjFiber* fiber, Value v) {
-    *fiber->valueStackTop++ = v;
-}
-
-Value mochiFiberPopValue(ObjFiber* fiber) {
-    return *(--fiber->valueStackTop);
-}
-
-Value mochiFiberPeekValue(ObjFiber* fiber, int index) {
-    return *(fiber->valueStackTop - index);
-}
-
-void mochiFiberDropValues(ObjFiber* fiber, int count) {
-    fiber->valueStackTop -= count;
-}
-
-void mochiFiberPushFrame(ObjFiber* fiber, ObjVarFrame* frame) {
-    *fiber->frameStackTop++ = frame;
-}
-
-ObjVarFrame* mochiFiberPopFrame(ObjFiber* fiber) {
-    return *(--fiber->frameStackTop);
-}
-
-void mochiFiberPushRoot(ObjFiber* fiber, Obj* root) {
-    *fiber->rootStackTop++ = root;
-}
-
-Obj* mochiFiberPopRoot(ObjFiber* fiber) {
-    return *(--fiber->rootStackTop);
-}
-
 ObjClosure* mochiNewClosure(MochiVM* vm, uint8_t* body, uint8_t paramCount, uint16_t capturedCount) {
     ObjClosure* closure = ALLOCATE_FLEX(vm, ObjClosure, Value, capturedCount);
     initObj(vm, (Obj*)closure, OBJ_CLOSURE);
