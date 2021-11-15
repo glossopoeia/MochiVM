@@ -7,16 +7,16 @@
 #include "vm.h"
 
 #if MOCHIVM_DEBUG_TRACE_MEMORY || MOCHIVM_DEBUG_TRACE_GC
-    #include <time.h>
+#include <time.h>
 #endif
 
 #if MOCHIVM_BATTERY_UV
-    #include "uv.h"
-    #include "battery_uv.h"
+#include "battery_uv.h"
+#include "uv.h"
 #endif
 
 #if MOCHIVM_BATTERY_SDL
-    #include "battery_sdl.h"
+#include "battery_sdl.h"
 #endif
 
 DEFINE_BUFFER(ForeignFunction, MochiVMForeignMethodFn);
@@ -25,7 +25,7 @@ DEFINE_BUFFER(ForeignFunction, MochiVMForeignMethodFn);
 // may return a non-NULL pointer which must not be dereferenced but nevertheless
 // should be freed. To prevent that, we avoid calling realloc() with a zero
 // size.
-static void* defaultReallocate(void* ptr, size_t newSize, void* _) {
+static void *defaultReallocate(void *ptr, size_t newSize, void *_) {
     if (newSize == 0) {
         free(ptr);
         return NULL;
@@ -34,21 +34,27 @@ static void* defaultReallocate(void* ptr, size_t newSize, void* _) {
 }
 
 #if MOCHIVM_BATTERY_UV
-static void* uvmochiMalloc(size_t size) { return defaultReallocate(NULL, size, NULL); }
-static void* uvmochiRealloc(void* ptr, size_t size) { return defaultReallocate(ptr, size, NULL); }
-static void* uvmochiCalloc(size_t count, size_t size) {
-    void* mem = defaultReallocate(NULL, count * size, NULL);
+static void *uvmochiMalloc(size_t size) {
+    return defaultReallocate(NULL, size, NULL);
+}
+static void *uvmochiRealloc(void *ptr, size_t size) {
+    return defaultReallocate(ptr, size, NULL);
+}
+static void *uvmochiCalloc(size_t count, size_t size) {
+    void *mem = defaultReallocate(NULL, count * size, NULL);
     memset(mem, 0, count * size);
     return mem;
 }
-static void uvmochiFree(void* ptr) { defaultReallocate(NULL, 0, NULL); }
+static void uvmochiFree(void *ptr) {
+    defaultReallocate(NULL, 0, NULL);
+}
 #endif
 
-int mochiGetVersionNumber() { 
+int mochiGetVersionNumber() {
     return MOCHIVM_VERSION_NUMBER;
 }
 
-void mochiInitConfiguration(MochiVMConfiguration* config) {
+void mochiInitConfiguration(MochiVMConfiguration *config) {
     config->reallocateFn = defaultReallocate;
     config->errorFn = NULL;
     config->valueStackCapacity = 128;
@@ -60,22 +66,22 @@ void mochiInitConfiguration(MochiVMConfiguration* config) {
     config->userData = NULL;
 }
 
-MochiVM* mochiNewVM(MochiVMConfiguration* config) {
+MochiVM *mochiNewVM(MochiVMConfiguration *config) {
     MochiVMReallocateFn reallocate = defaultReallocate;
-    void* userData = NULL;
+    void *userData = NULL;
     if (config != NULL) {
         userData = config->userData;
         reallocate = config->reallocateFn ? config->reallocateFn : defaultReallocate;
     }
-    
-    MochiVM* vm = (MochiVM*)reallocate(NULL, sizeof(*vm), userData);
+
+    MochiVM *vm = (MochiVM *)reallocate(NULL, sizeof(*vm), userData);
     memset(vm, 0, sizeof(MochiVM));
 
     // Copy the configuration if given one.
     if (config != NULL) {
         memcpy(&vm->config, config, sizeof(MochiVMConfiguration));
 
-        // We choose to set this after copying, 
+        // We choose to set this after copying,
         // rather than modifying the user config pointer
         vm->config.reallocateFn = reallocate;
     } else {
@@ -86,7 +92,7 @@ MochiVM* mochiNewVM(MochiVMConfiguration* config) {
     vm->grayCount = 0;
     // TODO: Tune this.
     vm->grayCapacity = 4;
-    vm->gray = (Obj**)reallocate(NULL, vm->grayCapacity * sizeof(Obj*), userData);
+    vm->gray = (Obj **)reallocate(NULL, vm->grayCapacity * sizeof(Obj *), userData);
     vm->nextGC = vm->config.initialHeapSize;
 
     vm->block = mochiNewCodeBlock(vm);
@@ -111,44 +117,44 @@ MochiVM* mochiNewVM(MochiVMConfiguration* config) {
     return vm;
 }
 
-void mochiFreeVM(MochiVM* vm) {
+void mochiFreeVM(MochiVM *vm) {
 
     // Free all of the GC objects.
-    Obj* obj = vm->objects;
+    Obj *obj = vm->objects;
     while (obj != NULL) {
-        Obj* next = obj->next;
+        Obj *next = obj->next;
         mochiFreeObj(vm, obj);
         obj = next;
     }
 
     // Free up the GC gray set.
-    vm->gray = (Obj**)vm->config.reallocateFn(vm->gray, 0, vm->config.userData);
+    vm->gray = (Obj **)vm->config.reallocateFn(vm->gray, 0, vm->config.userData);
 
     mochiForeignFunctionBufferClear(vm, &vm->foreignFns);
     mochiTableClear(vm, &vm->heap);
     DEALLOCATE(vm, vm);
 }
 
-bool mochiHasPermission(MochiVM* vm, int permissionId) {
+bool mochiHasPermission(MochiVM *vm, int permissionId) {
     ASSERT(false, "Permission querying not yet implemented.");
     return false;
 }
 
-bool mochiRequestPermission(MochiVM* vm, int permissionId) {
+bool mochiRequestPermission(MochiVM *vm, int permissionId) {
     ASSERT(false, "Permission requesting not yet implemented.");
     return false;
 }
 
-bool mochiRequestAllPermissions(MochiVM* vm, int permissionId) {
+bool mochiRequestAllPermissions(MochiVM *vm, int permissionId) {
     ASSERT(false, "Permission requesting not yet implemented.");
     return false;
 }
 
-void mochiRevokePermission(MochiVM* vm, int permissionId) {
+void mochiRevokePermission(MochiVM *vm, int permissionId) {
     ASSERT(false, "Permission revoking not yet implemented.");
 }
 
-void mochiCollectGarbage(MochiVM* vm) {
+void mochiCollectGarbage(MochiVM *vm) {
 #if MOCHIVM_DEBUG_TRACE_MEMORY || MOCHIVM_DEBUG_TRACE_GC
     printf("-- gc --\n");
 
@@ -169,11 +175,11 @@ void mochiCollectGarbage(MochiVM* vm) {
     vm->bytesAllocated = 0;
 
     if (vm->block != NULL) {
-        mochiGrayObj(vm, (Obj*)vm->block);
+        mochiGrayObj(vm, (Obj *)vm->block);
     }
     // The current fiber.
     if (vm->fiber != NULL) {
-        mochiGrayObj(vm, (Obj*)vm->fiber);
+        mochiGrayObj(vm, (Obj *)vm->fiber);
     }
 
     // Now that we have grayed the roots, do a depth-first search over all of the
@@ -183,11 +189,11 @@ void mochiCollectGarbage(MochiVM* vm) {
     // Collect the white objects.
     unsigned long freed = 0;
     unsigned long reachable = 0;
-    Obj** obj = &vm->objects;
+    Obj **obj = &vm->objects;
     while (*obj != NULL) {
         if (!((*obj)->isMarked)) {
             // This object wasn't reached, so remove it from the list and free it.
-            Obj* unreached = *obj;
+            Obj *unreached = *obj;
             *obj = unreached->next;
             mochiFreeObj(vm, unreached);
             freed += 1;
@@ -203,40 +209,40 @@ void mochiCollectGarbage(MochiVM* vm) {
     // Calculate the next gc point, this is the current allocation plus
     // a configured percentage of the current allocation.
     vm->nextGC = vm->bytesAllocated + ((vm->bytesAllocated * vm->config.heapGrowthPercent) / 100);
-    if (vm->nextGC < vm->config.minHeapSize) vm->nextGC = vm->config.minHeapSize;
+    if (vm->nextGC < vm->config.minHeapSize)
+        vm->nextGC = vm->config.minHeapSize;
 
 #if MOCHIVM_DEBUG_TRACE_MEMORY || MOCHIVM_DEBUG_TRACE_GC
     double elapsed = ((double)clock() / CLOCKS_PER_SEC) - startTime;
     // Explicit cast because size_t has different sizes on 32-bit and 64-bit and
     // we need a consistent type for the format string.
     printf("GC %lu reachable, %lu freed. Took %.3fms.\nGC %lu before, %lu after (~%lu collected), next at %lu.\n",
-            reachable,
-            freed,
-            elapsed*1000.0,
-            (unsigned long)before,
-            (unsigned long)vm->bytesAllocated,
-            (unsigned long)(before - vm->bytesAllocated),
-            (unsigned long)vm->nextGC);
+           reachable, freed, elapsed * 1000.0, (unsigned long)before, (unsigned long)vm->bytesAllocated,
+           (unsigned long)(before - vm->bytesAllocated), (unsigned long)vm->nextGC);
 #endif
 }
 
-int addConstant(MochiVM* vm, Value value) {
+int addConstant(MochiVM *vm, Value value) {
     ASSERT(vm->fiber != NULL, "Cannot add a constant without a fiber already assigned to the VM.");
-    if (IS_OBJ(value)) { mochiFiberPushRoot(vm->fiber, AS_OBJ(value)); }
+    if (IS_OBJ(value)) {
+        mochiFiberPushRoot(vm->fiber, AS_OBJ(value));
+    }
     mochiValueBufferWrite(vm, &vm->block->constants, value);
-    if (IS_OBJ(value)) { mochiFiberPopRoot(vm->fiber); }
+    if (IS_OBJ(value)) {
+        mochiFiberPopRoot(vm->fiber);
+    }
     return vm->block->constants.count - 1;
 }
 
-void writeChunk(MochiVM* vm, uint8_t instr, int line) {
+void writeChunk(MochiVM *vm, uint8_t instr, int line) {
     mochiByteBufferWrite(vm, &vm->block->code, instr);
     mochiIntBufferWrite(vm, &vm->block->lines, line);
 }
 
-void writeLabel(MochiVM* vm, int byteIndex, int labelLength, const char* labelText) {
+void writeLabel(MochiVM *vm, int byteIndex, int labelLength, const char *labelText) {
     mochiIntBufferWrite(vm, &vm->block->labelIndices, byteIndex);
-    ObjByteArray* str = mochiByteArrayNil(vm);
-    mochiFiberPushRoot(vm->fiber, (Obj*)str);
+    ObjByteArray *str = mochiByteArrayNil(vm);
+    mochiFiberPushRoot(vm->fiber, (Obj *)str);
     for (int i = 0; i < labelLength; i++) {
         mochiByteArraySnoc(vm, (uint8_t)labelText[i], str);
     }
@@ -245,7 +251,7 @@ void writeLabel(MochiVM* vm, int byteIndex, int labelLength, const char* labelTe
     mochiFiberPopRoot(vm->fiber);
 }
 
-char* getLabel(MochiVM* vm, int byteIndex) {
+char *getLabel(MochiVM *vm, int byteIndex) {
     for (int i = 0; i < vm->block->labelIndices.count; i++) {
         if (vm->block->labelIndices.data[i] == byteIndex) {
             return AS_CSTRING(vm->block->labels.data[i]);
@@ -254,16 +260,18 @@ char* getLabel(MochiVM* vm, int byteIndex) {
     return NULL;
 }
 
-int mochiAddForeign(MochiVM* vm, MochiVMForeignMethodFn fn) {
+int mochiAddForeign(MochiVM *vm, MochiVMForeignMethodFn fn) {
     mochiForeignFunctionBufferWrite(vm, &vm->foreignFns, fn);
     return vm->foreignFns.count - 1;
 }
 
-void mochiGrayObj(MochiVM* vm, Obj* obj) {
-    if (obj == NULL) return;
+void mochiGrayObj(MochiVM *vm, Obj *obj) {
+    if (obj == NULL)
+        return;
 
     // Stop if the object is already darkened so we don't get stuck in a cycle.
-    if (obj->isMarked) return;
+    if (obj->isMarked)
+        return;
 
     // It's been reached.
     obj->isMarked = true;
@@ -272,28 +280,27 @@ void mochiGrayObj(MochiVM* vm, Obj* obj) {
     // more marks later.
     if (vm->grayCount >= vm->grayCapacity) {
         vm->grayCapacity = vm->grayCount * 2;
-        vm->gray = (Obj**)vm->config.reallocateFn(vm->gray,
-                                                  vm->grayCapacity * sizeof(Obj*),
-                                                  vm->config.userData);
+        vm->gray = (Obj **)vm->config.reallocateFn(vm->gray, vm->grayCapacity * sizeof(Obj *), vm->config.userData);
     }
 
     vm->gray[vm->grayCount++] = obj;
 }
 
-void mochiGrayValue(MochiVM* vm, Value value) {
-    if (!IS_OBJ(value)) return;
+void mochiGrayValue(MochiVM *vm, Value value) {
+    if (!IS_OBJ(value))
+        return;
     mochiGrayObj(vm, AS_OBJ(value));
 }
 
-void mochiGrayBuffer(MochiVM* vm, ValueBuffer* buffer) {
+void mochiGrayBuffer(MochiVM *vm, ValueBuffer *buffer) {
     for (int i = 0; i < buffer->count; i++) {
         mochiGrayValue(vm, buffer->data[i]);
     }
 }
 
-#define MARK_SIMPLE(vm, type)   ((vm)->bytesAllocated += sizeof(type))
+#define MARK_SIMPLE(vm, type) ((vm)->bytesAllocated += sizeof(type))
 
-static void markCodeBlock(MochiVM* vm, ObjCodeBlock* block) {
+static void markCodeBlock(MochiVM *vm, ObjCodeBlock *block) {
     mochiGrayBuffer(vm, &block->constants);
     mochiGrayBuffer(vm, &block->labels);
 
@@ -305,7 +312,7 @@ static void markCodeBlock(MochiVM* vm, ObjCodeBlock* block) {
     vm->bytesAllocated += sizeof(Value) * block->labels.capacity;
 }
 
-static void markVarFrame(MochiVM* vm, ObjVarFrame* frame) {
+static void markVarFrame(MochiVM *vm, ObjVarFrame *frame) {
     for (int i = 0; i < frame->slotCount; i++) {
         mochiGrayValue(vm, frame->slots[i]);
     }
@@ -314,7 +321,7 @@ static void markVarFrame(MochiVM* vm, ObjVarFrame* frame) {
     vm->bytesAllocated += sizeof(Value) * frame->slotCount;
 }
 
-static void markCallFrame(MochiVM* vm, ObjCallFrame* frame) {
+static void markCallFrame(MochiVM *vm, ObjCallFrame *frame) {
     for (int i = 0; i < frame->vars.slotCount; i++) {
         mochiGrayValue(vm, frame->vars.slots[i]);
     }
@@ -323,22 +330,22 @@ static void markCallFrame(MochiVM* vm, ObjCallFrame* frame) {
     vm->bytesAllocated += sizeof(Value) * frame->vars.slotCount;
 }
 
-static void markHandleFrame(MochiVM* vm, ObjHandleFrame* frame) {
+static void markHandleFrame(MochiVM *vm, ObjHandleFrame *frame) {
     for (int i = 0; i < frame->call.vars.slotCount; i++) {
         mochiGrayValue(vm, frame->call.vars.slots[i]);
     }
 
-    mochiGrayObj(vm, (Obj*)frame->afterClosure);
+    mochiGrayObj(vm, (Obj *)frame->afterClosure);
     for (int i = 0; i < frame->handlerCount; i++) {
-        mochiGrayObj(vm, (Obj*)frame->handlers[i]);
+        mochiGrayObj(vm, (Obj *)frame->handlers[i]);
     }
 
     vm->bytesAllocated += sizeof(ObjHandleFrame);
     vm->bytesAllocated += sizeof(Value) * frame->call.vars.slotCount;
-    vm->bytesAllocated += sizeof(ObjClosure*) * frame->handlerCount;
+    vm->bytesAllocated += sizeof(ObjClosure *) * frame->handlerCount;
 }
 
-static void markClosure(MochiVM* vm, ObjClosure* closure) {
+static void markClosure(MochiVM *vm, ObjClosure *closure) {
     for (int i = 0; i < closure->capturedCount; i++) {
         mochiGrayValue(vm, closure->captured[i]);
     }
@@ -347,76 +354,77 @@ static void markClosure(MochiVM* vm, ObjClosure* closure) {
     vm->bytesAllocated += sizeof(Value) * closure->capturedCount;
 }
 
-static void markContinuation(MochiVM* vm, ObjContinuation* cont) {
+static void markContinuation(MochiVM *vm, ObjContinuation *cont) {
     for (int i = 0; i < cont->savedStackCount; i++) {
         mochiGrayValue(vm, cont->savedStack[i]);
     }
     for (int i = 0; i < cont->savedFramesCount; i++) {
-        mochiGrayObj(vm, (Obj*)cont->savedFrames[i]);
+        mochiGrayObj(vm, (Obj *)cont->savedFrames[i]);
     }
 
     vm->bytesAllocated += sizeof(ObjContinuation);
     vm->bytesAllocated += sizeof(Value) * cont->savedStackCount;
-    vm->bytesAllocated += sizeof(ObjVarFrame*) * cont->savedFramesCount;
+    vm->bytesAllocated += sizeof(ObjVarFrame *) * cont->savedFramesCount;
 }
 
-static void markFiber(MochiVM* vm, ObjFiber* fiber) {
+static void markFiber(MochiVM *vm, ObjFiber *fiber) {
     // Stack variables.
-    for (Value* slot = fiber->valueStack; slot < fiber->valueStackTop; slot++) {
+    for (Value *slot = fiber->valueStack; slot < fiber->valueStackTop; slot++) {
         mochiGrayValue(vm, *slot);
     }
 
     // Call stack frames.
-    for (ObjVarFrame** slot = fiber->frameStack; slot < fiber->frameStackTop; slot++) {
-        mochiGrayObj(vm, (Obj*)*slot);
+    for (ObjVarFrame **slot = fiber->frameStack; slot < fiber->frameStackTop; slot++) {
+        mochiGrayObj(vm, (Obj *)*slot);
     }
 
     // Root stack.
-    for (Obj** slot = fiber->rootStack; slot < fiber->rootStackTop; slot++) {
+    for (Obj **slot = fiber->rootStack; slot < fiber->rootStackTop; slot++) {
         mochiGrayObj(vm, *slot);
     }
 
     // The caller.
-    mochiGrayObj(vm, (Obj*)fiber->caller);
+    mochiGrayObj(vm, (Obj *)fiber->caller);
 
     vm->bytesAllocated += sizeof(ObjFiber);
-    vm->bytesAllocated += vm->config.frameStackCapacity * sizeof(ObjVarFrame*);
+    vm->bytesAllocated += vm->config.frameStackCapacity * sizeof(ObjVarFrame *);
     vm->bytesAllocated += vm->config.valueStackCapacity * sizeof(Value);
-    vm->bytesAllocated += vm->config.rootStackCapacity * sizeof(Obj*);
+    vm->bytesAllocated += vm->config.rootStackCapacity * sizeof(Obj *);
 }
 
-static void markForeign(MochiVM* vm, ObjForeign* foreign) {
+static void markForeign(MochiVM *vm, ObjForeign *foreign) {
     vm->bytesAllocated += sizeof(Obj) + sizeof(int);
     vm->bytesAllocated += sizeof(uint8_t) * foreign->dataCount;
 }
 
-static void markList(MochiVM* vm, ObjList* list) {
+static void markList(MochiVM *vm, ObjList *list) {
     mochiGrayValue(vm, list->elem);
-    mochiGrayObj(vm, (Obj*)list->next);
+    mochiGrayObj(vm, (Obj *)list->next);
 
     vm->bytesAllocated += sizeof(ObjList);
 }
 
-static void markArray(MochiVM* vm, ObjArray* arr) {
+static void markArray(MochiVM *vm, ObjArray *arr) {
     mochiGrayBuffer(vm, &arr->elems);
 
     vm->bytesAllocated += sizeof(ObjArray);
 }
 
-static void markSlice(MochiVM* vm, ObjSlice* slice) {
-    mochiGrayObj(vm, (Obj*)slice->source);
+static void markSlice(MochiVM *vm, ObjSlice *slice) {
+    mochiGrayObj(vm, (Obj *)slice->source);
 
     vm->bytesAllocated += sizeof(ObjSlice);
 }
 
-static void markByteSlice(MochiVM* vm, ObjByteSlice* slice) {
-    mochiGrayObj(vm, (Obj*)slice->source);
+static void markByteSlice(MochiVM *vm, ObjByteSlice *slice) {
+    mochiGrayObj(vm, (Obj *)slice->source);
 
     vm->bytesAllocated += sizeof(ObjByteSlice);
 }
 
-static void markRef(MochiVM* vm, ObjRef* ref) {
-    // TODO: investigate iterating over the table itself to gray set values, determine if performance benefit/degradation
+static void markRef(MochiVM *vm, ObjRef *ref) {
+    // TODO: investigate iterating over the table itself to gray set values, determine if performance
+    // benefit/degradation
     Value val;
     if (mochiTableGet(&vm->heap, ref->ptr, &val)) {
         mochiGrayValue(vm, val);
@@ -427,7 +435,7 @@ static void markRef(MochiVM* vm, ObjRef* ref) {
     vm->bytesAllocated += sizeof(ObjRef);
 }
 
-static void markStruct(MochiVM* vm, ObjStruct* stru) {
+static void markStruct(MochiVM *vm, ObjStruct *stru) {
     for (int i = 0; i < stru->count; i++) {
         mochiGrayValue(vm, stru->elems[i]);
     }
@@ -435,7 +443,7 @@ static void markStruct(MochiVM* vm, ObjStruct* stru) {
     vm->bytesAllocated += sizeof(ObjStruct) + stru->count * sizeof(Value);
 }
 
-static void markRecord(MochiVM* vm, ObjRecord* rec) {
+static void markRecord(MochiVM *vm, ObjRecord *rec) {
     for (uint32_t i = 0; i < rec->fields.capacity; i++) {
         if (rec->fields.entries[i].key >= TABLE_KEY_RANGE_START) {
             mochiGrayValue(vm, rec->fields.entries[i].value);
@@ -446,20 +454,19 @@ static void markRecord(MochiVM* vm, ObjRecord* rec) {
     vm->bytesAllocated += sizeof(TableEntry) * rec->fields.capacity;
 }
 
-static void markVariant(MochiVM* vm, ObjVariant* var) {
+static void markVariant(MochiVM *vm, ObjVariant *var) {
     mochiGrayValue(vm, var->elem);
 
     vm->bytesAllocated += sizeof(ObjVariant);
 }
 
-static void markForeignResume(MochiVM* vm, ForeignResume* resume) {
-    mochiGrayObj(vm, (Obj*)resume->fiber);
+static void markForeignResume(MochiVM *vm, ForeignResume *resume) {
+    mochiGrayObj(vm, (Obj *)resume->fiber);
 
     vm->bytesAllocated += sizeof(ForeignResume);
 }
 
-static void blackenObject(MochiVM* vm, Obj* obj)
-{
+static void blackenObject(MochiVM *vm, Obj *obj) {
 #if ZHEnZHU_DEBUG_TRACE_MEMORY
     printf("mark ");
     printValue(OBJ_VAL(obj));
@@ -467,37 +474,80 @@ static void blackenObject(MochiVM* vm, Obj* obj)
 #endif
 
     // Traverse the object's fields.
-    switch (obj->type)
-    {
-        case OBJ_I64:               MARK_SIMPLE(vm, ObjI64); break;
-        case OBJ_U64:               MARK_SIMPLE(vm, ObjU64); break;
-        case OBJ_DOUBLE:            MARK_SIMPLE(vm, ObjDouble); break;
-        case OBJ_CODE_BLOCK:        markCodeBlock(vm, (ObjCodeBlock*)obj); break;
-        case OBJ_VAR_FRAME:         markVarFrame(vm, (ObjVarFrame*)obj); break;
-        case OBJ_CALL_FRAME:        markCallFrame(vm, (ObjCallFrame*)obj); break;
-        case OBJ_HANDLE_FRAME:      markHandleFrame(vm, (ObjHandleFrame*)obj); break;
-        case OBJ_CLOSURE:           markClosure( vm, (ObjClosure*) obj); break;
-        case OBJ_CONTINUATION:      markContinuation(vm, (ObjContinuation*)obj); break;
-        case OBJ_FIBER:             markFiber(vm, (ObjFiber*)obj); break;
-        case OBJ_FOREIGN:           markForeign(vm, (ObjForeign*)obj); break;
-        case OBJ_C_POINTER:         MARK_SIMPLE(vm, ObjCPointer); break;
-        case OBJ_LIST:              markList(vm, (ObjList*)obj); break;
-        case OBJ_FOREIGN_RESUME:    markForeignResume(vm, (ForeignResume*)obj); break;
-        case OBJ_ARRAY:             markArray(vm, (ObjArray*)obj); break;
-        case OBJ_BYTE_ARRAY:        MARK_SIMPLE(vm, ObjByteArray); break;
-        case OBJ_SLICE:             markSlice(vm, (ObjSlice*)obj); break;
-        case OBJ_BYTE_SLICE:        markByteSlice(vm, (ObjByteSlice*)obj); break;
-        case OBJ_REF:               markRef(vm, (ObjRef*)obj); break;
-        case OBJ_STRUCT:            markStruct(vm, (ObjStruct*)obj); break;
-        case OBJ_RECORD:            markRecord(vm, (ObjRecord*)obj); break;
-        case OBJ_VARIANT:           markVariant(vm, (ObjVariant*)obj); break;
+    switch (obj->type) {
+    case OBJ_I64:
+        MARK_SIMPLE(vm, ObjI64);
+        break;
+    case OBJ_U64:
+        MARK_SIMPLE(vm, ObjU64);
+        break;
+    case OBJ_DOUBLE:
+        MARK_SIMPLE(vm, ObjDouble);
+        break;
+    case OBJ_CODE_BLOCK:
+        markCodeBlock(vm, (ObjCodeBlock *)obj);
+        break;
+    case OBJ_VAR_FRAME:
+        markVarFrame(vm, (ObjVarFrame *)obj);
+        break;
+    case OBJ_CALL_FRAME:
+        markCallFrame(vm, (ObjCallFrame *)obj);
+        break;
+    case OBJ_HANDLE_FRAME:
+        markHandleFrame(vm, (ObjHandleFrame *)obj);
+        break;
+    case OBJ_CLOSURE:
+        markClosure(vm, (ObjClosure *)obj);
+        break;
+    case OBJ_CONTINUATION:
+        markContinuation(vm, (ObjContinuation *)obj);
+        break;
+    case OBJ_FIBER:
+        markFiber(vm, (ObjFiber *)obj);
+        break;
+    case OBJ_FOREIGN:
+        markForeign(vm, (ObjForeign *)obj);
+        break;
+    case OBJ_C_POINTER:
+        MARK_SIMPLE(vm, ObjCPointer);
+        break;
+    case OBJ_LIST:
+        markList(vm, (ObjList *)obj);
+        break;
+    case OBJ_FOREIGN_RESUME:
+        markForeignResume(vm, (ForeignResume *)obj);
+        break;
+    case OBJ_ARRAY:
+        markArray(vm, (ObjArray *)obj);
+        break;
+    case OBJ_BYTE_ARRAY:
+        MARK_SIMPLE(vm, ObjByteArray);
+        break;
+    case OBJ_SLICE:
+        markSlice(vm, (ObjSlice *)obj);
+        break;
+    case OBJ_BYTE_SLICE:
+        markByteSlice(vm, (ObjByteSlice *)obj);
+        break;
+    case OBJ_REF:
+        markRef(vm, (ObjRef *)obj);
+        break;
+    case OBJ_STRUCT:
+        markStruct(vm, (ObjStruct *)obj);
+        break;
+    case OBJ_RECORD:
+        markRecord(vm, (ObjRecord *)obj);
+        break;
+    case OBJ_VARIANT:
+        markVariant(vm, (ObjVariant *)obj);
+        break;
     }
 }
 
-void mochiBlackenObjects(MochiVM* vm) {
+void mochiBlackenObjects(MochiVM *vm) {
     while (vm->grayCount > 0) {
         // Pop an item from the gray stack.
-        Obj* obj = vm->gray[--vm->grayCount];
+        Obj *obj = vm->gray[--vm->grayCount];
         blackenObject(vm, obj);
     }
 }

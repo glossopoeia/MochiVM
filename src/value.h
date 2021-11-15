@@ -10,7 +10,8 @@ extern const TableKey TABLE_KEY_UNUSED;
 extern const TableKey TABLE_KEY_TOMBSTONE;
 extern const TableKey TABLE_KEY_RANGE_START;
 
-typedef enum {
+typedef enum
+{
     VAL_BOOL,
     VAL_I8,
     VAL_U8,
@@ -24,7 +25,8 @@ typedef enum {
     VAL_DOUBLE
 } ValueType;
 
-typedef enum {
+typedef enum
+{
     OBJ_I64,
     OBJ_U64,
     OBJ_DOUBLE,
@@ -58,7 +60,7 @@ struct Obj {
 
     // All currently allocated objects are maintained in a linked list.
     // This allows all memory to be reachable during garbage collection.
-    struct Obj* next;
+    struct Obj *next;
 };
 
 // Some internal representations don't support full 64-bit
@@ -135,34 +137,34 @@ typedef struct {
     uint32_t count;
 
     // Pointer to a contiguous array of [capacity] entries.
-    TableEntry* entries;
+    TableEntry *entries;
 } Table;
 
-static inline void valueArrayCopy(Value* dest, Value* src, int count) {
+static inline void valueArrayCopy(Value *dest, Value *src, int count) {
     memcpy(dest, src, sizeof(Value) * count);
 }
 
-ObjI64* mochiNewI64(MochiVM* vm, int64_t val);
-ObjU64* mochiNewU64(MochiVM* vm, uint64_t val);
-ObjDouble* mochiNewDouble(MochiVM* vm, double val);
+ObjI64 *mochiNewI64(MochiVM *vm, int64_t val);
+ObjU64 *mochiNewU64(MochiVM *vm, uint64_t val);
+ObjDouble *mochiNewDouble(MochiVM *vm, double val);
 
 // Creates a new empty table.
-Table* mochiNewTable(MochiVM* vm);
-void mochiTableInit(Table* table);
+Table *mochiNewTable(MochiVM *vm);
+void mochiTableInit(Table *table);
 // Create a clone of an existing table.
-Table* mochiTableClone(MochiVM* vm, Table* existing, bool scoped);
+Table *mochiTableClone(MochiVM *vm, Table *existing, bool scoped);
 // Looks up [key] in [table]. If found, returns true and sets the out Value from the entry.
 // Otherwise, sets `FALSE_VAL` as the out Value and returns false.
-bool mochiTableGet(Table* table, TableKey key, Value* out);
+bool mochiTableGet(Table *table, TableKey key, Value *out);
 // Associates [key] with [value] in [table].
-void mochiTableSet(MochiVM* vm, Table* table, TableKey key, Value value);
-void mochiTableSetScoped(MochiVM* vm, Table* table, TableKey key, Value value);
-void mochiTableClear(MochiVM* vm, Table* table);
+void mochiTableSet(MochiVM *vm, Table *table, TableKey key, Value value);
+void mochiTableSetScoped(MochiVM *vm, Table *table, TableKey key, Value value);
+void mochiTableClear(MochiVM *vm, Table *table);
 // Removes [key] from [table], if present. Returns true if found or false otherwise.
-bool mochiTableTryRemove(MochiVM* vm, Table* table, TableKey key);
-bool mochiTableTryRemoveScoped(MochiVM* vm, Table* table, TableKey key);
+bool mochiTableTryRemove(MochiVM *vm, Table *table, TableKey key);
+bool mochiTableTryRemoveScoped(MochiVM *vm, Table *table, TableKey key);
 
 // Logs a textual representation of the given value to the output
-void printValue(MochiVM* vm, Value value);
+void printValue(MochiVM *vm, Value value);
 
 #endif

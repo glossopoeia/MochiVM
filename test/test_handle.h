@@ -21,19 +21,19 @@ WRITE_INST(CONSTANT, 3);
 WRITE_BYTE(0, 3);
 
 WRITE_INT_INST(CLOSURE, 37, 4); // 17
-WRITE_BYTE(0, 4); // 18
-WRITE_SHORT(0, 4); // 20
+WRITE_BYTE(0, 4);               // 18
+WRITE_SHORT(0, 4);              // 20
 
 WRITE_INST(HANDLE, 5); // 21
-WRITE_SHORT(6, 5); // 23
-WRITE_INT(0, 5); // 27
-WRITE_BYTE(0, 5); // 28
-WRITE_BYTE(0, 5); // 29
+WRITE_SHORT(6, 5);     // 23
+WRITE_INT(0, 5);       // 27
+WRITE_BYTE(0, 5);      // 28
+WRITE_BYTE(0, 5);      // 29
 
-WRITE_INST(CONSTANT, 6); //30
-WRITE_BYTE(0, 6); // 31
-WRITE_INST(CONSTANT, 7); // 32
-WRITE_BYTE(1, 7); // 33
+WRITE_INST(CONSTANT, 6);   // 30
+WRITE_BYTE(0, 6);          // 31
+WRITE_INST(CONSTANT, 7);   // 32
+WRITE_BYTE(1, 7);          // 33
 WRITE_INST(DOUBLE_ADD, 8); // 34
 
 WRITE_INST(COMPLETE, 9);
@@ -56,9 +56,6 @@ VERIFY_NUMBER(5.0);
 
 END_TEST();
 
-
-
-
 BEGIN_TEST("Handle with one single-shot resume handler and a closure with a parameter.");
 
 // main =
@@ -75,8 +72,8 @@ CONSTANT(TEST_DOUBLE_VAL(6));
 CONSTANT(TEST_DOUBLE_VAL(2));
 CONSTANT(TEST_DOUBLE_VAL(1));
 
-WRITE_INT_INST(CALL, 10, 1); // 5
-WRITE_INT_INST(TAILCALL, 64, 2); //10
+WRITE_INT_INST(CALL, 10, 1);     // 5
+WRITE_INT_INST(TAILCALL, 64, 2); // 10
 
 // main
 WRITE_LABEL("main", 4);
@@ -90,10 +87,10 @@ WRITE_SHORT(0, 5);
 WRITE_INST(CLOSURE_ONCE_TAIL, 5);
 
 WRITE_INST(HANDLE, 6); // 27
-WRITE_SHORT(14, 6); // 29
-WRITE_INT(0, 6); // 33
-WRITE_BYTE(0, 6); // 34
-WRITE_BYTE(1, 6); // 35
+WRITE_SHORT(14, 6);    // 29
+WRITE_INT(0, 6);       // 33
+WRITE_BYTE(0, 6);      // 34
+WRITE_BYTE(1, 6);      // 35
 
 WRITE_INST(CONSTANT, 7); // 36
 WRITE_BYTE(0, 7);
@@ -101,8 +98,8 @@ WRITE_INST(CONSTANT, 7); // 38
 WRITE_BYTE(1, 7);
 
 WRITE_INST(ESCAPE, 7); // 40
-WRITE_INT(0, 7); // 44
-WRITE_BYTE(0, 7); // 45
+WRITE_INT(0, 7);       // 44
+WRITE_BYTE(0, 7);      // 45
 
 WRITE_INST(CONSTANT, 7); // 46
 WRITE_BYTE(2, 7);
@@ -122,10 +119,10 @@ WRITE_SHORT(0, 9);
 WRITE_INST(DOUBLE_SUB, 9);
 WRITE_INST(RETURN, 10);
 
-//WRITE_INST(FIND, 10);
-//WRITE_SHORT(0, 10);
-//WRITE_SHORT(0, 10);
-//WRITE_INST(TAILCALL_CONTINUATION, 10);
+// WRITE_INST(FIND, 10);
+// WRITE_SHORT(0, 10);
+// WRITE_SHORT(0, 10);
+// WRITE_INST(TAILCALL_CONTINUATION, 10);
 
 // ret1
 WRITE_LABEL("ret1", 4);
@@ -145,9 +142,6 @@ VERIFY_NUMBER(4.0);
 
 END_TEST();
 
-
-
-
 BEGIN_TEST("Handler with parameters and two actions.");
 
 // main =
@@ -163,8 +157,8 @@ BEGIN_TEST("Handler with parameters and two actions.");
 CONSTANT(TEST_DOUBLE_VAL(2));
 CONSTANT(TEST_DOUBLE_VAL(1));
 
-WRITE_INT_INST(CALL, 10, 1); // 5
-WRITE_INT_INST(TAILCALL, 122, 2); //10
+WRITE_INT_INST(CALL, 10, 1);      // 5
+WRITE_INT_INST(TAILCALL, 122, 2); // 10
 
 // main
 WRITE_LABEL("main", 4);
@@ -184,10 +178,10 @@ WRITE_BYTE(0, 3);
 WRITE_SHORT(0, 3); // 36
 
 WRITE_INST(HANDLE, 4); // 37
-WRITE_SHORT(6, 4); // 39
-WRITE_INT(0, 4); // 43
-WRITE_BYTE(1, 4); // 44
-WRITE_BYTE(2, 4); // 45
+WRITE_SHORT(6, 4);     // 39
+WRITE_INT(0, 4);       // 43
+WRITE_BYTE(1, 4);      // 44
+WRITE_BYTE(2, 4);      // 45
 
 WRITE_INT_INST(CALL, 52, 4); // 50
 
@@ -197,7 +191,7 @@ WRITE_INST(RETURN, 5); // 52
 // counter
 WRITE_LABEL("counter", 7);
 WRITE_INST(ESCAPE, 6);
-WRITE_INT(0, 6); // 57
+WRITE_INT(0, 6);  // 57
 WRITE_BYTE(0, 6); // 58
 
 WRITE_INST(CONSTANT, 6);
@@ -205,20 +199,20 @@ WRITE_BYTE(1, 6);
 WRITE_INST(DOUBLE_ADD, 6); // 61
 
 WRITE_INST(ESCAPE, 6);
-WRITE_INT(0, 6); // 66
+WRITE_INT(0, 6);  // 66
 WRITE_BYTE(1, 6); // 67
 
 WRITE_INST(ZAP, 6);
 WRITE_INST(ESCAPE, 6); // 69
-WRITE_INT(0, 6); // 73
-WRITE_BYTE(0, 6); // 74
+WRITE_INT(0, 6);       // 73
+WRITE_BYTE(0, 6);      // 74
 
 WRITE_INST(CONSTANT, 6);
 WRITE_BYTE(1, 6);
 WRITE_INST(DOUBLE_ADD, 6); // 77
 
 WRITE_INST(ESCAPE, 6);
-WRITE_INT(0, 6); // 82
+WRITE_INT(0, 6);  // 82
 WRITE_BYTE(1, 6); // 83
 
 WRITE_INST(RETURN, 6);
@@ -232,19 +226,19 @@ WRITE_INST(FIND, 7);
 WRITE_SHORT(0, 7); // 92
 WRITE_SHORT(1, 7); // 94
 WRITE_INST(FIND, 7);
-WRITE_SHORT(0, 7); // 97
-WRITE_SHORT(0, 7); // 99
+WRITE_SHORT(0, 7);                    // 97
+WRITE_SHORT(0, 7);                    // 99
 WRITE_INST(TAILCALL_CONTINUATION, 7); // 100
 
 // put1
 WRITE_LABEL("put1", 4);
 WRITE_INST(LIST_NIL, 8);
 WRITE_INST(FIND, 8); // 102
-WRITE_SHORT(0, 8); // 104
-WRITE_SHORT(1, 8); // 106
+WRITE_SHORT(0, 8);   // 104
+WRITE_SHORT(1, 8);   // 106
 WRITE_INST(FIND, 8);
-WRITE_SHORT(0, 8); // 109
-WRITE_SHORT(0, 8); // 111
+WRITE_SHORT(0, 8);                    // 109
+WRITE_SHORT(0, 8);                    // 111
 WRITE_INST(TAILCALL_CONTINUATION, 8); // 112
 
 // after1
@@ -253,8 +247,8 @@ WRITE_INST(LIST_NIL, 9);
 WRITE_INST(SWAP, 9); // 114
 WRITE_INST(LIST_CONS, 9);
 WRITE_INST(FIND, 9); // 116
-WRITE_SHORT(0, 9); // 118
-WRITE_SHORT(0, 9); // 120
+WRITE_SHORT(0, 9);   // 118
+WRITE_SHORT(0, 9);   // 120
 WRITE_INST(LIST_CONS, 9);
 WRITE_INST(RETURN, 9); // 122
 
@@ -268,38 +262,36 @@ VERIFY_STACK(1);
 
 END_TEST();
 
-
-
 BEGIN_TEST("Two nested handle contexts with the same mark id.");
 
-//main =
-//  handle {
-//    1 raise! 3 add
-//  } with {
-//    raise! e => handle { 2 resume raise! sub-i32 }
-//                with {
-//                  raise! x => e x resume
-//                  return => 1 add
-//                }
-//    return => 2 add
-//  }
+// main =
+//   handle {
+//     1 raise! 3 add
+//   } with {
+//     raise! e => handle { 2 resume raise! sub-i32 }
+//                 with {
+//                   raise! x => e x resume
+//                   return => 1 add
+//                 }
+//     return => 2 add
+//   }
 
 CONSTANT(TEST_DOUBLE_VAL(2));
 CONSTANT(TEST_DOUBLE_VAL(1));
 CONSTANT(TEST_DOUBLE_VAL(3));
 
-WRITE_INT_INST(CALL, 10, 1); // 5
-WRITE_INT_INST(TAILCALL, 118, 2); //10
+WRITE_INT_INST(CALL, 10, 1);      // 5
+WRITE_INT_INST(TAILCALL, 118, 2); // 10
 
 // main
 WRITE_LABEL("main", 4);
 WRITE_INT_INST(CLOSURE, 110, 3); // 15
 WRITE_BYTE(0, 3);
-WRITE_SHORT(0, 3); //18
+WRITE_SHORT(0, 3); // 18
 
-WRITE_INT_INST(CLOSURE, 48, 3); //23
+WRITE_INT_INST(CLOSURE, 48, 3); // 23
 WRITE_BYTE(1, 3);
-WRITE_SHORT(0, 3); //26
+WRITE_SHORT(0, 3); // 26
 
 WRITE_INST(HANDLE, 4);
 WRITE_SHORT(12, 4);
@@ -352,10 +344,10 @@ WRITE_LABEL("raise2", 6);
 WRITE_INST(FIND, 12);
 WRITE_SHORT(0, 12);
 WRITE_SHORT(2, 12);
-WRITE_INST(FIND, 12); 
+WRITE_INST(FIND, 12);
 WRITE_SHORT(0, 12);
 WRITE_SHORT(1, 12);
-WRITE_INST(FIND, 12); 
+WRITE_INST(FIND, 12);
 WRITE_SHORT(0, 12);
 WRITE_SHORT(0, 12);
 WRITE_INST(TAILCALL_CONTINUATION, 12);
@@ -385,34 +377,31 @@ VERIFY_NUMBER(9.0);
 
 END_TEST();
 
-
-
-
 BEGIN_TEST("A handler with multiple resumes.");
 
-//main =
-//  handle {
-//    flip! flip! xor
-//  } with {
-//    flip! => false resume vars x in { true resume x swap append }
-//    return => [] swap cons
-//  }
+// main =
+//   handle {
+//     flip! flip! xor
+//   } with {
+//     flip! => false resume vars x in { true resume x swap append }
+//     return => [] swap cons
+//   }
 
-WRITE_INT_INST(CALL, 10, 1); // 5
-WRITE_INT_INST(TAILCALL, 79, 2); //10
+WRITE_INT_INST(CALL, 10, 1);     // 5
+WRITE_INT_INST(TAILCALL, 79, 2); // 10
 
 WRITE_LABEL("main", 4);
 WRITE_INT_INST(CLOSURE, 75, 3); // 15
 WRITE_BYTE(0, 3);
-WRITE_SHORT(0, 3); //18
+WRITE_SHORT(0, 3); // 18
 
-WRITE_INT_INST(CLOSURE, 50, 3); //23
+WRITE_INT_INST(CLOSURE, 50, 3); // 23
 WRITE_BYTE(0, 3);
-WRITE_SHORT(0, 3); //26
+WRITE_SHORT(0, 3); // 26
 
 WRITE_INST(HANDLE, 4);
 WRITE_SHORT(14, 4); // 29
-WRITE_INT(0, 4); // 33
+WRITE_INT(0, 4);    // 33
 WRITE_BYTE(0, 4);
 WRITE_BYTE(1, 4); // 35
 
@@ -427,17 +416,17 @@ WRITE_INST(RETURN, 5); // 50
 WRITE_LABEL("flip", 4);
 WRITE_INST(FALSE, 6);
 WRITE_INST(FIND, 6);
-WRITE_SHORT(0, 6); // 54
-WRITE_SHORT(0, 6); // 56
+WRITE_SHORT(0, 6);                // 54
+WRITE_SHORT(0, 6);                // 56
 WRITE_INST(CALL_CONTINUATION, 6); // 57
 
 WRITE_INST(STORE, 6);
 WRITE_BYTE(1, 6);
 
 WRITE_INST(TRUE, 6);
-WRITE_INST(FIND, 6); // 61
-WRITE_SHORT(1, 6); // 63
-WRITE_SHORT(0, 6); // 65
+WRITE_INST(FIND, 6);              // 61
+WRITE_SHORT(1, 6);                // 63
+WRITE_SHORT(0, 6);                // 65
 WRITE_INST(CALL_CONTINUATION, 6); // 66
 
 WRITE_INST(FIND, 6);

@@ -3,7 +3,7 @@
 
 #include "memory.h"
 
-void* mochiReallocate(MochiVM* vm, void* memory, size_t oldSize, size_t newSize) {
+void *mochiReallocate(MochiVM *vm, void *memory, size_t oldSize, size_t newSize) {
     // If new bytes are being allocated, add them to the total count. If objects
     // are being completely deallocated, we don't track that (since we don't
     // track the original size). Instead, that will be handled while marking
@@ -13,8 +13,8 @@ void* mochiReallocate(MochiVM* vm, void* memory, size_t oldSize, size_t newSize)
 #if MOCHIVM_DEBUG_TRACE_MEMORY
     // Explicit cast because size_t has different sizes on 32-bit and 64-bit and
     // we need a consistent type for the format string.
-    printf("reallocate %p %lu -> %lu, total %lu -> %lu\n",
-           memory, (unsigned long)oldSize, (unsigned long)newSize, (unsigned long)vm->bytesAllocated, (unsigned long)newHeapSize);
+    printf("reallocate %p %lu -> %lu, total %lu -> %lu\n", memory, (unsigned long)oldSize, (unsigned long)newSize,
+           (unsigned long)vm->bytesAllocated, (unsigned long)newHeapSize);
 #endif
 
     vm->bytesAllocated = newHeapSize;
@@ -22,16 +22,18 @@ void* mochiReallocate(MochiVM* vm, void* memory, size_t oldSize, size_t newSize)
 #if MOCHIVM_DEBUG_GC_STRESS
     // Since collecting calls this function to free things, make sure we don't
     // recurse.
-    if (newSize > 0) mochiCollectGarbage(vm);
+    if (newSize > 0)
+        mochiCollectGarbage(vm);
 #else
-    if (newSize > 0 && newHeapSize > vm->nextGC) mochiCollectGarbage(vm);
+    if (newSize > 0 && newHeapSize > vm->nextGC)
+        mochiCollectGarbage(vm);
 #endif
 
     return vm->config.reallocateFn(memory, newSize, vm->config.userData);
 }
 
-void* mochiConcat(MochiVM* vm, size_t elemSize, void* array1, void* array2, int array1Count, int array2Count) {
-    void* newArray = mochiReallocate(vm, NULL, 0, elemSize * (array1Count + array2Count));
+void *mochiConcat(MochiVM *vm, size_t elemSize, void *array1, void *array2, int array1Count, int array2Count) {
+    void *newArray = mochiReallocate(vm, NULL, 0, elemSize * (array1Count + array2Count));
     memcpy(newArray, array1, elemSize * array1Count);
     memcpy(newArray + array1Count, array2, elemSize * array2Count);
     return newArray;

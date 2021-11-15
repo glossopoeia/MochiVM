@@ -2,9 +2,9 @@
 #define mochivm_h
 
 #include <stdarg.h>
-#include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 // The MochiVM semantic version number components.
 #define MOCHIVM_VERSION_MAJOR 0
@@ -16,16 +16,14 @@
 
 // A monotonically increasing numeric representation of the version number. Use
 // this if you want to do range checks over versions.
-#define MOCHIVM_VERSION_NUMBER (MOCHIVM_VERSION_MAJOR * 1000000 +                    \
-                                MOCHIVM_VERSION_MINOR * 1000 +                       \
-                                MOCHIVM_VERSION_PATCH)
+#define MOCHIVM_VERSION_NUMBER (MOCHIVM_VERSION_MAJOR * 1000000 + MOCHIVM_VERSION_MINOR * 1000 + MOCHIVM_VERSION_PATCH)
 
 #ifndef MOCHIVM_API
-    #if defined(_MSC_VER) && defined(MOCHIVM_API_DLLEXPORT)
-        #define MOCHIVM_API __declspec( dllexport )
-    #else
-        #define MOCHIVM_API
-    #endif
+#if defined(_MSC_VER) && defined(MOCHIVM_API_DLLEXPORT)
+#define MOCHIVM_API __declspec(dllexport)
+#else
+#define MOCHIVM_API
+#endif
 #endif
 
 // A single virtual machine for executing MochiVM byte code.
@@ -51,11 +49,11 @@ typedef struct ObjFiber ObjFiber;
 //
 // - To free memory, [memory] will be the memory to free and [newSize] will be
 //   zero. It should return NULL.
-typedef void* (*MochiVMReallocateFn)(void* memory, size_t newSize, void* userData);
+typedef void *(*MochiVMReallocateFn)(void *memory, size_t newSize, void *userData);
 
 // A function callable from MochiVM code, but implemented in C. Passes in the fiber
 // the function was called from.
-typedef void (*MochiVMForeignMethodFn)(MochiVM* vm, ObjFiber* fiber);
+typedef void (*MochiVMForeignMethodFn)(MochiVM *vm, ObjFiber *fiber);
 
 // Reports an error to the user.
 //
@@ -63,7 +61,7 @@ typedef void (*MochiVMForeignMethodFn)(MochiVM* vm, ObjFiber* fiber);
 // [message]. After that, a series of calls are made for each line in the stack trace. Each of those has the resolved
 // [module] and [line] where the method or function is defined and [message] is
 // the name of the method or function.
-typedef void (*MochiVMErrorFn)(MochiVM* vm, const char* module, int line, const char* message);
+typedef void (*MochiVMErrorFn)(MochiVM *vm, const char *module, int line, const char *message);
 
 typedef struct {
     // The callback MochiVM will use to allocate, reallocate, and deallocate memory.
@@ -125,7 +123,7 @@ typedef struct {
     int heapGrowthPercent;
 
     // User-defined data associated with the VM.
-    void* userData;
+    void *userData;
 
 } MochiVMConfiguration;
 
@@ -143,26 +141,26 @@ MOCHIVM_API int mochiGetVersionNumber();
 // Initializes [configuration] with all of its default values.
 //
 // Call this before setting the particular fields you care about.
-MOCHIVM_API void mochiInitConfiguration(MochiVMConfiguration* configuration);
+MOCHIVM_API void mochiInitConfiguration(MochiVMConfiguration *configuration);
 
 // Creates a new MochiVM virtual machine using the given [configuration]. MochiVM
 // will copy the configuration data, so the argument passed to this can be
 // freed after calling this. If [configuration] is `NULL`, uses a default
 // configuration.
-MOCHIVM_API MochiVM* mochiNewVM(MochiVMConfiguration* configuration);
+MOCHIVM_API MochiVM *mochiNewVM(MochiVMConfiguration *configuration);
 
 // Disposes of all resources is use by [vm], which was previously created by a
 // call to [mochiNewVM].
-MOCHIVM_API void mochiFreeVM(MochiVM* vm);
+MOCHIVM_API void mochiFreeVM(MochiVM *vm);
 
 // Immediately run the garbage collector to free unused memory.
-MOCHIVM_API void mochiCollectGarbage(MochiVM* vm);
+MOCHIVM_API void mochiCollectGarbage(MochiVM *vm);
 
 // Runs a fiber as the root in the context of the given VM.
-MOCHIVM_API MochiVMInterpretResult mochiInterpret(MochiVM* vm, ObjFiber* fiber);
+MOCHIVM_API MochiVMInterpretResult mochiInterpret(MochiVM *vm, ObjFiber *fiber);
 
 // Add a foreign C function to the list of callable foreign methods, returning
 // the index assigned to the foreign method.
-MOCHIVM_API int mochiAddForeign(MochiVM* vm, MochiVMForeignMethodFn fn);
+MOCHIVM_API int mochiAddForeign(MochiVM *vm, MochiVMForeignMethodFn fn);
 
 #endif

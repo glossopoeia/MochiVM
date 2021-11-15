@@ -56,8 +56,7 @@
 typedef uint64_t Value;
 
 // A union to let us reinterpret a double as raw bits and back.
-typedef union
-{
+typedef union {
     uint64_t bits64;
     uint32_t bits32[2];
     float singles[2];
@@ -73,10 +72,10 @@ typedef union
 #define SIGN_BIT ((uint64_t)1 << 63)
 
 // The bits that must be set to indicate a quiet NaN.
-#define QNAN    ((uint64_t)0x7ffc000000000000)
-#define LOW8    ((uint64_t)0x00000000000000ff)
-#define LOW16   ((uint64_t)0x000000000000ffff)
-#define LOW32   ((uint64_t)0x00000000ffffffff)
+#define QNAN ((uint64_t)0x7ffc000000000000)
+#define LOW8 ((uint64_t)0x00000000000000ff)
+#define LOW16 ((uint64_t)0x000000000000ffff)
+#define LOW32 ((uint64_t)0x00000000ffffffff)
 
 static inline double mochiDoubleFromBits(uint64_t bits) {
     MochiVMDoubleBits data;
@@ -104,41 +103,41 @@ static inline uint64_t mochiSingleToBits(float single) {
 }
 
 // An object pointer is a NaN with a set sign bit.
-#define IS_OBJ(value)   (((value) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
-#define IS_TINY(value)  (!IS_OBJ(value))
+#define IS_OBJ(value) (((value) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
+#define IS_TINY(value) (!IS_OBJ(value))
 
-#define FALSE_VAL           ((Value)(uint64_t)(QNAN | 0))
-#define TRUE_VAL            ((Value)(uint64_t)(QNAN | 1))
-#define BOOL_VAL(vm, val)   ((val) ? TRUE_VAL : FALSE_VAL)
-#define I8_VAL(vm, val)     ((Value)(uint64_t)(QNAN | (val)))
-#define U8_VAL(vm, val)     ((Value)(uint64_t)(QNAN | (val)))
-#define I16_VAL(vm, val)    ((Value)(uint64_t)(QNAN | (val)))
-#define U16_VAL(vm, val)    ((Value)(uint64_t)(QNAN | (val)))
-#define I32_VAL(vm, val)    ((Value)(uint64_t)(QNAN | (val)))
-#define U32_VAL(vm, val)    ((Value)(uint64_t)(QNAN | (val)))
-#define I64_VAL(vm, val)    (OBJ_VAL(mochiNewI64(vm, val)))
-#define U64_VAL(vm, val)    (OBJ_VAL(mochiNewU64(vm, val)))
+#define FALSE_VAL ((Value)(uint64_t)(QNAN | 0))
+#define TRUE_VAL ((Value)(uint64_t)(QNAN | 1))
+#define BOOL_VAL(vm, val) ((val) ? TRUE_VAL : FALSE_VAL)
+#define I8_VAL(vm, val) ((Value)(uint64_t)(QNAN | (val)))
+#define U8_VAL(vm, val) ((Value)(uint64_t)(QNAN | (val)))
+#define I16_VAL(vm, val) ((Value)(uint64_t)(QNAN | (val)))
+#define U16_VAL(vm, val) ((Value)(uint64_t)(QNAN | (val)))
+#define I32_VAL(vm, val) ((Value)(uint64_t)(QNAN | (val)))
+#define U32_VAL(vm, val) ((Value)(uint64_t)(QNAN | (val)))
+#define I64_VAL(vm, val) (OBJ_VAL(mochiNewI64(vm, val)))
+#define U64_VAL(vm, val) (OBJ_VAL(mochiNewU64(vm, val)))
 #define SINGLE_VAL(vm, val) (mochiSingleToBits(val))
 #define DOUBLE_VAL(vm, val) (mochiDoubleToBits(val))
 
 // Value -> 0 or 1.
-#define AS_BOOL(value)      ((value) == TRUE_VAL)
-#define AS_I8(value)        ((int8_t)((value) & LOW8))
-#define AS_U8(value)        ((uint8_t)((value) & LOW8))
-#define AS_I16(value)       ((int16_t)((value) & LOW16))
-#define AS_U16(value)       ((uint16_t)((value) & LOW16))
-#define AS_I32(value)       ((int32_t)((value) & LOW32))
-#define AS_U32(value)       ((uint32_t)((value) & LOW32))
-#define AS_I64(value)       (((ObjI64*)AS_OBJ(value))->val)
-#define AS_U64(value)       (((ObjU64*)AS_OBJ(value))->val)
-#define AS_SINGLE(value)    (mochiSingleFromBits(value))
-#define AS_DOUBLE(value)    (mochiDoubleFromBits(value))
+#define AS_BOOL(value) ((value) == TRUE_VAL)
+#define AS_I8(value) ((int8_t)((value)&LOW8))
+#define AS_U8(value) ((uint8_t)((value)&LOW8))
+#define AS_I16(value) ((int16_t)((value)&LOW16))
+#define AS_U16(value) ((uint16_t)((value)&LOW16))
+#define AS_I32(value) ((int32_t)((value)&LOW32))
+#define AS_U32(value) ((uint32_t)((value)&LOW32))
+#define AS_I64(value) (((ObjI64 *)AS_OBJ(value))->val)
+#define AS_U64(value) (((ObjU64 *)AS_OBJ(value))->val)
+#define AS_SINGLE(value) (mochiSingleFromBits(value))
+#define AS_DOUBLE(value) (mochiDoubleFromBits(value))
 
 // Value -> Obj*.
-#define AS_OBJ(value) ((Obj*)(uintptr_t)((value) & ~(SIGN_BIT | QNAN)))
+#define AS_OBJ(value) ((Obj *)(uintptr_t)((value) & ~(SIGN_BIT | QNAN)))
 
 // Converts the raw object pointer [obj] to a [Value].
-static inline Value mochiObjectToValue(Obj* obj) {
+static inline Value mochiObjectToValue(Obj *obj) {
     // The triple casting is necessary here to satisfy some compilers:
     // 1. (uintptr_t) Convert the pointer to a number of the right size.
     // 2. (uint64_t)  Pad it up to 64 bits in 32-bit builds.

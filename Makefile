@@ -49,6 +49,12 @@ $(BUILD_TOP)/utf8proc/libutf8proc.a:
 	@ (cd $(BUILD_TOP)/utf8proc && cmake ../../deps/utf8proc)
 	@ (cd $(BUILD_TOP)/utf8proc && make)
 
+# Format source files
+format:
+	@ printf "Formatting source files\n"
+	@ clang-format -i $(HEADERS)
+	@ clang-format -i $(SOURCES)
+
 .PHONY: default
 
 clean:
