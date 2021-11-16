@@ -52,7 +52,7 @@ static int twoIntArgInstruction(const char* name, MochiVM* vm, int offset) {
 static int callInstruction(const char* name, MochiVM* vm, int offset) {
     uint8_t* code = vm->code.data;
     int instrIndex = getInt(code, offset + 1);
-    char* str = getLabel(vm, instrIndex);
+    const char* str = mochiGetLabel(vm, instrIndex);
     if (str == NULL) {
         printf("%-16s %d\n", name, instrIndex);
     } else {
@@ -75,7 +75,7 @@ static int closureInstruction(const char* name, MochiVM* vm, int offset) {
 
     int body = getInt(code, offset);
     offset += 4;
-    char* str = getLabel(vm, body);
+    const char* str = mochiGetLabel(vm, body);
     uint8_t paramCount = code[offset];
     offset += 1;
     uint16_t captureCount = getUShort(code, offset);

@@ -51,7 +51,6 @@ typedef enum
 } ObjType;
 
 // Base struct for all heap-allocated object types.
-typedef struct Obj Obj;
 struct Obj {
     ObjType type;
     // Used during garbage collection

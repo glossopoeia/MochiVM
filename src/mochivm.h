@@ -32,6 +32,7 @@
 // here.
 typedef struct MochiVM MochiVM;
 typedef uint64_t TableKey;
+typedef struct Obj Obj;
 typedef struct ObjFiber ObjFiber;
 
 // A generic allocation function that handles all explicit memory management
@@ -155,6 +156,22 @@ MOCHIVM_API void mochiFreeVM(MochiVM* vm);
 
 // Immediately run the garbage collector to free unused memory.
 MOCHIVM_API void mochiCollectGarbage(MochiVM* vm);
+
+// Writes the given byte into the vm code buffer, with the given source code line for debugging/disassembly.
+MOCHIVM_API int mochiWriteCode(MochiVM* vm, uint8_t byte, int line);
+
+// Writes the given label and it's associated byte-code index into the label store.
+MOCHIVM_API int mochiWriteLabel(MochiVM* vm, int labelIndex, const char* label);
+
+// Get the label associated with the given code index. Returns NULL if no label is associated with the index.
+MOCHIVM_API const char* mochiGetLabel(MochiVM* vm, int labelCodeIndex);
+
+// Writes the given constant into the constant store for the vm.
+MOCHIVM_API int mochiWriteI32Const(MochiVM* vm, int32_t val);
+MOCHIVM_API int mochiWriteSingleConst(MochiVM* vm, float val);
+MOCHIVM_API int mochiWriteDoubleConst(MochiVM* vm, double val);
+MOCHIVM_API int mochiWriteStringConst(MochiVM* vm, const char* val);
+MOCHIVM_API int mochiWriteObjConst(MochiVM* vm, Obj* obj);
 
 // Runs a fiber as the root in the context of the given VM.
 MOCHIVM_API MochiVMInterpretResult mochiInterpret(MochiVM* vm, ObjFiber* fiber);

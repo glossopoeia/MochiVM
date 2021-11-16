@@ -8,9 +8,6 @@
 #include "vm.h"
 #include <SDL.h>
 
-#define TEST_DOUBLE_VAL(val) DOUBLE_VAL(vm, val)
-#define TEST_I32_VAL(val)    I32_VAL(vm, val)
-
 #define BEGIN_TEST(header)                                                                                             \
     do {                                                                                                               \
         printf("=============================\n");                                                                     \
@@ -49,36 +46,37 @@
         printf("TEST PASSED\n");                                                                                       \
     } while (false);
 
-#define CONSTANT(arg)              addConstant(vm, (arg));
-#define WRITE_INST(inst, line)     writeChunk(vm, CODE_##inst, (line));
-#define WRITE_BYTE(byte, line)     writeChunk(vm, (byte), (line));
-#define WRITE_LABEL(label, length) writeLabel(vm, vm->code.count, length, label)
-#define VERIFY_STACK(count)        assertStack = (count);
-#define VERIFY_FRAMES(count)       assertFrames = (count);
-#define VERIFY_NUMBER(num)         assertNumber = num;
-#define VERIFY_STRING(str)         assertString = str;
+#define CONST_DOUBLE(arg)      mochiWriteDoubleConst(vm, (arg));
+#define CONST_I32(arg)         mochiWriteI32Const(vm, (arg));
+#define WRITE_INST(inst, line) mochiWriteCode(vm, CODE_##inst, (line));
+#define WRITE_BYTE(byte, line) mochiWriteCode(vm, (byte), (line));
+#define WRITE_LABEL(label)     mochiWriteLabel(vm, vm->code.count, label)
+#define VERIFY_STACK(count)    assertStack = (count);
+#define VERIFY_FRAMES(count)   assertFrames = (count);
+#define VERIFY_NUMBER(num)     assertNumber = num;
+#define VERIFY_STRING(str)     assertString = str;
 
 #define WRITE_SHORT(val, line)                                                                                         \
     do {                                                                                                               \
-        writeChunk(vm, ((uint16_t)(val)) >> 8, (line));                                                                \
-        writeChunk(vm, ((uint16_t)(val)), (line));                                                                     \
+        mochiWriteCode(vm, ((uint16_t)(val)) >> 8, (line));                                                            \
+        mochiWriteCode(vm, ((uint16_t)(val)), (line));                                                                 \
     } while (false);
 
 #define WRITE_INT(val, line)                                                                                           \
     do {                                                                                                               \
-        writeChunk(vm, (val) >> 24, (line));                                                                           \
-        writeChunk(vm, (val) >> 16, (line));                                                                           \
-        writeChunk(vm, (val) >> 8, (line));                                                                            \
-        writeChunk(vm, (val), (line));                                                                                 \
+        mochiWriteCode(vm, (val) >> 24, (line));                                                                       \
+        mochiWriteCode(vm, (val) >> 16, (line));                                                                       \
+        mochiWriteCode(vm, (val) >> 8, (line));                                                                        \
+        mochiWriteCode(vm, (val), (line));                                                                             \
     } while (false);
 
 #define WRITE_INT_INST(inst, arg, line)                                                                                \
     do {                                                                                                               \
-        writeChunk(vm, CODE_##inst, (line));                                                                           \
-        writeChunk(vm, (arg) >> 24, (line));                                                                           \
-        writeChunk(vm, (arg) >> 16, (line));                                                                           \
-        writeChunk(vm, (arg) >> 8, (line));                                                                            \
-        writeChunk(vm, (arg), (line));                                                                                 \
+        mochiWriteCode(vm, CODE_##inst, (line));                                                                       \
+        mochiWriteCode(vm, (arg) >> 24, (line));                                                                       \
+        mochiWriteCode(vm, (arg) >> 16, (line));                                                                       \
+        mochiWriteCode(vm, (arg) >> 8, (line));                                                                        \
+        mochiWriteCode(vm, (arg), (line));                                                                             \
     } while (false);
 
 int main(int argc, const char* argv[]) {

@@ -230,7 +230,37 @@ void mochiCollectGarbage(MochiVM* vm) {
 #endif
 }
 
-int addConstant(MochiVM* vm, Value value) {
+int mochiWriteCode(MochiVM* vm, uint8_t instr, int line) {
+    mochiByteBufferWrite(vm, &vm->code, instr);
+    mochiIntBufferWrite(vm, &vm->lines, line);
+    return vm->code.count - 1;
+}
+
+int mochiWriteLabel(MochiVM* vm, int byteIndex, const char* labelText) {
+    mochiIntBufferWrite(vm, &vm->labelIndices, byteIndex);
+    ObjByteArray* str = mochiByteArrayNil(vm);
+    mochiFiberPushRoot(vm->fiber, (Obj*)str);
+    int i = 0;
+    while (labelText[i] != '\0') {
+        mochiByteArraySnoc(vm, (uint8_t)labelText[i], str);
+        i++;
+    }
+    mochiByteArraySnoc(vm, '\0', str);
+    mochiValueBufferWrite(vm, &vm->labels, OBJ_VAL(str));
+    mochiFiberPopRoot(vm->fiber);
+    return vm->labels.count - 1;
+}
+
+const char* mochiGetLabel(MochiVM* vm, int byteIndex) {
+    for (int i = 0; i < vm->labelIndices.count; i++) {
+        if (vm->labelIndices.data[i] == byteIndex) {
+            return AS_CSTRING(vm->labels.data[i]);
+        }
+    }
+    return NULL;
+}
+
+static int mochiWriteConstant(MochiVM* vm, Value value) {
     ASSERT(vm->fiber != NULL, "Cannot add a constant without a fiber already assigned to the VM.");
     if (IS_OBJ(value)) {
         mochiFiberPushRoot(vm->fiber, AS_OBJ(value));
@@ -242,30 +272,20 @@ int addConstant(MochiVM* vm, Value value) {
     return vm->constants.count - 1;
 }
 
-void writeChunk(MochiVM* vm, uint8_t instr, int line) {
-    mochiByteBufferWrite(vm, &vm->code, instr);
-    mochiIntBufferWrite(vm, &vm->lines, line);
+int mochiWriteI32Const(MochiVM* vm, int32_t val) {
+    return mochiWriteConstant(vm, I32_VAL(vm, val));
 }
 
-void writeLabel(MochiVM* vm, int byteIndex, int labelLength, const char* labelText) {
-    mochiIntBufferWrite(vm, &vm->labelIndices, byteIndex);
-    ObjByteArray* str = mochiByteArrayNil(vm);
-    mochiFiberPushRoot(vm->fiber, (Obj*)str);
-    for (int i = 0; i < labelLength; i++) {
-        mochiByteArraySnoc(vm, (uint8_t)labelText[i], str);
-    }
-    mochiByteArraySnoc(vm, '\0', str);
-    mochiValueBufferWrite(vm, &vm->labels, OBJ_VAL(str));
-    mochiFiberPopRoot(vm->fiber);
+int mochiWriteSingleConst(MochiVM* vm, float val) {
+    return mochiWriteConstant(vm, SINGLE_VAL(vm, val));
 }
 
-char* getLabel(MochiVM* vm, int byteIndex) {
-    for (int i = 0; i < vm->labelIndices.count; i++) {
-        if (vm->labelIndices.data[i] == byteIndex) {
-            return AS_CSTRING(vm->labels.data[i]);
-        }
-    }
-    return NULL;
+int mochiWriteDoubleConst(MochiVM* vm, double val) {
+    return mochiWriteConstant(vm, DOUBLE_VAL(vm, val));
+}
+
+int mochiWriteObjConst(MochiVM* vm, Obj* val) {
+    return mochiWriteConstant(vm, OBJ_VAL(val));
 }
 
 int mochiAddForeign(MochiVM* vm, MochiVMForeignMethodFn fn) {
