@@ -31,7 +31,6 @@ typedef enum
     OBJ_U64,
     OBJ_DOUBLE,
     OBJ_LIST,
-    OBJ_CODE_BLOCK,
     OBJ_FIBER,
     OBJ_VAR_FRAME,
     OBJ_CALL_FRAME,

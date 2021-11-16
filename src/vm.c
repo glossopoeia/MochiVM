@@ -95,7 +95,11 @@ MochiVM *mochiNewVM(MochiVMConfiguration *config) {
     vm->gray = (Obj **)reallocate(NULL, vm->grayCapacity * sizeof(Obj *), userData);
     vm->nextGC = vm->config.initialHeapSize;
 
-    vm->block = mochiNewCodeBlock(vm);
+    mochiByteBufferInit(&vm->code);
+    mochiIntBufferInit(&vm->lines);
+    mochiValueBufferInit(&vm->constants);
+    mochiIntBufferInit(&vm->labelIndices);
+    mochiValueBufferInit(&vm->labels);
     mochiForeignFunctionBufferInit(&vm->foreignFns);
     mochiTableInit(&vm->heap);
     // start at 2 since 0 and 1 are reserved for available/tombstoned slots
@@ -130,6 +134,11 @@ void mochiFreeVM(MochiVM *vm) {
     // Free up the GC gray set.
     vm->gray = (Obj **)vm->config.reallocateFn(vm->gray, 0, vm->config.userData);
 
+    mochiByteBufferClear(vm, &vm->code);
+    mochiIntBufferClear(vm, &vm->lines);
+    mochiValueBufferClear(vm, &vm->constants);
+    mochiIntBufferClear(vm, &vm->labelIndices);
+    mochiValueBufferClear(vm, &vm->labels);
     mochiForeignFunctionBufferClear(vm, &vm->foreignFns);
     mochiTableClear(vm, &vm->heap);
     DEALLOCATE(vm, vm);
@@ -174,9 +183,8 @@ void mochiCollectGarbage(MochiVM *vm) {
     // already been freed.
     vm->bytesAllocated = 0;
 
-    if (vm->block != NULL) {
-        mochiGrayObj(vm, (Obj *)vm->block);
-    }
+    mochiGrayBuffer(vm, &vm->constants);
+    mochiGrayBuffer(vm, &vm->labels);
     // The current fiber.
     if (vm->fiber != NULL) {
         mochiGrayObj(vm, (Obj *)vm->fiber);
@@ -227,34 +235,34 @@ int addConstant(MochiVM *vm, Value value) {
     if (IS_OBJ(value)) {
         mochiFiberPushRoot(vm->fiber, AS_OBJ(value));
     }
-    mochiValueBufferWrite(vm, &vm->block->constants, value);
+    mochiValueBufferWrite(vm, &vm->constants, value);
     if (IS_OBJ(value)) {
         mochiFiberPopRoot(vm->fiber);
     }
-    return vm->block->constants.count - 1;
+    return vm->constants.count - 1;
 }
 
 void writeChunk(MochiVM *vm, uint8_t instr, int line) {
-    mochiByteBufferWrite(vm, &vm->block->code, instr);
-    mochiIntBufferWrite(vm, &vm->block->lines, line);
+    mochiByteBufferWrite(vm, &vm->code, instr);
+    mochiIntBufferWrite(vm, &vm->lines, line);
 }
 
 void writeLabel(MochiVM *vm, int byteIndex, int labelLength, const char *labelText) {
-    mochiIntBufferWrite(vm, &vm->block->labelIndices, byteIndex);
+    mochiIntBufferWrite(vm, &vm->labelIndices, byteIndex);
     ObjByteArray *str = mochiByteArrayNil(vm);
     mochiFiberPushRoot(vm->fiber, (Obj *)str);
     for (int i = 0; i < labelLength; i++) {
         mochiByteArraySnoc(vm, (uint8_t)labelText[i], str);
     }
     mochiByteArraySnoc(vm, '\0', str);
-    mochiValueBufferWrite(vm, &vm->block->labels, OBJ_VAL(str));
+    mochiValueBufferWrite(vm, &vm->labels, OBJ_VAL(str));
     mochiFiberPopRoot(vm->fiber);
 }
 
 char *getLabel(MochiVM *vm, int byteIndex) {
-    for (int i = 0; i < vm->block->labelIndices.count; i++) {
-        if (vm->block->labelIndices.data[i] == byteIndex) {
-            return AS_CSTRING(vm->block->labels.data[i]);
+    for (int i = 0; i < vm->labelIndices.count; i++) {
+        if (vm->labelIndices.data[i] == byteIndex) {
+            return AS_CSTRING(vm->labels.data[i]);
         }
     }
     return NULL;
@@ -299,18 +307,6 @@ void mochiGrayBuffer(MochiVM *vm, ValueBuffer *buffer) {
 }
 
 #define MARK_SIMPLE(vm, type) ((vm)->bytesAllocated += sizeof(type))
-
-static void markCodeBlock(MochiVM *vm, ObjCodeBlock *block) {
-    mochiGrayBuffer(vm, &block->constants);
-    mochiGrayBuffer(vm, &block->labels);
-
-    vm->bytesAllocated += sizeof(ObjCodeBlock);
-    vm->bytesAllocated += sizeof(uint8_t) * block->code.capacity;
-    vm->bytesAllocated += sizeof(Value) * block->constants.capacity;
-    vm->bytesAllocated += sizeof(int) * block->lines.capacity;
-    vm->bytesAllocated += sizeof(int) * block->labelIndices.capacity;
-    vm->bytesAllocated += sizeof(Value) * block->labels.capacity;
-}
 
 static void markVarFrame(MochiVM *vm, ObjVarFrame *frame) {
     for (int i = 0; i < frame->slotCount; i++) {
@@ -483,9 +479,6 @@ static void blackenObject(MochiVM *vm, Obj *obj) {
         break;
     case OBJ_DOUBLE:
         MARK_SIMPLE(vm, ObjDouble);
-        break;
-    case OBJ_CODE_BLOCK:
-        markCodeBlock(vm, (ObjCodeBlock *)obj);
         break;
     case OBJ_VAR_FRAME:
         markVarFrame(vm, (ObjVarFrame *)obj);

@@ -22,7 +22,12 @@ DECLARE_BUFFER(ForeignFunction, MochiVMForeignMethodFn);
 struct MochiVM {
     MochiVMConfiguration config;
 
-    ObjCodeBlock *block;
+    ByteBuffer code;
+    IntBuffer lines;
+    ValueBuffer constants;
+    IntBuffer labelIndices;
+    ValueBuffer labels;
+
     ObjFiber *fiber;
 
     Table heap;

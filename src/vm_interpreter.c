@@ -105,7 +105,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
     vm->fiber = fiber;
     fiber->isRoot = true;
 
-    register uint8_t *codeStart = vm->block->code.data;
+    register uint8_t *codeStart = vm->code.data;
 
 #define FROM_START(offset) (codeStart + (int)(offset))
 
@@ -129,7 +129,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
     (fiber->ip += 4, (int32_t)((fiber->ip[-4] << 24) | (fiber->ip[-3] << 16) | (fiber->ip[-2] << 8) | fiber->ip[-1]))
 #define READ_UINT()                                                                                                    \
     (fiber->ip += 4, (uint32_t)((fiber->ip[-4] << 24) | (fiber->ip[-3] << 16) | (fiber->ip[-2] << 8) | fiber->ip[-1]))
-#define READ_CONSTANT() (vm->block->constants.data[READ_BYTE()])
+#define READ_CONSTANT() (vm->constants.data[READ_BYTE()])
 #define UNARY_OP(paramType, paramExtract, retConstruct, op)                                                            \
     do {                                                                                                               \
         paramType n = paramExtract(POP_VAL());                                                                         \
@@ -2084,7 +2084,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
 }
 
 MochiVMInterpretResult mochiInterpret(MochiVM *vm, ObjFiber *fiber) {
-    fiber->ip = vm->block->code.data;
+    fiber->ip = vm->code.data;
     MochiVMInterpretResult res = run(vm, fiber);
     uv_run(uv_default_loop(), UV_RUN_DEFAULT);
     return res;

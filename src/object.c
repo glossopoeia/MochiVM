@@ -134,17 +134,6 @@ ObjContinuation *mochiNewContinuation(MochiVM *vm, uint8_t *resume, uint8_t para
     return cont;
 }
 
-ObjCodeBlock *mochiNewCodeBlock(MochiVM *vm) {
-    ObjCodeBlock *block = ALLOCATE(vm, ObjCodeBlock);
-    initObj(vm, (Obj *)block, OBJ_CODE_BLOCK);
-    mochiValueBufferInit(&block->constants);
-    mochiByteBufferInit(&block->code);
-    mochiIntBufferInit(&block->lines);
-    mochiIntBufferInit(&block->labelIndices);
-    mochiValueBufferInit(&block->labels);
-    return block;
-}
-
 ObjForeign *mochiNewForeign(MochiVM *vm, size_t size) {
     ObjForeign *object = ALLOCATE_FLEX(vm, ObjForeign, uint8_t, size);
     initObj(vm, (Obj *)object, OBJ_FOREIGN);
@@ -451,15 +440,6 @@ void mochiFreeObj(MochiVM *vm, Obj *object) {
 #endif
 
     switch (object->type) {
-    case OBJ_CODE_BLOCK: {
-        ObjCodeBlock *block = (ObjCodeBlock *)object;
-        mochiByteBufferClear(vm, &block->code);
-        mochiValueBufferClear(vm, &block->constants);
-        mochiIntBufferClear(vm, &block->lines);
-        mochiIntBufferClear(vm, &block->labelIndices);
-        mochiValueBufferClear(vm, &block->labels);
-        break;
-    }
     case OBJ_VAR_FRAME: {
         freeVarFrame(vm, (ObjVarFrame *)object);
         break;
@@ -566,10 +546,6 @@ void printObject(MochiVM *vm, Value object) {
         printf("%f", i->val);
         break;
     }
-    case OBJ_CODE_BLOCK: {
-        printf("code");
-        break;
-    }
     case OBJ_VAR_FRAME: {
         ObjVarFrame *frame = AS_VAR_FRAME(object);
         printf("var(%d)", frame->slotCount);
@@ -577,25 +553,25 @@ void printObject(MochiVM *vm, Value object) {
     }
     case OBJ_CALL_FRAME: {
         ObjCallFrame *frame = AS_CALL_FRAME(object);
-        printf("call(%d -> %ld)", frame->vars.slotCount, frame->afterLocation - vm->block->code.data);
+        printf("call(%d -> %ld)", frame->vars.slotCount, frame->afterLocation - vm->code.data);
         break;
     }
     case OBJ_HANDLE_FRAME: {
         ObjHandleFrame *frame = AS_HANDLE_FRAME(object);
         printf("handle(%d: n(%d) %d %d -> %ld)", frame->handleId, frame->nesting, frame->handlerCount,
-               frame->call.vars.slotCount, frame->call.afterLocation - vm->block->code.data);
+               frame->call.vars.slotCount, frame->call.afterLocation - vm->code.data);
         break;
     }
     case OBJ_CLOSURE: {
         ObjClosure *closure = AS_CLOSURE(object);
         printf("closure(%d: %d -> %ld)", closure->capturedCount, closure->paramCount,
-               closure->funcLocation - vm->block->code.data);
+               closure->funcLocation - vm->code.data);
         break;
     }
     case OBJ_CONTINUATION: {
         ObjContinuation *cont = AS_CONTINUATION(object);
         printf("continuation(%d: v(%d) f(%d) -> %ld)", cont->paramCount, cont->savedStackCount, cont->savedFramesCount,
-               cont->resumeLocation - vm->block->code.data);
+               cont->resumeLocation - vm->code.data);
         break;
     }
     case OBJ_FIBER: {

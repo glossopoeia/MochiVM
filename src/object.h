@@ -32,15 +32,6 @@
 #define AS_VARIANT(v) ((ObjVariant *)AS_OBJ(v))
 #define AS_CSTRING(v) ((char *)(void *)((ObjByteArray *)AS_OBJ(v))->elems.data)
 
-typedef struct ObjCodeBlock {
-    Obj obj;
-    ByteBuffer code;
-    ValueBuffer constants;
-    IntBuffer lines;
-    IntBuffer labelIndices;
-    ValueBuffer labels;
-} ObjCodeBlock;
-
 // This enum provides a way for compiler writers to specify that some closures-as-handlers have
 // certain assumptions guaranteed that allow more efficient operation. For instance, RESUME_NONE
 // will prevent a handler closure from capturing the continuation, since it is never resumed anyway,
@@ -242,8 +233,6 @@ void mochiClosureCapture(ObjClosure *closure, int captureIndex, Value value);
 
 ObjContinuation *mochiNewContinuation(MochiVM *vm, uint8_t *resume, uint8_t paramCount, int savedStack,
                                       int savedFrames);
-
-ObjCodeBlock *mochiNewCodeBlock(MochiVM *vm);
 
 ObjVarFrame *newVarFrame(Value *vars, int varCount, MochiVM *vm);
 ObjCallFrame *newCallFrame(Value *vars, int varCount, uint8_t *afterLocation, MochiVM *vm);
