@@ -101,10 +101,6 @@ static void restoreSaved(MochiVM* vm, ObjFiber* fiber, ObjHandleFrame* handle, O
 // Dispatcher function to run a particular fiber in the context of the given
 // vm.
 static MochiVMInterpretResult run(MochiVM* vm, register ObjFiber* fiber) {
-    // Remember the current fiber in case of GC.
-    vm->fiber = fiber;
-    fiber->isRoot = true;
-
     register uint8_t* codeStart = vm->code.data;
 
 #define FROM_START(offset) (codeStart + (int)(offset))
@@ -2083,9 +2079,30 @@ static MochiVMInterpretResult run(MochiVM* vm, register ObjFiber* fiber) {
 #undef READ_CONSTANT
 }
 
-MochiVMInterpretResult mochiInterpret(MochiVM* vm, ObjFiber* fiber) {
-    fiber->ip = vm->code.data;
-    MochiVMInterpretResult res = run(vm, fiber);
+MochiVMInterpretResult mochiInterpret(MochiVM* vm) {
+    vm->fiber->ip = vm->code.data;
+    MochiVMInterpretResult res = run(vm, vm->fiber);
+#if MOCHIVM_BATTERY_UV
     uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+#endif
+    return res;
+}
+
+MochiVMInterpretResult mochiRun(MochiVM* vm, int argc, const char* argv[]) {
+    vm->fiber->ip = vm->code.data;
+
+    ObjArray* args = mochiArrayNil(vm);
+    mochiFiberPushValue(vm->fiber, OBJ_VAL(args));
+    for (int i = 0; i < argc; i++) {
+        ObjByteArray* arg = mochiByteArrayString(vm, argv[i]);
+        mochiFiberPushRoot(vm->fiber, (Obj*)arg);
+        mochiArraySnoc(vm, OBJ_VAL(arg), args);
+        mochiFiberPopRoot(vm->fiber);
+    }
+
+    MochiVMInterpretResult res = run(vm, vm->fiber);
+#if MOCHIVM_BATTERY_UV
+    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+#endif
     return res;
 }

@@ -289,6 +289,19 @@ ObjByteArray* mochiByteArrayNil(MochiVM* vm) {
     return arr;
 }
 
+ObjByteArray* mochiByteArrayString(MochiVM* vm, const char* string) {
+    ObjByteArray* str = mochiByteArrayNil(vm);
+    mochiFiberPushRoot(vm->fiber, (Obj*)str);
+    int i = 0;
+    while (string[i] != '\0') {
+        mochiByteArraySnoc(vm, string[i], str);
+        i++;
+    }
+    mochiByteArraySnoc(vm, '\0', str);
+    mochiFiberPopRoot(vm->fiber);
+    return str;
+}
+
 ObjByteArray* mochiByteArrayFill(MochiVM* vm, int amount, uint8_t elem, ObjByteArray* array) {
     mochiByteBufferFill(vm, &array->elems, elem, amount);
     return array;

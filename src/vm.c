@@ -238,14 +238,8 @@ int mochiWriteCode(MochiVM* vm, uint8_t instr, int line) {
 
 int mochiWriteLabel(MochiVM* vm, int byteIndex, const char* labelText) {
     mochiIntBufferWrite(vm, &vm->labelIndices, byteIndex);
-    ObjByteArray* str = mochiByteArrayNil(vm);
+    ObjByteArray* str = mochiByteArrayString(vm, labelText);
     mochiFiberPushRoot(vm->fiber, (Obj*)str);
-    int i = 0;
-    while (labelText[i] != '\0') {
-        mochiByteArraySnoc(vm, (uint8_t)labelText[i], str);
-        i++;
-    }
-    mochiByteArraySnoc(vm, '\0', str);
     mochiValueBufferWrite(vm, &vm->labels, OBJ_VAL(str));
     mochiFiberPopRoot(vm->fiber);
     return vm->labels.count - 1;

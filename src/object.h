@@ -269,6 +269,7 @@ int mochiSliceLength(ObjSlice* slice);
 ObjArray* mochiSliceCopy(MochiVM* vm, ObjSlice* slice);
 
 ObjByteArray* mochiByteArrayNil(MochiVM* vm);
+ObjByteArray* mochiByteArrayString(MochiVM* vm, const char* str);
 ObjByteArray* mochiByteArrayFill(MochiVM* vm, int amount, uint8_t elem, ObjByteArray* array);
 ObjByteArray* mochiByteArraySnoc(MochiVM* vm, uint8_t elem, ObjByteArray* array);
 uint8_t mochiByteArrayGetAt(int index, ObjByteArray* array);

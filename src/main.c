@@ -1,11 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "common.h"
 #include "debug.h"
-#include "memory.h"
-#include "uv.h"
-#include "vm.h"
 #include <SDL.h>
 
 #define BEGIN_TEST(header)                                                                                             \
@@ -26,7 +22,7 @@
 #define END_TEST()                                                                                                     \
     do {                                                                                                               \
         disassembleChunk(vm, "test chunk");                                                                            \
-        mochiInterpret(vm, vm->fiber);                                                                                 \
+        mochiInterpret(vm);                                                                                            \
         if (assertStack >= 0) {                                                                                        \
             ASSERT(assertStack == vm->fiber->valueStackTop - vm->fiber->valueStack,                                    \
                    "TEST FAILED: Unexpected stack count");                                                             \

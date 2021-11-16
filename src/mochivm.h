@@ -173,8 +173,13 @@ MOCHIVM_API int mochiWriteDoubleConst(MochiVM* vm, double val);
 MOCHIVM_API int mochiWriteStringConst(MochiVM* vm, const char* val);
 MOCHIVM_API int mochiWriteObjConst(MochiVM* vm, Obj* obj);
 
-// Runs a fiber as the root in the context of the given VM.
-MOCHIVM_API MochiVMInterpretResult mochiInterpret(MochiVM* vm, ObjFiber* fiber);
+// Given a VM with completed code/constant blocks, starts a new VM fiber running with a byte code
+// pointer at the first code instruction. The string arguments are converted to Mochi string
+// values and placed on the value stack in a single Array object.
+MOCHIVM_API MochiVMInterpretResult mochiRun(MochiVM* vm, int argc, const char* argv[]);
+
+// Runs the VM with the current fiber from the beginning of the byte code.
+MOCHIVM_API MochiVMInterpretResult mochiInterpret(MochiVM* vm);
 
 // Add a foreign C function to the list of callable foreign methods, returning
 // the index assigned to the foreign method.
