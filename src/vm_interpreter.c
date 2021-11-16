@@ -20,14 +20,14 @@
 // parameters and the captured values, but if this isn't needed, supply NULL
 // for it. Modifies the fiber stack, and expects the parameters to be in
 // correct order at the top of the stack.
-static ObjCallFrame *callClosureFrame(MochiVM *vm, ObjFiber *fiber, ObjClosure *capture, ObjVarFrame *frameVars,
-                                      ObjContinuation *cont, uint8_t *after) {
+static ObjCallFrame* callClosureFrame(MochiVM* vm, ObjFiber* fiber, ObjClosure* capture, ObjVarFrame* frameVars,
+                                      ObjContinuation* cont, uint8_t* after) {
     ASSERT(mochiFiberValueCount(fiber) >= capture->paramCount,
            "Not enough values on the value stack to call the closure.");
 
     int varCount = (cont != NULL ? 1 : 0) + capture->paramCount + capture->capturedCount +
                    (frameVars != NULL ? frameVars->slotCount : 0);
-    Value *vars = ALLOCATE_ARRAY(vm, Value, varCount);
+    Value* vars = ALLOCATE_ARRAY(vm, Value, varCount);
 
     int offset = 0;
     if (cont != NULL) {
@@ -57,15 +57,15 @@ static ObjCallFrame *callClosureFrame(MochiVM *vm, ObjFiber *fiber, ObjClosure *
 // drives the actual effect of the nesting by continuing to walk down handle
 // frames even if a handle frame with the requested id is found if it is
 // 'nested', i.e. with a nesting level greater than 0.
-static int findFreeHandler(ObjFiber *fiber, int handleId) {
+static int findFreeHandler(ObjFiber* fiber, int handleId) {
     int stackCount = fiber->frameStackTop - fiber->frameStack;
     int index = 0;
     for (; index < stackCount; index++) {
-        ObjVarFrame *frame = *(fiber->frameStackTop - index - 1);
+        ObjVarFrame* frame = *(fiber->frameStackTop - index - 1);
         if (frame->obj.type != OBJ_HANDLE_FRAME) {
             continue;
         }
-        ObjHandleFrame *handle = (ObjHandleFrame *)frame;
+        ObjHandleFrame* handle = (ObjHandleFrame*)frame;
         if (handle->handleId == handleId && handle->nesting == 0) {
             break;
         }
@@ -74,10 +74,10 @@ static int findFreeHandler(ObjFiber *fiber, int handleId) {
     return index;
 }
 
-static void restoreSaved(MochiVM *vm, ObjFiber *fiber, ObjHandleFrame *handle, ObjContinuation *cont, uint8_t *after) {
+static void restoreSaved(MochiVM* vm, ObjFiber* fiber, ObjHandleFrame* handle, ObjContinuation* cont, uint8_t* after) {
     // we basically copy it, but update the arguments passed along through the
     // handling context and forget the 'return location'
-    ObjHandleFrame *updated =
+    ObjHandleFrame* updated =
         mochinewHandleFrame(vm, handle->handleId, handle->call.vars.slotCount, handle->handlerCount, after);
     updated->afterClosure = handle->afterClosure;
     OBJ_ARRAY_COPY(updated->handlers, handle->handlers, handle->handlerCount);
@@ -93,37 +93,37 @@ static void restoreSaved(MochiVM *vm, ObjFiber *fiber, ObjHandleFrame *handle, O
     fiber->valueStackTop = fiber->valueStackTop + cont->savedStackCount;
 
     // saved frames just go on top of the existing frames
-    *fiber->frameStackTop++ = (ObjVarFrame *)updated;
+    *fiber->frameStackTop++ = (ObjVarFrame*)updated;
     OBJ_ARRAY_COPY(fiber->frameStackTop, cont->savedFrames + 1, cont->savedFramesCount - 1);
     fiber->frameStackTop = fiber->frameStackTop + (cont->savedFramesCount - 1);
 }
 
 // Dispatcher function to run a particular fiber in the context of the given
 // vm.
-static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
+static MochiVMInterpretResult run(MochiVM* vm, register ObjFiber* fiber) {
     // Remember the current fiber in case of GC.
     vm->fiber = fiber;
     fiber->isRoot = true;
 
-    register uint8_t *codeStart = vm->code.data;
+    register uint8_t* codeStart = vm->code.data;
 
 #define FROM_START(offset) (codeStart + (int)(offset))
 
-#define PUSH_VAL(value) (*fiber->valueStackTop++ = value)
-#define POP_VAL() (*(--fiber->valueStackTop))
+#define PUSH_VAL(value)  (*fiber->valueStackTop++ = value)
+#define POP_VAL()        (*(--fiber->valueStackTop))
 #define DROP_VALS(count) (fiber->valueStackTop = fiber->valueStackTop - (count))
-#define PEEK_VAL(index) (*(fiber->valueStackTop - (index)))
-#define VALUE_COUNT() (fiber->valueStackTop - fiber->valueStack)
+#define PEEK_VAL(index)  (*(fiber->valueStackTop - (index)))
+#define VALUE_COUNT()    (fiber->valueStackTop - fiber->valueStack)
 
-#define PUSH_FRAME(frame) (*fiber->frameStackTop++ = (ObjVarFrame *)(frame))
-#define POP_FRAME() (*(--fiber->frameStackTop))
+#define PUSH_FRAME(frame)  (*fiber->frameStackTop++ = (ObjVarFrame*)(frame))
+#define POP_FRAME()        (*(--fiber->frameStackTop))
 #define DROP_FRAMES(count) (fiber->frameStackTop = fiber->frameStackTop - (count))
-#define PEEK_FRAME(index) (*(fiber->frameStackTop - (index)))
-#define FRAME_COUNT() (fiber->frameStackTop - fiber->frameStack)
-#define FIND(frame, slot) ((*(fiber->frameStackTop - 1 - (frame)))->slots[(slot)])
+#define PEEK_FRAME(index)  (*(fiber->frameStackTop - (index)))
+#define FRAME_COUNT()      (fiber->frameStackTop - fiber->frameStack)
+#define FIND(frame, slot)  ((*(fiber->frameStackTop - 1 - (frame)))->slots[(slot)])
 
-#define READ_BYTE() (*fiber->ip++)
-#define READ_SHORT() (fiber->ip += 2, (int16_t)((fiber->ip[-2] << 8) | fiber->ip[-1]))
+#define READ_BYTE()   (*fiber->ip++)
+#define READ_SHORT()  (fiber->ip += 2, (int16_t)((fiber->ip[-2] << 8) | fiber->ip[-1]))
 #define READ_USHORT() (fiber->ip += 2, (uint16_t)((fiber->ip[-2] << 8) | fiber->ip[-1]))
 #define READ_INT()                                                                                                     \
     (fiber->ip += 4, (int32_t)((fiber->ip[-4] << 24) | (fiber->ip[-3] << 16) | (fiber->ip[-2] << 8) | fiber->ip[-1]))
@@ -231,13 +231,13 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
 
 #if MOCHIVM_COMPUTED_GOTO
 
-    static void *dispatchTable[] = {
+    static void* dispatchTable[] = {
 #define OPCODE(name) &&code_##name,
 #include "opcodes.h"
 #undef OPCODE
     };
 
-#define INTERPRET_LOOP DISPATCH();
+#define INTERPRET_LOOP  DISPATCH();
 #define CASE_CODE(name) code_##name
 
 #define DISPATCH()                                                                                                     \
@@ -250,7 +250,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         DEBUG_TRACE_FRAME_STACK();                                                                                     \
         DEBUG_TRACE_ROOT_STACK();                                                                                      \
         DEBUG_TRACE_INSTRUCTIONS();                                                                                    \
-        goto *dispatchTable[instruction = (Code)READ_BYTE()];                                                          \
+        goto* dispatchTable[instruction = (Code)READ_BYTE()];                                                          \
     } while (false)
 
 #else
@@ -268,7 +268,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
     switch (instruction = (Code)READ_BYTE())
 
 #define CASE_CODE(name) case CODE_##name
-#define DISPATCH() goto loop
+#define DISPATCH()      goto loop
 
 #endif
 
@@ -319,7 +319,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         }
         CASE_CODE(JUMP_PERMISSION) : {
             int permId = READ_USHORT();
-            uint8_t *newLoc = FROM_START(READ_UINT());
+            uint8_t* newLoc = FROM_START(READ_UINT());
             if (mochiHasPermission(vm, permId)) {
                 fiber->ip = newLoc;
             }
@@ -1182,12 +1182,12 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             uint8_t varCount = READ_BYTE();
             ASSERT(VALUE_COUNT() >= varCount, "Not enough values to store in frame in STORE");
 
-            Value *vars = ALLOCATE_ARRAY(vm, Value, varCount);
+            Value* vars = ALLOCATE_ARRAY(vm, Value, varCount);
             for (int i = 0; i < (int)varCount; i++) {
                 vars[i] = PEEK_VAL(i + 1);
             }
 
-            ObjVarFrame *frame = newVarFrame(vars, varCount, vm);
+            ObjVarFrame* frame = newVarFrame(vars, varCount, vm);
             PUSH_FRAME(frame);
 
             DROP_VALS(varCount);
@@ -1199,7 +1199,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
 
             ASSERT(FRAME_COUNT() > frameIdx, "FIND tried to access a frame outside "
                                              "the bounds of the frame stack.");
-            ObjVarFrame *frame = PEEK_FRAME(frameIdx + 1);
+            ObjVarFrame* frame = PEEK_FRAME(frameIdx + 1);
             ASSERT(frame->slotCount > slotIdx, "FIND tried to access a slot outside "
                                                "the bounds of the frames slots.");
             PUSH_VAL(frame->slots[slotIdx]);
@@ -1224,9 +1224,9 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             DISPATCH();
         }
         CASE_CODE(CALL) : {
-            uint8_t *callPtr = FROM_START(READ_UINT());
-            ObjCallFrame *frame = newCallFrame(NULL, 0, fiber->ip, vm);
-            PUSH_FRAME((ObjVarFrame *)frame);
+            uint8_t* callPtr = FROM_START(READ_UINT());
+            ObjCallFrame* frame = newCallFrame(NULL, 0, fiber->ip, vm);
+            PUSH_FRAME((ObjVarFrame*)frame);
             fiber->ip = callPtr;
             DISPATCH();
         }
@@ -1238,14 +1238,14 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             ASSERT(FRAME_COUNT() > 0, "CALL_CLOSURE requires at least one frame on the frame stack.");
             ASSERT(VALUE_COUNT() > 0, "CALL_CLOSURE requires at least one value on the value stack.");
 
-            ObjClosure *closure = AS_CLOSURE(POP_VAL());
-            uint8_t *next = closure->funcLocation;
+            ObjClosure* closure = AS_CLOSURE(POP_VAL());
+            uint8_t* next = closure->funcLocation;
 
             // need to populate the frame with the captured values, but also the
             // parameters from the stack top of the stack is first in the frame, next
             // is second, etc. captured are copied as they appear in the closure
-            mochiFiberPushRoot(fiber, (Obj *)closure);
-            ObjCallFrame *frame = callClosureFrame(vm, fiber, closure, NULL, NULL, fiber->ip);
+            mochiFiberPushRoot(fiber, (Obj*)closure);
+            ObjCallFrame* frame = callClosureFrame(vm, fiber, closure, NULL, NULL, fiber->ip);
             mochiFiberPopRoot(fiber);
 
             // jump to the closure body and push the frame
@@ -1257,14 +1257,14 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             ASSERT(FRAME_COUNT() > 0, "TAILCALL_CLOSURE requires at least one frame on the frame stack.");
             ASSERT(VALUE_COUNT() > 0, "TAILCALL_CLOSURE requires at least one value on the value stack.");
 
-            ObjClosure *closure = AS_CLOSURE(POP_VAL());
-            uint8_t *next = closure->funcLocation;
+            ObjClosure* closure = AS_CLOSURE(POP_VAL());
+            uint8_t* next = closure->funcLocation;
 
             // create a new frame with the new array of stored values but the same
             // return location as the previous frame
-            ObjCallFrame *oldFrame = (ObjCallFrame *)PEEK_FRAME(1);
-            mochiFiberPushRoot(fiber, (Obj *)closure);
-            ObjCallFrame *frame = callClosureFrame(vm, fiber, closure, NULL, NULL, oldFrame->afterLocation);
+            ObjCallFrame* oldFrame = (ObjCallFrame*)PEEK_FRAME(1);
+            mochiFiberPushRoot(fiber, (Obj*)closure);
+            ObjCallFrame* frame = callClosureFrame(vm, fiber, closure, NULL, NULL, oldFrame->afterLocation);
             mochiFiberPopRoot(fiber);
 
             // jump to the closure body, drop the old frame and push the new frame
@@ -1280,14 +1280,14 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         }
         CASE_CODE(RETURN) : {
             ASSERT(FRAME_COUNT() > 0, "RETURN expects at least one frame on the stack.");
-            ObjCallFrame *frame = (ObjCallFrame *)POP_FRAME();
+            ObjCallFrame* frame = (ObjCallFrame*)POP_FRAME();
             ASSERT_OBJ_TYPE(frame, OBJ_CALL_FRAME, "RETURN expects a frame of type 'call frame' on the frame stack.");
             fiber->ip = frame->afterLocation;
             DISPATCH();
         }
 
         CASE_CODE(JUMP_TRUE) : {
-            uint8_t *newLoc = FROM_START(READ_UINT());
+            uint8_t* newLoc = FROM_START(READ_UINT());
             bool val = AS_BOOL(POP_VAL());
             if (val) {
                 fiber->ip = newLoc;
@@ -1295,7 +1295,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             DISPATCH();
         }
         CASE_CODE(JUMP_FALSE) : {
-            uint8_t *newLoc = FROM_START(READ_UINT());
+            uint8_t* newLoc = FROM_START(READ_UINT());
             bool val = AS_BOOL(POP_VAL());
             if (!val) {
                 fiber->ip = newLoc;
@@ -1320,20 +1320,20 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         }
 
         CASE_CODE(CLOSURE) : {
-            uint8_t *bodyLocation = FROM_START(READ_UINT());
+            uint8_t* bodyLocation = FROM_START(READ_UINT());
             uint8_t paramCount = READ_BYTE();
             uint16_t closedCount = READ_USHORT();
             ASSERT(paramCount + closedCount <= MOCHIVM_MAX_CALL_FRAME_SLOTS,
                    "Attempt to create closure with more slots than available.");
 
-            ObjClosure *closure = mochiNewClosure(vm, bodyLocation, paramCount, closedCount);
+            ObjClosure* closure = mochiNewClosure(vm, bodyLocation, paramCount, closedCount);
             for (int i = 0; i < closedCount; i++) {
                 uint16_t frameIdx = READ_USHORT();
                 uint16_t slotIdx = READ_USHORT();
 
                 ASSERT(FRAME_COUNT() > frameIdx, "Frame index out of range during CLOSURE creation.");
 #if DEBUG
-                ObjVarFrame *frame = PEEK_FRAME(frameIdx + 1);
+                ObjVarFrame* frame = PEEK_FRAME(frameIdx + 1);
                 ASSERT(frame->slotCount >= slotIdx, "Slot index out of range during CLOSURE creation.");
 #endif
 
@@ -1343,7 +1343,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             DISPATCH();
         }
         CASE_CODE(RECURSIVE) : {
-            uint8_t *bodyLocation = FROM_START(READ_UINT());
+            uint8_t* bodyLocation = FROM_START(READ_UINT());
             uint8_t paramCount = READ_BYTE();
             uint16_t closedCount = READ_USHORT();
             ASSERT(paramCount + closedCount + 1 <= MOCHIVM_MAX_CALL_FRAME_SLOTS,
@@ -1351,7 +1351,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
                    "available.");
 
             // add one to closed count to save a slot for the closure itself
-            ObjClosure *closure = mochiNewClosure(vm, bodyLocation, paramCount, closedCount + 1);
+            ObjClosure* closure = mochiNewClosure(vm, bodyLocation, paramCount, closedCount + 1);
             // capture everything listed in the instruction args, saving the first
             // spot for the closure itself
             mochiClosureCapture(closure, 0, OBJ_VAL(closure));
@@ -1361,7 +1361,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
 
                 ASSERT(FRAME_COUNT() > frameIdx, "Frame index out of range during CLOSURE creation.");
 #if DEBUG
-                ObjVarFrame *frame = PEEK_FRAME(frameIdx + 1);
+                ObjVarFrame* frame = PEEK_FRAME(frameIdx + 1);
                 ASSERT(frame->slotCount >= slotIdx, "Slot index out of range during CLOSURE creation.");
 #endif
 
@@ -1379,17 +1379,17 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             // make a new closure with room for references to
             // the other closures and itself
             for (int i = 0; i < mutualCount; i++) {
-                ObjClosure *old = AS_CLOSURE(PEEK_VAL(mutualCount - i));
-                ObjClosure *closure =
+                ObjClosure* old = AS_CLOSURE(PEEK_VAL(mutualCount - i));
+                ObjClosure* closure =
                     mochiNewClosure(vm, old->funcLocation, old->paramCount, old->capturedCount + mutualCount);
                 valueArrayCopy(closure->captured + mutualCount, old->captured, old->capturedCount);
                 // replace the old closure with the new one
-                PEEK_VAL(mutualCount - i) = OBJ_VAL((Obj *)closure);
+                PEEK_VAL(mutualCount - i) = OBJ_VAL((Obj*)closure);
             }
 
             // finally, make the closures all reference each other in the same order
             for (int i = 0; i < mutualCount; i++) {
-                ObjClosure *closure = AS_CLOSURE(PEEK_VAL(mutualCount - i));
+                ObjClosure* closure = AS_CLOSURE(PEEK_VAL(mutualCount - i));
                 valueArrayCopy(fiber->valueStackTop - mutualCount, closure->captured, mutualCount);
             }
 
@@ -1397,20 +1397,20 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         }
         CASE_CODE(CLOSURE_ONCE) : {
             ASSERT(VALUE_COUNT() > 0, "CLOSURE_ONCE expects at least one closure on the value stack.");
-            ObjClosure *closure = AS_CLOSURE(PEEK_VAL(1));
+            ObjClosure* closure = AS_CLOSURE(PEEK_VAL(1));
             closure->resumeLimit = RESUME_ONCE;
             DISPATCH();
         }
         CASE_CODE(CLOSURE_ONCE_TAIL) : {
             ASSERT(VALUE_COUNT() > 0, "CLOSURE_ONCE_TAIL expects at least one "
                                       "closure on the value stack.");
-            ObjClosure *closure = AS_CLOSURE(PEEK_VAL(1));
+            ObjClosure* closure = AS_CLOSURE(PEEK_VAL(1));
             closure->resumeLimit = RESUME_ONCE_TAIL;
             DISPATCH();
         }
         CASE_CODE(CLOSURE_MANY) : {
             ASSERT(VALUE_COUNT() > 0, "CLOSURE_MANY expects at least one closure on the value stack.");
-            ObjClosure *closure = AS_CLOSURE(PEEK_VAL(1));
+            ObjClosure* closure = AS_CLOSURE(PEEK_VAL(1));
             closure->resumeLimit = RESUME_MANY;
             DISPATCH();
         }
@@ -1426,7 +1426,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             ASSERT(VALUE_COUNT() >= handlerCount + paramCount + 1,
                    "HANDLE did not have the required number of values on the stack.");
 
-            ObjHandleFrame *frame =
+            ObjHandleFrame* frame =
                 mochinewHandleFrame(vm, handleId, paramCount, handlerCount, fiber->ip + afterOffset);
             // take the handlers off the stack
             for (int i = 0; i < handlerCount; i++) {
@@ -1445,11 +1445,11 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             int handleId = READ_UINT();
 
             for (int i = 0; i < fiber->frameStackTop - fiber->frameStack; i++) {
-                ObjVarFrame *frame = *(fiber->frameStackTop - i - 1);
+                ObjVarFrame* frame = *(fiber->frameStackTop - i - 1);
                 if (frame->obj.type != OBJ_HANDLE_FRAME) {
                     continue;
                 }
-                ObjHandleFrame *handle = (ObjHandleFrame *)frame;
+                ObjHandleFrame* handle = (ObjHandleFrame*)frame;
                 if (handle->handleId == handleId) {
                     handle->nesting += 1;
                     if (handle->nesting == 1) {
@@ -1464,11 +1464,11 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             int handleId = READ_UINT();
 
             for (int i = 0; i < fiber->frameStackTop - fiber->frameStack; i++) {
-                ObjVarFrame *frame = *(fiber->frameStackTop - i - 1);
+                ObjVarFrame* frame = *(fiber->frameStackTop - i - 1);
                 if (frame->obj.type != OBJ_HANDLE_FRAME) {
                     continue;
                 }
-                ObjHandleFrame *handle = (ObjHandleFrame *)frame;
+                ObjHandleFrame* handle = (ObjHandleFrame*)frame;
                 if (handle->handleId == handleId) {
                     handle->nesting -= 1;
                     if (handle->nesting <= 0) {
@@ -1483,10 +1483,10 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         CASE_CODE(COMPLETE) : {
             ASSERT(FRAME_COUNT() > 0, "COMPLETE expects at least one handle frame on the frame stack.");
 
-            ObjHandleFrame *frame = (ObjHandleFrame *)PEEK_FRAME(1);
+            ObjHandleFrame* frame = (ObjHandleFrame*)PEEK_FRAME(1);
 
-            ObjCallFrame *newFrame =
-                callClosureFrame(vm, fiber, frame->afterClosure, (ObjVarFrame *)frame, NULL, frame->call.afterLocation);
+            ObjCallFrame* newFrame =
+                callClosureFrame(vm, fiber, frame->afterClosure, (ObjVarFrame*)frame, NULL, frame->call.afterLocation);
 
             DROP_FRAMES(1);
             PUSH_FRAME(newFrame);
@@ -1500,15 +1500,15 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             uint8_t handlerIdx = READ_BYTE();
             int frameIdx = findFreeHandler(fiber, handleId);
             int frameCount = frameIdx + 1;
-            ObjHandleFrame *frame = (ObjHandleFrame *)PEEK_FRAME(frameIdx + 1);
+            ObjHandleFrame* frame = (ObjHandleFrame*)PEEK_FRAME(frameIdx + 1);
 
             ASSERT(handlerIdx < frame->handlerCount, "ESCAPE: Requested handler index outside the bounds of the handle "
                                                      "frame handler set.");
-            ObjClosure *handler = frame->handlers[handlerIdx];
+            ObjClosure* handler = frame->handlers[handlerIdx];
 
             if (handler->resumeLimit == RESUME_NONE) {
-                ObjCallFrame *newFrame =
-                    callClosureFrame(vm, fiber, handler, (ObjVarFrame *)frame, NULL, frame->call.afterLocation);
+                ObjCallFrame* newFrame =
+                    callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, NULL, frame->call.afterLocation);
 
                 fiber->valueStackTop = fiber->valueStack;
                 // drop all frames up to and including the found handle frame
@@ -1517,18 +1517,18 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             } else if (handler->resumeLimit == RESUME_ONCE_TAIL && frame->call.vars.slotCount == 0) {
                 // TODO: does the condition for a handle context with no variables
                 // actually matter?
-                ObjCallFrame *newFrame = callClosureFrame(vm, fiber, handler, NULL, NULL, fiber->ip);
+                ObjCallFrame* newFrame = callClosureFrame(vm, fiber, handler, NULL, NULL, fiber->ip);
                 PUSH_FRAME(newFrame);
             } else {
-                ObjContinuation *cont = mochiNewContinuation(vm, fiber->ip, frame->call.vars.slotCount,
+                ObjContinuation* cont = mochiNewContinuation(vm, fiber->ip, frame->call.vars.slotCount,
                                                              VALUE_COUNT() - handler->paramCount, frameCount);
                 // save all frames up to and including the found handle frame
                 OBJ_ARRAY_COPY(cont->savedFrames, fiber->frameStackTop - frameCount, frameCount);
                 valueArrayCopy(cont->savedStack, fiber->valueStack, cont->savedStackCount);
 
-                mochiFiberPushRoot(fiber, (Obj *)cont);
-                ObjCallFrame *newFrame =
-                    callClosureFrame(vm, fiber, handler, (ObjVarFrame *)frame, cont, frame->call.afterLocation);
+                mochiFiberPushRoot(fiber, (Obj*)cont);
+                ObjCallFrame* newFrame =
+                    callClosureFrame(vm, fiber, handler, (ObjVarFrame*)frame, cont, frame->call.afterLocation);
                 mochiFiberPopRoot(fiber);
 
                 fiber->valueStackTop = fiber->valueStack;
@@ -1544,12 +1544,12 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         CASE_CODE(CALL_CONTINUATION) : {
             ASSERT(VALUE_COUNT() > 0, "CALL_CONTINUATION expects at least one continuation value at the "
                                       "top of the value stack.");
-            ObjContinuation *cont = AS_CONTINUATION(POP_VAL());
-            mochiFiberPushRoot(fiber, (Obj *)cont);
+            ObjContinuation* cont = AS_CONTINUATION(POP_VAL());
+            mochiFiberPushRoot(fiber, (Obj*)cont);
 
             // the last frame in the saved frame stack is always the handle frame
             // action reacted on
-            ObjHandleFrame *handle = (ObjHandleFrame *)cont->savedFrames[0];
+            ObjHandleFrame* handle = (ObjHandleFrame*)cont->savedFrames[0];
             ASSERT_OBJ_TYPE(handle, OBJ_HANDLE_FRAME,
                             "CALL_CONTINUATION expected a handle frame at the bottom "
                             "of the continuation frame stack.");
@@ -1568,14 +1568,14 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
                                       "the top of the value stack.");
             ASSERT(FRAME_COUNT() > 0, "TAILCALL_CONTINUATION expects at least one "
                                       "call frame at the top of the frame stack.");
-            ObjContinuation *cont = AS_CONTINUATION(POP_VAL());
-            mochiFiberPushRoot(fiber, (Obj *)cont);
+            ObjContinuation* cont = AS_CONTINUATION(POP_VAL());
+            mochiFiberPushRoot(fiber, (Obj*)cont);
 
-            uint8_t *after = ((ObjCallFrame *)POP_FRAME())->afterLocation;
+            uint8_t* after = ((ObjCallFrame*)POP_FRAME())->afterLocation;
 
             // the last frame in the saved frame stack is always the handle frame
             // action reacted on
-            ObjHandleFrame *handle = (ObjHandleFrame *)cont->savedFrames[0];
+            ObjHandleFrame* handle = (ObjHandleFrame*)cont->savedFrames[0];
             ASSERT_OBJ_TYPE(handle, OBJ_HANDLE_FRAME,
                             "TAILCALL_CONTINUATION expected a handle frame at the "
                             "bottom of the continuation frame stack.");
@@ -1632,15 +1632,15 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         CASE_CODE(LIST_CONS) : {
             ASSERT(VALUE_COUNT() >= 2, "LIST_CONS expects at least two values on the value stack.");
             Value elem = PEEK_VAL(1);
-            ObjList *tail = AS_LIST(PEEK_VAL(2));
-            ObjList *new = mochiListCons(vm, elem, tail);
+            ObjList* tail = AS_LIST(PEEK_VAL(2));
+            ObjList* new = mochiListCons(vm, elem, tail);
             DROP_VALS(2);
             PUSH_VAL(OBJ_VAL(new));
             DISPATCH();
         }
         CASE_CODE(LIST_HEAD) : {
             ASSERT(VALUE_COUNT() >= 1, "LIST_HEAD expects at least one value on the value stack.");
-            ObjList *list = AS_LIST(POP_VAL());
+            ObjList* list = AS_LIST(POP_VAL());
             // TODO: if empty list, throw an exception here? assumes built-in or
             // standard library exception mechanism
             ASSERT(list != NULL, "LIST_HEAD cannot operate on an empty list.");
@@ -1650,7 +1650,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         }
         CASE_CODE(LIST_TAIL) : {
             ASSERT(VALUE_COUNT() >= 1, "LIST_HEAD expects at least one value on the value stack.");
-            ObjList *list = AS_LIST(POP_VAL());
+            ObjList* list = AS_LIST(POP_VAL());
             // TODO: if empty list, throw an exception here? assumes built-in or
             // standard library exception mechanism
             ASSERT(list != NULL, "LIST_HEAD cannot operate on an empty list.");
@@ -1660,14 +1660,14 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         }
         CASE_CODE(LIST_IS_EMPTY) : {
             ASSERT(VALUE_COUNT() >= 1, "LIST_IS_EMPTY expects at least one value on the stack.");
-            ObjList *list = AS_LIST(POP_VAL());
+            ObjList* list = AS_LIST(POP_VAL());
             PUSH_VAL(BOOL_VAL(vm, list == NULL));
             DISPATCH();
         }
         CASE_CODE(LIST_APPEND) : {
             ASSERT(VALUE_COUNT() >= 2, "LIST_APPEND expects at least two list values on the stack.");
-            ObjList *prefix = AS_LIST(PEEK_VAL(1));
-            ObjList *suffix = AS_LIST(PEEK_VAL(2));
+            ObjList* prefix = AS_LIST(PEEK_VAL(1));
+            ObjList* suffix = AS_LIST(PEEK_VAL(2));
 
             if (suffix == NULL) {
                 DROP_VALS(2);
@@ -1675,11 +1675,11 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             } else if (prefix == NULL) {
                 DROP_VALS(1);
             } else {
-                ObjList *start = mochiListCons(vm, prefix->elem, NULL);
-                ObjList *iter = start;
+                ObjList* start = mochiListCons(vm, prefix->elem, NULL);
+                ObjList* iter = start;
                 prefix = prefix->next;
 
-                mochiFiberPushRoot(fiber, (Obj *)start);
+                mochiFiberPushRoot(fiber, (Obj*)start);
                 while (prefix != NULL) {
                     iter->next = mochiListCons(vm, prefix->elem, NULL);
                     iter = iter->next;
@@ -1706,7 +1706,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             DISPATCH();
         }
         CASE_CODE(GETREF) : {
-            ObjRef *ref = AS_REF(POP_VAL());
+            ObjRef* ref = AS_REF(POP_VAL());
             Value val;
             mochiTableGet(&vm->heap, ref->ptr, &val);
             PUSH_VAL(val);
@@ -1714,7 +1714,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         }
         CASE_CODE(PUTREF) : {
             Value val = PEEK_VAL(1);
-            ObjRef *ref = AS_REF(PEEK_VAL(2));
+            ObjRef* ref = AS_REF(PEEK_VAL(2));
             mochiTableSet(vm, &vm->heap, ref->ptr, val);
             DROP_VALS(2);
             DISPATCH();
@@ -1724,7 +1724,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             StructId structId = READ_UINT();
             uint8_t count = READ_BYTE();
 
-            ObjStruct *stru = mochiNewStruct(vm, structId, count);
+            ObjStruct* stru = mochiNewStruct(vm, structId, count);
             // NOTE: this make the values in the struct ID conceptually 'backwards'
             // from how they were laid out on the stack, even though in memory its
             // the same order. The stack top pointer is at the end of the array, the
@@ -1737,7 +1737,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
             DISPATCH();
         }
         CASE_CODE(DESTRUCT) : {
-            ObjStruct *stru = AS_STRUCT(POP_VAL());
+            ObjStruct* stru = AS_STRUCT(POP_VAL());
             // NOTE: see note in CONSTRUCT instruction for a potential conceptual
             // pitfall.
             valueArrayCopy(fiber->valueStackTop, stru->elems, stru->count);
@@ -1746,14 +1746,14 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         }
         CASE_CODE(IS_STRUCT) : {
             StructId structId = READ_UINT();
-            ObjStruct *stru = AS_STRUCT(POP_VAL());
+            ObjStruct* stru = AS_STRUCT(POP_VAL());
             PUSH_VAL(BOOL_VAL(vm, stru->id == structId));
             DISPATCH();
         }
         CASE_CODE(JUMP_STRUCT) : {
             StructId structId = READ_UINT();
-            uint8_t *newLoc = FROM_START(READ_UINT());
-            ObjStruct *stru = AS_STRUCT(POP_VAL());
+            uint8_t* newLoc = FROM_START(READ_UINT());
+            ObjStruct* stru = AS_STRUCT(POP_VAL());
             if (stru->id == structId) {
                 fiber->ip = newLoc;
             }
@@ -1762,7 +1762,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         CASE_CODE(OFFSET_STRUCT) : {
             StructId structId = READ_UINT();
             int offset = READ_INT();
-            ObjStruct *stru = AS_STRUCT(POP_VAL());
+            ObjStruct* stru = AS_STRUCT(POP_VAL());
             if (stru->id == structId) {
                 fiber->ip += offset;
             }
@@ -1775,7 +1775,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         }
         CASE_CODE(RECORD_EXTEND) : {
             TableKey field = READ_UINT();
-            ObjRecord *rec = mochiRecordExtend(vm, field, PEEK_VAL(1), AS_RECORD(PEEK_VAL(2)));
+            ObjRecord* rec = mochiRecordExtend(vm, field, PEEK_VAL(1), AS_RECORD(PEEK_VAL(2)));
             DROP_VALS(2);
             PUSH_VAL(OBJ_VAL(rec));
             DISPATCH();
@@ -1788,40 +1788,40 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         }
         CASE_CODE(RECORD_RESTRICT) : {
             TableKey field = READ_UINT();
-            ObjRecord *restr = mochiRecordRestrict(vm, field, AS_RECORD(PEEK_VAL(1)));
+            ObjRecord* restr = mochiRecordRestrict(vm, field, AS_RECORD(PEEK_VAL(1)));
             PUSH_VAL(OBJ_VAL(restr));
             DROP_VALS(1);
             DISPATCH();
         }
         CASE_CODE(RECORD_UPDATE) : {
             TableKey field = READ_UINT();
-            ObjRecord *rec = mochiRecordUpdate(vm, field, PEEK_VAL(1), AS_RECORD(PEEK_VAL(2)));
+            ObjRecord* rec = mochiRecordUpdate(vm, field, PEEK_VAL(1), AS_RECORD(PEEK_VAL(2)));
             DROP_VALS(2);
             PUSH_VAL(OBJ_VAL(rec));
             DISPATCH();
         }
 
         CASE_CODE(VARIANT) : {
-            ObjVariant *var = mochiNewVariant(vm, READ_UINT(), POP_VAL());
+            ObjVariant* var = mochiNewVariant(vm, READ_UINT(), POP_VAL());
             PUSH_VAL(OBJ_VAL(var));
             DISPATCH();
         }
         CASE_CODE(EMBED) : {
             TableKey label = READ_UINT();
-            ObjVariant *var = mochiVariantEmbed(vm, label, AS_VARIANT(POP_VAL()));
+            ObjVariant* var = mochiVariantEmbed(vm, label, AS_VARIANT(POP_VAL()));
             PUSH_VAL(OBJ_VAL(var));
             DISPATCH();
         }
         CASE_CODE(IS_CASE) : {
             TableKey label = READ_UINT();
-            ObjVariant *var = AS_VARIANT(POP_VAL());
+            ObjVariant* var = AS_VARIANT(POP_VAL());
             PUSH_VAL(BOOL_VAL(vm, var->label == label));
             DISPATCH();
         }
         CASE_CODE(JUMP_CASE) : {
             TableKey label = READ_UINT();
-            uint8_t *newLoc = FROM_START(READ_UINT());
-            ObjVariant *var = AS_VARIANT(POP_VAL());
+            uint8_t* newLoc = FROM_START(READ_UINT());
+            ObjVariant* var = AS_VARIANT(POP_VAL());
             if (var->label == label) {
                 PUSH_VAL(var->elem);
                 fiber->ip = newLoc;
@@ -1833,7 +1833,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         CASE_CODE(OFFSET_CASE) : {
             TableKey label = READ_UINT();
             int offset = READ_INT();
-            ObjVariant *var = AS_VARIANT(POP_VAL());
+            ObjVariant* var = AS_VARIANT(POP_VAL());
             if (var->label == label) {
                 PUSH_VAL(var->elem);
                 fiber->ip += offset;
@@ -1850,8 +1850,8 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         CASE_CODE(ARRAY_FILL) : {
             Value v = PEEK_VAL(1);
             int amt = (int)AS_U32(PEEK_VAL(2));
-            ObjArray *arr = mochiArrayNil(vm);
-            mochiFiberPushRoot(fiber, (Obj *)arr);
+            ObjArray* arr = mochiArrayNil(vm);
+            mochiFiberPushRoot(fiber, (Obj*)arr);
             arr = mochiArrayFill(vm, amt, v, arr);
             mochiFiberPopRoot(fiber);
             DROP_VALS(2);
@@ -1860,42 +1860,42 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         }
         CASE_CODE(ARRAY_SNOC) : {
             Value v = PEEK_VAL(1);
-            ObjArray *arr = AS_ARRAY(PEEK_VAL(2));
+            ObjArray* arr = AS_ARRAY(PEEK_VAL(2));
             mochiArraySnoc(vm, v, arr);
             DROP_VALS(1);
             DISPATCH();
         }
         CASE_CODE(ARRAY_GET_AT) : {
             int idx = (int)AS_U32(POP_VAL());
-            ObjArray *arr = AS_ARRAY(POP_VAL());
+            ObjArray* arr = AS_ARRAY(POP_VAL());
             PUSH_VAL(mochiArrayGetAt(idx, arr));
             DISPATCH();
         }
         CASE_CODE(ARRAY_SET_AT) : {
             int idx = (int)AS_U32(POP_VAL());
             Value val = PEEK_VAL(1);
-            ObjArray *arr = AS_ARRAY(PEEK_VAL(2));
+            ObjArray* arr = AS_ARRAY(PEEK_VAL(2));
             mochiArraySetAt(idx, val, arr);
             DROP_VALS(1);
             DISPATCH();
         }
         CASE_CODE(ARRAY_LENGTH) : {
-            ObjArray *arr = AS_ARRAY(POP_VAL());
+            ObjArray* arr = AS_ARRAY(POP_VAL());
             PUSH_VAL(U32_VAL(vm, mochiArrayLength(arr)));
             DISPATCH();
         }
         CASE_CODE(ARRAY_COPY) : {
             int start = (int)AS_U32(POP_VAL());
             int length = (int)AS_U32(POP_VAL());
-            ObjArray *arr = AS_ARRAY(PEEK_VAL(1));
+            ObjArray* arr = AS_ARRAY(PEEK_VAL(1));
             PUSH_VAL(OBJ_VAL(mochiArrayCopy(vm, start, length, arr)));
             DISPATCH();
         }
         CASE_CODE(ARRAY_CONCAT) : {
-            ObjArray *b = AS_ARRAY(PEEK_VAL(1));
-            ObjArray *a = AS_ARRAY(PEEK_VAL(2));
+            ObjArray* b = AS_ARRAY(PEEK_VAL(1));
+            ObjArray* a = AS_ARRAY(PEEK_VAL(2));
 
-            ObjArray *cat = mochiArrayNil(vm);
+            ObjArray* cat = mochiArrayNil(vm);
             for (int i = 0; i < a->elems.count; i++) {
                 mochiArraySnoc(vm, a->elems.data[i], cat);
             }
@@ -1910,8 +1910,8 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         CASE_CODE(ARRAY_SLICE) : {
             int start = (int)AS_U32(POP_VAL());
             int length = (int)AS_U32(POP_VAL());
-            ObjArray *arr = AS_ARRAY(PEEK_VAL(1));
-            ObjSlice *slice = mochiArraySlice(vm, start, length, arr);
+            ObjArray* arr = AS_ARRAY(PEEK_VAL(1));
+            ObjSlice* slice = mochiArraySlice(vm, start, length, arr);
             DROP_VALS(1);
             PUSH_VAL(OBJ_VAL(slice));
             DISPATCH();
@@ -1919,33 +1919,33 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         CASE_CODE(SUBSLICE) : {
             int start = (int)AS_U32(POP_VAL());
             int length = (int)AS_U32(POP_VAL());
-            ObjSlice *orig = AS_SLICE(PEEK_VAL(1));
-            ObjSlice *sub = mochiSubslice(vm, start, length, orig);
+            ObjSlice* orig = AS_SLICE(PEEK_VAL(1));
+            ObjSlice* sub = mochiSubslice(vm, start, length, orig);
             DROP_VALS(1);
             PUSH_VAL(OBJ_VAL(sub));
             DISPATCH();
         }
         CASE_CODE(SLICE_GET_AT) : {
             int idx = (int)AS_U32(POP_VAL());
-            ObjSlice *slice = AS_SLICE(POP_VAL());
+            ObjSlice* slice = AS_SLICE(POP_VAL());
             PUSH_VAL(mochiSliceGetAt(idx, slice));
             DISPATCH();
         }
         CASE_CODE(SLICE_SET_AT) : {
             int idx = (int)AS_U32(POP_VAL());
             Value val = PEEK_VAL(1);
-            ObjSlice *slice = AS_SLICE(PEEK_VAL(2));
+            ObjSlice* slice = AS_SLICE(PEEK_VAL(2));
             mochiSliceSetAt(idx, val, slice);
             DROP_VALS(1);
             DISPATCH();
         }
         CASE_CODE(SLICE_LENGTH) : {
-            ObjSlice *slice = AS_SLICE(POP_VAL());
+            ObjSlice* slice = AS_SLICE(POP_VAL());
             PUSH_VAL(U32_VAL(vm, mochiSliceLength(slice)));
             DISPATCH();
         }
         CASE_CODE(SLICE_COPY) : {
-            ObjSlice *slice = AS_SLICE(PEEK_VAL(1));
+            ObjSlice* slice = AS_SLICE(PEEK_VAL(1));
             PUSH_VAL(OBJ_VAL(mochiSliceCopy(vm, slice)));
             DISPATCH();
         }
@@ -1957,8 +1957,8 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         CASE_CODE(BYTE_ARRAY_FILL) : {
             uint8_t v = AS_U8(POP_VAL());
             int amt = (int)AS_U32(POP_VAL());
-            ObjByteArray *arr = mochiByteArrayNil(vm);
-            mochiFiberPushRoot(fiber, (Obj *)arr);
+            ObjByteArray* arr = mochiByteArrayNil(vm);
+            mochiFiberPushRoot(fiber, (Obj*)arr);
             arr = mochiByteArrayFill(vm, amt, v, arr);
             mochiFiberPopRoot(fiber);
             PUSH_VAL(OBJ_VAL(arr));
@@ -1966,40 +1966,40 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         }
         CASE_CODE(BYTE_ARRAY_SNOC) : {
             uint8_t v = AS_U8(POP_VAL());
-            ObjByteArray *arr = AS_BYTE_ARRAY(PEEK_VAL(1));
+            ObjByteArray* arr = AS_BYTE_ARRAY(PEEK_VAL(1));
             mochiByteArraySnoc(vm, v, arr);
             DISPATCH();
         }
         CASE_CODE(BYTE_ARRAY_GET_AT) : {
             int idx = (int)AS_U32(POP_VAL());
-            ObjByteArray *arr = AS_BYTE_ARRAY(POP_VAL());
+            ObjByteArray* arr = AS_BYTE_ARRAY(POP_VAL());
             PUSH_VAL(U8_VAL(vm, mochiByteArrayGetAt(idx, arr)));
             DISPATCH();
         }
         CASE_CODE(BYTE_ARRAY_SET_AT) : {
             int idx = (int)AS_U32(POP_VAL());
             uint8_t val = AS_U8(POP_VAL());
-            ObjByteArray *arr = AS_BYTE_ARRAY(PEEK_VAL(1));
+            ObjByteArray* arr = AS_BYTE_ARRAY(PEEK_VAL(1));
             mochiByteArraySetAt(idx, val, arr);
             DISPATCH();
         }
         CASE_CODE(BYTE_ARRAY_LENGTH) : {
-            ObjByteArray *arr = AS_BYTE_ARRAY(POP_VAL());
+            ObjByteArray* arr = AS_BYTE_ARRAY(POP_VAL());
             PUSH_VAL(U32_VAL(vm, mochiByteArrayLength(arr)));
             DISPATCH();
         }
         CASE_CODE(BYTE_ARRAY_COPY) : {
             int start = (int)AS_U32(POP_VAL());
             int length = (int)AS_U32(POP_VAL());
-            ObjByteArray *arr = AS_BYTE_ARRAY(PEEK_VAL(1));
+            ObjByteArray* arr = AS_BYTE_ARRAY(PEEK_VAL(1));
             PUSH_VAL(OBJ_VAL(mochiByteArrayCopy(vm, start, length, arr)));
             DISPATCH();
         }
         CASE_CODE(BYTE_ARRAY_CONCAT) : {
-            ObjByteArray *b = AS_BYTE_ARRAY(PEEK_VAL(1));
-            ObjByteArray *a = AS_BYTE_ARRAY(PEEK_VAL(2));
+            ObjByteArray* b = AS_BYTE_ARRAY(PEEK_VAL(1));
+            ObjByteArray* a = AS_BYTE_ARRAY(PEEK_VAL(2));
 
-            ObjByteArray *cat = mochiByteArrayNil(vm);
+            ObjByteArray* cat = mochiByteArrayNil(vm);
             for (int i = 0; i < a->elems.count; i++) {
                 mochiByteArraySnoc(vm, a->elems.data[i], cat);
             }
@@ -2014,8 +2014,8 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         CASE_CODE(BYTE_ARRAY_SLICE) : {
             int start = (int)AS_U32(POP_VAL());
             int length = (int)AS_U32(POP_VAL());
-            ObjByteArray *arr = AS_BYTE_ARRAY(PEEK_VAL(1));
-            ObjByteSlice *slice = mochiByteArraySlice(vm, start, length, arr);
+            ObjByteArray* arr = AS_BYTE_ARRAY(PEEK_VAL(1));
+            ObjByteSlice* slice = mochiByteArraySlice(vm, start, length, arr);
             DROP_VALS(1);
             PUSH_VAL(OBJ_VAL(slice));
             DISPATCH();
@@ -2023,41 +2023,41 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
         CASE_CODE(BYTE_SUBSLICE) : {
             int start = (int)AS_U32(POP_VAL());
             int length = (int)AS_U32(POP_VAL());
-            ObjByteSlice *orig = AS_BYTE_SLICE(PEEK_VAL(1));
-            ObjByteSlice *sub = mochiByteSubslice(vm, start, length, orig);
+            ObjByteSlice* orig = AS_BYTE_SLICE(PEEK_VAL(1));
+            ObjByteSlice* sub = mochiByteSubslice(vm, start, length, orig);
             DROP_VALS(1);
             PUSH_VAL(OBJ_VAL(sub));
             DISPATCH();
         }
         CASE_CODE(BYTE_SLICE_GET_AT) : {
             int idx = (int)AS_U32(POP_VAL());
-            ObjByteSlice *slice = AS_BYTE_SLICE(POP_VAL());
+            ObjByteSlice* slice = AS_BYTE_SLICE(POP_VAL());
             PUSH_VAL(U8_VAL(vm, mochiByteSliceGetAt(idx, slice)));
             DISPATCH();
         }
         CASE_CODE(BYTE_SLICE_SET_AT) : {
             int idx = (int)AS_U32(POP_VAL());
             uint8_t val = AS_U8(POP_VAL());
-            ObjByteSlice *slice = AS_BYTE_SLICE(PEEK_VAL(1));
+            ObjByteSlice* slice = AS_BYTE_SLICE(PEEK_VAL(1));
             mochiByteSliceSetAt(idx, val, slice);
             DISPATCH();
         }
         CASE_CODE(BYTE_SLICE_LENGTH) : {
-            ObjByteSlice *slice = AS_BYTE_SLICE(POP_VAL());
+            ObjByteSlice* slice = AS_BYTE_SLICE(POP_VAL());
             PUSH_VAL(U32_VAL(vm, mochiByteSliceLength(slice)));
             DISPATCH();
         }
         CASE_CODE(BYTE_SLICE_COPY) : {
-            ObjByteSlice *slice = AS_BYTE_SLICE(PEEK_VAL(1));
+            ObjByteSlice* slice = AS_BYTE_SLICE(PEEK_VAL(1));
             PUSH_VAL(OBJ_VAL(mochiByteSliceCopy(vm, slice)));
             DISPATCH();
         }
 
         CASE_CODE(STRING_CONCAT) : {
-            ObjByteArray *b = AS_BYTE_ARRAY(PEEK_VAL(1));
-            ObjByteArray *a = AS_BYTE_ARRAY(PEEK_VAL(2));
+            ObjByteArray* b = AS_BYTE_ARRAY(PEEK_VAL(1));
+            ObjByteArray* a = AS_BYTE_ARRAY(PEEK_VAL(2));
 
-            ObjByteArray *cat = mochiByteArrayNil(vm);
+            ObjByteArray* cat = mochiByteArrayNil(vm);
             // count - 1 to remove the null-terminator character from the first
             // string
             for (int i = 0; i < a->elems.count - 1; i++) {
@@ -2083,7 +2083,7 @@ static MochiVMInterpretResult run(MochiVM *vm, register ObjFiber *fiber) {
 #undef READ_CONSTANT
 }
 
-MochiVMInterpretResult mochiInterpret(MochiVM *vm, ObjFiber *fiber) {
+MochiVMInterpretResult mochiInterpret(MochiVM* vm, ObjFiber* fiber) {
     fiber->ip = vm->code.data;
     MochiVMInterpretResult res = run(vm, fiber);
     uv_run(uv_default_loop(), UV_RUN_DEFAULT);

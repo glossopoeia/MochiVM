@@ -3,7 +3,7 @@
 
 #include "memory.h"
 
-void *mochiReallocate(MochiVM *vm, void *memory, size_t oldSize, size_t newSize) {
+void* mochiReallocate(MochiVM* vm, void* memory, size_t oldSize, size_t newSize) {
     // If new bytes are being allocated, add them to the total count. If objects
     // are being completely deallocated, we don't track that (since we don't
     // track the original size). Instead, that will be handled while marking
@@ -32,8 +32,8 @@ void *mochiReallocate(MochiVM *vm, void *memory, size_t oldSize, size_t newSize)
     return vm->config.reallocateFn(memory, newSize, vm->config.userData);
 }
 
-void *mochiConcat(MochiVM *vm, size_t elemSize, void *array1, void *array2, int array1Count, int array2Count) {
-    void *newArray = mochiReallocate(vm, NULL, 0, elemSize * (array1Count + array2Count));
+void* mochiConcat(MochiVM* vm, size_t elemSize, void* array1, void* array2, int array1Count, int array2Count) {
+    void* newArray = mochiReallocate(vm, NULL, 0, elemSize * (array1Count + array2Count));
     memcpy(newArray, array1, elemSize * array1Count);
     memcpy(newArray + array1Count, array2, elemSize * array2Count);
     return newArray;

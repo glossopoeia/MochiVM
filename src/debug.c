@@ -2,43 +2,43 @@
 
 #include "debug.h"
 
-static short getShort(uint8_t *buffer, int offset) {
+static short getShort(uint8_t* buffer, int offset) {
     return (buffer[offset] << 8) | buffer[offset + 1];
 }
 
-static uint16_t getUShort(uint8_t *buffer, int offset) {
+static uint16_t getUShort(uint8_t* buffer, int offset) {
     return (uint16_t)((buffer[offset] << 8) | buffer[offset + 1]);
 }
 
-static int getInt(uint8_t *buffer, int offset) {
+static int getInt(uint8_t* buffer, int offset) {
     return (buffer[offset] << 24) | (buffer[offset + 1] << 16) | (buffer[offset + 2] << 8) | buffer[offset + 3];
 }
 
 // Easy function to print out 1-byte instructions and return the new offset.
-static int simpleInstruction(const char *name, int offset) {
+static int simpleInstruction(const char* name, int offset) {
     printf("%s\n", name);
     return offset + 1;
 }
 
-static int byteArgInstruction(const char *name, MochiVM *vm, int offset) {
+static int byteArgInstruction(const char* name, MochiVM* vm, int offset) {
     printf("%-16s %d\n", name, vm->code.data[offset + 1]);
     return offset + 2;
 }
 
-static int shortArgInstruction(const char *name, MochiVM *vm, int offset) {
-    uint8_t *code = vm->code.data;
+static int shortArgInstruction(const char* name, MochiVM* vm, int offset) {
+    uint8_t* code = vm->code.data;
     printf("%-16s %d\n", name, getShort(code, offset + 1));
     return offset + 3;
 }
 
-static int intArgInstruction(const char *name, MochiVM *vm, int offset) {
-    uint8_t *code = vm->code.data;
+static int intArgInstruction(const char* name, MochiVM* vm, int offset) {
+    uint8_t* code = vm->code.data;
     printf("%-16s %d\n", name, getInt(code, offset + 1));
     return offset + 5;
 }
 
-static int twoIntArgInstruction(const char *name, MochiVM *vm, int offset) {
-    uint8_t *code = vm->code.data;
+static int twoIntArgInstruction(const char* name, MochiVM* vm, int offset) {
+    uint8_t* code = vm->code.data;
     offset += 1;
 
     int argOne = getInt(code, offset);
@@ -49,10 +49,10 @@ static int twoIntArgInstruction(const char *name, MochiVM *vm, int offset) {
     return offset;
 }
 
-static int callInstruction(const char *name, MochiVM *vm, int offset) {
-    uint8_t *code = vm->code.data;
+static int callInstruction(const char* name, MochiVM* vm, int offset) {
+    uint8_t* code = vm->code.data;
     int instrIndex = getInt(code, offset + 1);
-    char *str = getLabel(vm, instrIndex);
+    char* str = getLabel(vm, instrIndex);
     if (str == NULL) {
         printf("%-16s %d\n", name, instrIndex);
     } else {
@@ -61,7 +61,7 @@ static int callInstruction(const char *name, MochiVM *vm, int offset) {
     return offset + 5;
 }
 
-static int constantInstruction(const char *name, MochiVM *vm, int offset) {
+static int constantInstruction(const char* name, MochiVM* vm, int offset) {
     uint8_t constant = vm->code.data[offset + 1];
     printf("%-16s %-4d '", name, constant);
     printValue(vm, vm->constants.data[constant]);
@@ -69,13 +69,13 @@ static int constantInstruction(const char *name, MochiVM *vm, int offset) {
     return offset + 2;
 }
 
-static int closureInstruction(const char *name, MochiVM *vm, int offset) {
-    uint8_t *code = vm->code.data;
+static int closureInstruction(const char* name, MochiVM* vm, int offset) {
+    uint8_t* code = vm->code.data;
     offset += 1;
 
     int body = getInt(code, offset);
     offset += 4;
-    char *str = getLabel(vm, body);
+    char* str = getLabel(vm, body);
     uint8_t paramCount = code[offset];
     offset += 1;
     uint16_t captureCount = getUShort(code, offset);
@@ -93,8 +93,8 @@ static int closureInstruction(const char *name, MochiVM *vm, int offset) {
     return offset + captureCount * 4;
 }
 
-static int actionInstruction(const char *name, MochiVM *vm, int offset) {
-    uint8_t *code = vm->code.data;
+static int actionInstruction(const char* name, MochiVM* vm, int offset) {
+    uint8_t* code = vm->code.data;
     offset += 1;
 
     int handleId = getInt(code, offset);
@@ -105,7 +105,7 @@ static int actionInstruction(const char *name, MochiVM *vm, int offset) {
     return offset;
 }
 
-void disassembleChunk(MochiVM *vm, const char *name) {
+void disassembleChunk(MochiVM* vm, const char* name) {
     printf("== %s ==\n", name);
 
     for (int offset = 0; offset < vm->code.count;) {
@@ -114,7 +114,7 @@ void disassembleChunk(MochiVM *vm, const char *name) {
     }
 }
 
-int disassembleInstruction(MochiVM *vm, int offset) {
+int disassembleInstruction(MochiVM* vm, int offset) {
     ASSERT(offset < vm->lines.count, "No line at the specified offset!");
     ASSERT(offset < vm->code.count, "No instruction at the specified offset!");
 
@@ -232,7 +232,7 @@ int disassembleInstruction(MochiVM *vm, int offset) {
     case CODE_DOUBLE_SIGN:
         return simpleInstruction("DOUBLE_SIGN", offset);
     case CODE_VALUE_CONV: {
-        uint8_t *code = vm->code.data;
+        uint8_t* code = vm->code.data;
         offset += 1;
 
         uint8_t from = code[offset];
@@ -245,7 +245,7 @@ int disassembleInstruction(MochiVM *vm, int offset) {
     case CODE_STORE:
         return byteArgInstruction("STORE", vm, offset);
     case CODE_FIND: {
-        uint8_t *code = vm->code.data;
+        uint8_t* code = vm->code.data;
         offset += 1;
 
         uint16_t frameIdx = getShort(code, offset);
@@ -288,7 +288,7 @@ int disassembleInstruction(MochiVM *vm, int offset) {
     case CODE_CLOSURE_MANY:
         return simpleInstruction("CLOSURE_MANY", offset);
     case CODE_HANDLE: {
-        uint8_t *code = vm->code.data;
+        uint8_t* code = vm->code.data;
         offset += 1;
 
         int16_t after = getShort(code, offset);
@@ -321,7 +321,7 @@ int disassembleInstruction(MochiVM *vm, int offset) {
     case CODE_SWAP:
         return simpleInstruction("SWAP", offset);
     case CODE_SHUFFLE: {
-        uint8_t *code = vm->code.data;
+        uint8_t* code = vm->code.data;
         offset += 1;
 
         uint8_t pop = code[offset];
@@ -344,7 +344,7 @@ int disassembleInstruction(MochiVM *vm, int offset) {
     case CODE_PUTREF:
         return simpleInstruction("PUTREF", offset);
     case CODE_CONSTRUCT: {
-        uint8_t *code = vm->code.data;
+        uint8_t* code = vm->code.data;
         offset += 1;
 
         int structId = getInt(code, offset);
@@ -458,12 +458,12 @@ int disassembleInstruction(MochiVM *vm, int offset) {
     }
 }
 
-void printFiberValueStack(MochiVM *vm, ObjFiber *fiber) {
+void printFiberValueStack(MochiVM* vm, ObjFiber* fiber) {
     printf("VALUES:    ");
     if (fiber->valueStack >= fiber->valueStackTop) {
         printf("<empty>");
     }
-    for (Value *slot = fiber->valueStack; slot < fiber->valueStackTop; slot++) {
+    for (Value* slot = fiber->valueStack; slot < fiber->valueStackTop; slot++) {
         printf("[ ");
         printValue(vm, *slot);
         printf(" ]");
@@ -471,12 +471,12 @@ void printFiberValueStack(MochiVM *vm, ObjFiber *fiber) {
     printf("\n");
 }
 
-void printFiberFrameStack(MochiVM *vm, ObjFiber *fiber) {
+void printFiberFrameStack(MochiVM* vm, ObjFiber* fiber) {
     printf("FRAMES:    ");
     if (fiber->frameStack >= fiber->frameStackTop) {
         printf("<empty>");
     }
-    for (ObjVarFrame **frame = fiber->frameStack; frame < fiber->frameStackTop; frame++) {
+    for (ObjVarFrame** frame = fiber->frameStack; frame < fiber->frameStackTop; frame++) {
         printf("[ ");
         printObject(vm, OBJ_VAL(*frame));
         printf(" ]");
@@ -484,12 +484,12 @@ void printFiberFrameStack(MochiVM *vm, ObjFiber *fiber) {
     printf("\n");
 }
 
-void printFiberRootStack(MochiVM *vm, ObjFiber *fiber) {
+void printFiberRootStack(MochiVM* vm, ObjFiber* fiber) {
     printf("ROOTS:     ");
     if (fiber->rootStack >= fiber->rootStackTop) {
         printf("<empty>");
     }
-    for (Obj **root = fiber->rootStack; root < fiber->rootStackTop; root++) {
+    for (Obj** root = fiber->rootStack; root < fiber->rootStackTop; root++) {
         printf("[ ");
         printObject(vm, OBJ_VAL(*root));
         printf(" ]");

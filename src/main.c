@@ -9,7 +9,7 @@
 #include <SDL.h>
 
 #define TEST_DOUBLE_VAL(val) DOUBLE_VAL(vm, val)
-#define TEST_I32_VAL(val) I32_VAL(vm, val)
+#define TEST_I32_VAL(val)    I32_VAL(vm, val)
 
 #define BEGIN_TEST(header)                                                                                             \
     do {                                                                                                               \
@@ -18,7 +18,7 @@
         printf("\n");                                                                                                  \
         printf("=============================\n");                                                                     \
         vm = mochiNewVM(NULL);                                                                                         \
-        ObjFiber *fiber = mochiNewFiber(vm, vm->code.data, NULL, 0);                                                   \
+        ObjFiber* fiber = mochiNewFiber(vm, vm->code.data, NULL, 0);                                                   \
         vm->fiber = fiber;                                                                                             \
         assertNumber = 0;                                                                                              \
         assertString = NULL;                                                                                           \
@@ -49,14 +49,14 @@
         printf("TEST PASSED\n");                                                                                       \
     } while (false);
 
-#define CONSTANT(arg) addConstant(vm, (arg));
-#define WRITE_INST(inst, line) writeChunk(vm, CODE_##inst, (line));
-#define WRITE_BYTE(byte, line) writeChunk(vm, (byte), (line));
+#define CONSTANT(arg)              addConstant(vm, (arg));
+#define WRITE_INST(inst, line)     writeChunk(vm, CODE_##inst, (line));
+#define WRITE_BYTE(byte, line)     writeChunk(vm, (byte), (line));
 #define WRITE_LABEL(label, length) writeLabel(vm, vm->code.count, length, label)
-#define VERIFY_STACK(count) assertStack = (count);
-#define VERIFY_FRAMES(count) assertFrames = (count);
-#define VERIFY_NUMBER(num) assertNumber = num;
-#define VERIFY_STRING(str) assertString = str;
+#define VERIFY_STACK(count)        assertStack = (count);
+#define VERIFY_FRAMES(count)       assertFrames = (count);
+#define VERIFY_NUMBER(num)         assertNumber = num;
+#define VERIFY_STRING(str)         assertString = str;
 
 #define WRITE_SHORT(val, line)                                                                                         \
     do {                                                                                                               \
@@ -81,13 +81,13 @@
         writeChunk(vm, (arg), (line));                                                                                 \
     } while (false);
 
-int main(int argc, const char *argv[]) {
+int main(int argc, const char* argv[]) {
     printf("MochiVM is under development... watch for bugs!\n");
 
 #if DEBUG
-    MochiVM *vm = NULL;
+    MochiVM* vm = NULL;
     double assertNumber = 0;
-    char *assertString = NULL;
+    char* assertString = NULL;
     int assertStack = -1;
     int assertFrames = -1;
 
