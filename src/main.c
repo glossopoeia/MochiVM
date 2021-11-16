@@ -18,7 +18,7 @@
         printf("\n");                                                                                                  \
         printf("=============================\n");                                                                     \
         vm = mochiNewVM(NULL);                                                                                         \
-        ObjFiber *fiber = mochiNewFiber(vm, vm->code.data, NULL, 0);                                            \
+        ObjFiber *fiber = mochiNewFiber(vm, vm->code.data, NULL, 0);                                                   \
         vm->fiber = fiber;                                                                                             \
         assertNumber = 0;                                                                                              \
         assertString = NULL;                                                                                           \
