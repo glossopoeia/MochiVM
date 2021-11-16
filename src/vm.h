@@ -22,6 +22,7 @@ DECLARE_BUFFER(ForeignFunction, MochiVMForeignMethodFn);
 struct MochiVM {
     MochiVMConfiguration config;
 
+    // Byte code and other buffers used for operation and disassembly.
     ByteBuffer code;
     IntBuffer lines;
     ValueBuffer constants;
@@ -30,6 +31,9 @@ struct MochiVM {
 
     ObjFiber *fiber;
 
+    // Shared mutable state among threads. Operations on the store are done using
+    // reference values, which change the values stored in the table non-immutably.
+    // TODO: rename this, it's more like a stateful value store, maybe just 'store'
     Table heap;
     TableKey nextHeapKey;
 
