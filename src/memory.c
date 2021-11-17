@@ -32,13 +32,6 @@ void* mochiReallocate(MochiVM* vm, void* memory, size_t oldSize, size_t newSize)
     return vm->config.reallocateFn(memory, newSize, vm->config.userData);
 }
 
-void* mochiConcat(MochiVM* vm, size_t elemSize, void* array1, void* array2, int array1Count, int array2Count) {
-    void* newArray = mochiReallocate(vm, NULL, 0, elemSize * (array1Count + array2Count));
-    memcpy(newArray, array1, elemSize * array1Count);
-    memcpy(newArray + array1Count, array2, elemSize * array2Count);
-    return newArray;
-}
-
 // From: http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2Float
 int mochiPowerOf2Ceil(int n) {
     n--;

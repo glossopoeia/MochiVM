@@ -88,7 +88,6 @@ MochiVM* mochiNewVM(MochiVMConfiguration* config) {
         mochiInitConfiguration(&vm->config);
     }
 
-    // TODO: Should we allocate and free this during a GC?
     vm->grayCount = 0;
     // TODO: Tune this.
     vm->grayCapacity = 4;
@@ -104,6 +103,8 @@ MochiVM* mochiNewVM(MochiVMConfiguration* config) {
     mochiTableInit(&vm->heap);
     // start at 2 since 0 and 1 are reserved for available/tombstoned slots
     vm->nextHeapKey = 2;
+
+    vm->fiber = mochiNewFiber(vm, vm->code.data, NULL, 0);
 
 #if MOCHIVM_BATTERY_UV
     uv_replace_allocator(uvmochiMalloc, uvmochiRealloc, uvmochiCalloc, uvmochiFree);

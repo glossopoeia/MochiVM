@@ -40,12 +40,13 @@ test: $(OBJECTS) $(BUILD_TOP)/libuv_a.a $(BUILD_TOP)/utf8proc/libutf8proc.a $(BU
 	@ printf "%8s %-40s %s %s %s\n" $(CC) $@ "$(CFLAGS)" "$(LIBS)" "$(TEST_LIBS)"
 	@ mkdir -p $(BUILD_DIR)
 	@ $(CC) $(CFLAGS) $^ -o $(BUILD_DIR)/mochivm_test $(LIBS) $(TEST_LIBS)
+	@ $(BUILD_DIR)/mochivm_test
 
 $(BUILD_DIR)/unit_test.o: $(BUILD_DIR)/unit_test.c
 	@ $(CC) -c $(C_LANG) $(CFLAGS) -o $@ $<
 
 # Build the test source file.
-$(BUILD_DIR)/unit_test.c: $(HEADERS)
+$(BUILD_DIR)/unit_test.c: test/unit_test.check $(HEADERS)
 	@ mkdir -p $(BUILD_DIR)
 	@ checkmk test/unit_test.check > $(BUILD_DIR)/unit_test.c
 

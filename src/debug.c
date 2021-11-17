@@ -115,9 +115,6 @@ void disassembleChunk(MochiVM* vm, const char* name) {
 }
 
 int disassembleInstruction(MochiVM* vm, int offset) {
-    ASSERT(offset < vm->lines.count, "No line at the specified offset!");
-    ASSERT(offset < vm->code.count, "No instruction at the specified offset!");
-
     printf("%04d ", offset);
     if (offset > 0 && vm->lines.data[offset] == vm->lines.data[offset - 1]) {
         printf("   | ");
