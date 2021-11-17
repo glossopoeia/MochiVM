@@ -230,9 +230,61 @@ void mochiCollectGarbage(MochiVM* vm) {
 #endif
 }
 
-int mochiWriteCode(MochiVM* vm, uint8_t instr, int line) {
+int mochiWriteCodeByte(MochiVM* vm, uint8_t instr, int line) {
     mochiByteBufferWrite(vm, &vm->code, instr);
     mochiIntBufferWrite(vm, &vm->lines, line);
+    return vm->code.count - 1;
+}
+
+int mochiWriteCodeI16(MochiVM* vm, int16_t val, int line) {
+    mochiWriteCodeByte(vm, (val) >> 8, (line));
+    mochiWriteCodeByte(vm, (val), (line));
+    return vm->code.count - 1;
+}
+
+int mochiWriteCodeU16(MochiVM* vm, uint16_t val, int line) {
+    mochiWriteCodeByte(vm, (val) >> 8, (line));
+    mochiWriteCodeByte(vm, (val), (line));
+    return vm->code.count - 1;
+}
+
+int mochiWriteCodeI32(MochiVM* vm, int32_t val, int line) {
+    mochiWriteCodeByte(vm, (val) >> 24, (line));
+    mochiWriteCodeByte(vm, (val) >> 16, (line));
+    mochiWriteCodeByte(vm, (val) >> 8, (line));
+    mochiWriteCodeByte(vm, (val), (line));
+    return vm->code.count - 1;
+}
+
+int mochiWriteCodeU32(MochiVM* vm, uint32_t val, int line) {
+    mochiWriteCodeByte(vm, (val) >> 24, (line));
+    mochiWriteCodeByte(vm, (val) >> 16, (line));
+    mochiWriteCodeByte(vm, (val) >> 8, (line));
+    mochiWriteCodeByte(vm, (val), (line));
+    return vm->code.count - 1;
+}
+
+int mochiWriteCodeI64(MochiVM* vm, int64_t val, int line) {
+    mochiWriteCodeByte(vm, (val) >> 52, (line));
+    mochiWriteCodeByte(vm, (val) >> 48, (line));
+    mochiWriteCodeByte(vm, (val) >> 40, (line));
+    mochiWriteCodeByte(vm, (val) >> 32, (line));
+    mochiWriteCodeByte(vm, (val) >> 24, (line));
+    mochiWriteCodeByte(vm, (val) >> 16, (line));
+    mochiWriteCodeByte(vm, (val) >> 8, (line));
+    mochiWriteCodeByte(vm, (val), (line));
+    return vm->code.count - 1;
+}
+
+int mochiWriteCodeU64(MochiVM* vm, uint64_t val, int line) {
+    mochiWriteCodeByte(vm, (val) >> 52, (line));
+    mochiWriteCodeByte(vm, (val) >> 48, (line));
+    mochiWriteCodeByte(vm, (val) >> 40, (line));
+    mochiWriteCodeByte(vm, (val) >> 32, (line));
+    mochiWriteCodeByte(vm, (val) >> 24, (line));
+    mochiWriteCodeByte(vm, (val) >> 16, (line));
+    mochiWriteCodeByte(vm, (val) >> 8, (line));
+    mochiWriteCodeByte(vm, (val), (line));
     return vm->code.count - 1;
 }
 

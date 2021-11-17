@@ -44,35 +44,21 @@
 
 #define CONST_DOUBLE(arg)      mochiWriteDoubleConst(vm, (arg));
 #define CONST_I32(arg)         mochiWriteI32Const(vm, (arg));
-#define WRITE_INST(inst, line) mochiWriteCode(vm, CODE_##inst, (line));
-#define WRITE_BYTE(byte, line) mochiWriteCode(vm, (byte), (line));
+#define WRITE_INST(inst, line) mochiWriteCodeByte(vm, CODE_##inst, (line));
+#define WRITE_BYTE(byte, line) mochiWriteCodeByte(vm, (byte), (line));
 #define WRITE_LABEL(label)     mochiWriteLabel(vm, vm->code.count, label)
 #define VERIFY_STACK(count)    assertStack = (count);
 #define VERIFY_FRAMES(count)   assertFrames = (count);
 #define VERIFY_NUMBER(num)     assertNumber = num;
 #define VERIFY_STRING(str)     assertString = str;
 
-#define WRITE_SHORT(val, line)                                                                                         \
-    do {                                                                                                               \
-        mochiWriteCode(vm, ((uint16_t)(val)) >> 8, (line));                                                            \
-        mochiWriteCode(vm, ((uint16_t)(val)), (line));                                                                 \
-    } while (false);
-
-#define WRITE_INT(val, line)                                                                                           \
-    do {                                                                                                               \
-        mochiWriteCode(vm, (val) >> 24, (line));                                                                       \
-        mochiWriteCode(vm, (val) >> 16, (line));                                                                       \
-        mochiWriteCode(vm, (val) >> 8, (line));                                                                        \
-        mochiWriteCode(vm, (val), (line));                                                                             \
-    } while (false);
+#define WRITE_SHORT(val, line) mochiWriteCodeU16(vm, val, line);
+#define WRITE_INT(val, line)   mochiWriteCodeI32(vm, val, line);
 
 #define WRITE_INT_INST(inst, arg, line)                                                                                \
     do {                                                                                                               \
-        mochiWriteCode(vm, CODE_##inst, (line));                                                                       \
-        mochiWriteCode(vm, (arg) >> 24, (line));                                                                       \
-        mochiWriteCode(vm, (arg) >> 16, (line));                                                                       \
-        mochiWriteCode(vm, (arg) >> 8, (line));                                                                        \
-        mochiWriteCode(vm, (arg), (line));                                                                             \
+        mochiWriteCodeByte(vm, CODE_##inst, (line));                                                                   \
+        mochiWriteCodeI32(vm, arg, line);                                                                              \
     } while (false);
 
 int main(int argc, const char* argv[]) {

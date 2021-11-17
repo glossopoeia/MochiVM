@@ -1,5 +1,7 @@
-#include "object.h"
+#include <stdio.h>
+
 #include "memory.h"
+#include "object.h"
 #include "vm.h"
 
 static void initObj(MochiVM* vm, Obj* obj, ObjType type) {
