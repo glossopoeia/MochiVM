@@ -15,9 +15,13 @@ else
 	BUILD_DIR := $(BUILD_TOP)/release
 endif
 
+BUILD_TEST_DIR := $(BUILD_DIR)/test
+
 # Files.
 HEADERS := $(wildcard src/*.h test/*.h)
 SOURCES := $(wildcard src/*.c)
+TESTS := $(wildcard test/*.check)
+TESTEXE := $(addprefix $(BUILD_TEST_DIR)/, $(notdir $(TESTS:.check=.txe)))
 OBJECTS := $(addprefix $(BUILD_DIR)/, $(notdir $(SOURCES:.c=.o)))
 LIBS := -luv_a -lutf8proc `sdl2-config --libs` -pthread -Wl,--no-as-needed -ldl
 TEST_LIBS := -lcheck -lcheck_pic -lsubunit -lm -lrt
@@ -35,20 +39,25 @@ $(BUILD_DIR)/main.o: main.c $(HEADERS)
 	@ mkdir -p $(BUILD_DIR)
 	@ $(CC) -c $(C_LANG) $(CFLAGS) -o $@ $<
 
-# Build the test executable.
-test: $(OBJECTS) $(BUILD_TOP)/libuv_a.a $(BUILD_TOP)/utf8proc/libutf8proc.a $(BUILD_DIR)/unit_test.o
-	@ printf "%8s %-40s %s %s %s\n" $(CC) $@ "$(CFLAGS)" "$(LIBS)" "$(TEST_LIBS)"
-	@ mkdir -p $(BUILD_DIR)
-	@ $(CC) $(CFLAGS) $^ -o $(BUILD_DIR)/mochivm_test $(LIBS) $(TEST_LIBS)
-	@ $(BUILD_DIR)/mochivm_test
+# Build and execute all tests.
+test: $(TESTEXE)
 
-$(BUILD_DIR)/unit_test.o: $(BUILD_DIR)/unit_test.c
+# Build and run each test executable.
+$(BUILD_TEST_DIR)/%.txe: $(BUILD_TEST_DIR)/%.o $(OBJECTS)
+	@ printf "%8s %-40s %s %s %s\n" $(CC) $@ "$(CFLAGS)" "$(LIBS)" "$(TEST_LIBS)"
+	@ $(CC) $(CFLAGS) $^ -o $@ $(LIBS) $(TEST_LIBS)
+	@ $@
+	@ rm $@
+
+# Build the test objects files.
+$(BUILD_TEST_DIR)/%.o: $(BUILD_TEST_DIR)/%.c $(HEADERS)
+	@ printf "%8s %-40s %s\n" $(CC) $< "$(CFLAGS)"
 	@ $(CC) -c $(C_LANG) $(CFLAGS) -o $@ $<
 
 # Build the test source file.
-$(BUILD_DIR)/unit_test.c: test/unit_test.check $(HEADERS)
-	@ mkdir -p $(BUILD_DIR)
-	@ checkmk test/unit_test.check > $(BUILD_DIR)/unit_test.c
+$(BUILD_TEST_DIR)/%.c: test/%.check $(HEADERS)
+	@ mkdir -p $(BUILD_TEST_DIR)
+	@ checkmk $< > $@
 
 # Compile object files.
 $(BUILD_DIR)/%.o: src/%.c $(HEADERS)
@@ -81,3 +90,6 @@ format:
 
 clean:
 	@ rm -rf build
+
+clean_test:
+	@ rm -rf build/**.txe
