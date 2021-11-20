@@ -13,6 +13,8 @@ void vm_teardown() {
     mochiFreeVM(vm);
 }
 
+#suite UnitTest
+
 #test has_default_fiber
     ck_assert(vm->fiber != NULL);
 
