@@ -43,7 +43,7 @@ $(BUILD_DIR)/main.o: main.c $(HEADERS)
 test: $(TESTEXE)
 
 # Build and run each test executable.
-$(BUILD_TEST_DIR)/%.txe: $(BUILD_TEST_DIR)/%.o $(OBJECTS)
+$(BUILD_TEST_DIR)/%.txe: $(BUILD_TEST_DIR)/%.o $(OBJECTS) $(BUILD_TOP)/libuv_a.a $(BUILD_TOP)/utf8proc/libutf8proc.a
 	@ printf "%8s %-40s %s %s %s\n" $(CC) $@ "$(CFLAGS)" "$(LIBS)" "$(TEST_LIBS)"
 	@ $(CC) $(CFLAGS) $^ -o $@ $(LIBS) $(TEST_LIBS)
 	@ $@
