@@ -7,6 +7,10 @@ CFLAGS := -std=gnu99 -Wall -Wextra -Werror -Wno-unused-parameter -Isrc/ -Ideps/l
 
 BUILD_TOP := build
 
+ifeq ($(NOBATTERY), yes)
+	CFLAGS += -DMOCHIVM_BATTERY_SDL=0
+endif
+
 ifeq ($(MODE), debug)
 	CFLAGS += -O0 -DDEBUG -g
 	BUILD_DIR := $(BUILD_TOP)/debug
@@ -23,8 +27,13 @@ SOURCES := $(wildcard src/*.c)
 TESTS := $(wildcard test/*.check)
 TESTEXE := $(addprefix $(BUILD_TEST_DIR)/, $(notdir $(TESTS:.check=.txe)))
 OBJECTS := $(addprefix $(BUILD_DIR)/, $(notdir $(SOURCES:.c=.o)))
-LIBS := -luv_a -lutf8proc `sdl2-config --libs` -pthread -Wl,--no-as-needed -ldl
+LIBS := -luv_a -lutf8proc -pthread -Wl,--no-as-needed -ldl
 TEST_LIBS := -lcheck -lcheck_pic -lsubunit -lm -lrt
+
+ifeq ($(NOBATTERY), yes)
+else
+	LIBS += `sdl2-config --libs`
+endif
 
 # Targets ---------------------------------------------------------------------
 

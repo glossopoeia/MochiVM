@@ -1,3 +1,7 @@
+#include "common.h"
+
+#if MOCHIVM_BATTERY_SDL
+
 #include "battery_sdl.h"
 #include "debug.h"
 #include "memory.h"
@@ -45,3 +49,5 @@ void sdlmochiGetError(MochiVM* vm, ObjFiber* fiber) {
 void sdlmochiQuit(MochiVM* vm, ObjFiber* fiber) {
     SDL_Quit();
 }
+
+#endif

@@ -63,7 +63,7 @@ jobs:
     #    uses a compiled language
 
     - run: |
-       make MODE=debug lib
+       make MODE=debug NOBATTERY=yes lib
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
