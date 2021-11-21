@@ -29,10 +29,14 @@ TEST_LIBS := -lcheck -lcheck_pic -lsubunit -lm -lrt
 # Targets ---------------------------------------------------------------------
 
 # Link the interpreter.
-$(BUILD_DIR)/mochivm: $(BUILD_DIR)/main.o $(OBJECTS) $(BUILD_TOP)/libuv_a.a $(BUILD_TOP)/utf8proc/libutf8proc.a
+$(BUILD_DIR)/mochivm: $(BUILD_DIR)/main.o $(BUILD_DIR)/libmochivm.a
 	@ printf "%8s %-40s %s %s\n" $(CC) $@ "$(CFLAGS)" "$(LIBS)"
 	@ mkdir -p $(BUILD_DIR)
-	@ $(CC) $(CFLAGS) $^ -o $@ $(LIBS)
+	@ $(CC) $(CFLAGS) $^ -o $@ -L$(BUILD_DIR) -lmochivm $(LIBS)
+
+# Link into a static library.
+lib: $(OBJECTS) $(BUILD_TOP)/libuv_a.a $(BUILD_TOP)/utf8proc/libutf8proc.a
+	@ ar rcs $(BUILD_DIR)/libmochivm.a $(OBJECTS)
 
 $(BUILD_DIR)/main.o: main.c $(HEADERS)
 	@ printf "%8s %-40s %s\n" $(CC) $< "$(CFLAGS)"
