@@ -3,7 +3,7 @@
 #
 # MODE			"debug" or "release"
 
-CFLAGS := -std=gnu99 -Wall -Wextra -Werror -Wno-unused-parameter -Isrc/ -Ideps/libuv/include/ -Itest/ -Lbuild -Lbuild/utf8proc `sdl2-config --cflags`
+CFLAGS := -std=gnu17 -Wall -Wextra -Werror -Wno-unused-parameter -Isrc/ -Ideps/libuv/include/ -Itest/ -Lbuild -Lbuild/utf8proc `sdl2-config --cflags`
 
 BUILD_TOP := build
 
@@ -45,6 +45,9 @@ $(BUILD_DIR)/mochivm: $(BUILD_DIR)/main.o $(BUILD_DIR)/libmochivm.a
 
 # Link into a static library.
 lib: $(OBJECTS) $(BUILD_TOP)/libuv_a.a $(BUILD_TOP)/utf8proc/libutf8proc.a
+	@ ar rcs $(BUILD_DIR)/libmochivm.a $(OBJECTS)
+
+$(BUILD_DIR)/libmochivm.a: $(OBJECTS) $(BUILD_TOP)/libuv_a.a $(BUILD_TOP)/utf8proc/libutf8proc.a
 	@ ar rcs $(BUILD_DIR)/libmochivm.a $(OBJECTS)
 
 $(BUILD_DIR)/main.o: main.c $(HEADERS)
