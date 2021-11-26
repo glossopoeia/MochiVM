@@ -16,7 +16,7 @@ void vm_teardown() {
 #suite UnitTest
 
 #test has_default_fiber
-    ck_assert(vm->fiber != NULL);
+    ck_assert(vm->fibers.data[0] != NULL);
 
 #test writing_bytes
     mochiWriteCodeByte(vm, CODE_ABORT, 0);
@@ -28,14 +28,14 @@ void vm_teardown() {
 #test run_simple_abort
     mochiWriteCodeByte(vm, CODE_ABORT, 0);
     mochiWriteCodeByte(vm, 0, 0);
-    int res = mochiInterpret(vm);
+    int res = mochiRun(vm, 0, NULL);
     ck_assert(res == 0);
 
 #test run_simple_abort_twice
     mochiWriteCodeByte(vm, CODE_ABORT, 0);
     mochiWriteCodeByte(vm, 0, 0);
-    mochiInterpret(vm);
-    int res = mochiInterpret(vm);
+    mochiRun(vm, 0, NULL);
+    int res = mochiRun(vm, 0, NULL);
     ck_assert(res == 0);
 
 #main-pre

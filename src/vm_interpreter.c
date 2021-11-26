@@ -2088,39 +2088,41 @@ static int run(MochiVM* vm, register ObjFiber* fiber) {
 #undef READ_CONSTANT
 }
 
-int mochiInterpret(MochiVM* vm) {
-    vm->fiber->ip = vm->code.data;
+int mochiInterpret(MochiVM* vm, ObjFiber* fiber) {
+    return run(vm, fiber);
+}
 
-#if MOCHIVM_DEBUG_DUMP_BYTECODE
-    disassembleChunk(vm, "VM BYTECODE");
-#endif
-
-    int res = run(vm, vm->fiber);
-#if MOCHIVM_BATTERY_UV
-    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-#endif
-    return res;
+int mochiInterpretFirst(void* vmStart) {
+    MochiVM* vm = vmStart;
+    return run(vm, vm->fibers.data[0]);
 }
 
 int mochiRun(MochiVM* vm, int argc, const char* argv[]) {
-    vm->fiber->ip = vm->code.data;
-
 #if MOCHIVM_DEBUG_DUMP_BYTECODE
     disassembleChunk(vm, "VM BYTECODE");
 #endif
 
+    mochiFiberBufferClear(vm, &vm->fibers);
+    mochiFiberBufferWrite(vm, &vm->fibers, NULL);
+    ObjFiber* fib = mochiNewFiber(vm, vm->code.data, NULL, 0);
+    vm->fibers.data[0] = fib;
+
     ObjArray* args = mochiArrayNil(vm);
-    mochiFiberPushValue(vm->fiber, OBJ_VAL(args));
+    mochiFiberPushValue(fib, OBJ_VAL(args));
     for (int i = 0; i < argc; i++) {
         ObjByteArray* arg = mochiByteArrayString(vm, argv[i]);
-        mochiFiberPushRoot(vm->fiber, (Obj*)arg);
+        mochiFiberPushRoot(fib, (Obj*)arg);
         mochiArraySnoc(vm, OBJ_VAL(arg), args);
-        mochiFiberPopRoot(vm->fiber);
+        mochiFiberPopRoot(fib);
     }
 
-    int res = run(vm, vm->fiber);
+    int threadStatus = thrd_create(&fib->thread, mochiInterpretFirst, vm);
+    if (threadStatus != 0) {
+        printf("Couldn't create main thread.\n");
+    }
+
 #if MOCHIVM_BATTERY_UV
     uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 #endif
-    return res;
+    return 0;
 }

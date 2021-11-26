@@ -94,6 +94,8 @@ ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int in
     fiber->isSuspended = false;
     fiber->isRoot = false;
     fiber->caller = NULL;
+
+    fiber->isPausedForGc = false;
     return fiber;
 }
 
@@ -236,12 +238,13 @@ int mochiArrayLength(ObjArray* array) {
 }
 
 ObjArray* mochiArrayCopy(MochiVM* vm, int start, int length, ObjArray* array) {
-    ObjArray* copy = mochiArrayNil(vm);
-    mochiFiberPushRoot(vm->fiber, (Obj*)copy);
+    ValueBuffer elems;
+    mochiValueBufferInit(&elems);
     for (int i = 0; i < array->elems.count; i++) {
-        mochiValueBufferWrite(vm, &copy->elems, array->elems.data[i]);
+        mochiValueBufferWrite(vm, &elems, array->elems.data[i]);
     }
-    mochiFiberPopRoot(vm->fiber);
+    ObjArray* copy = mochiArrayNil(vm);
+    copy->elems = elems;
     return copy;
 }
 
@@ -275,12 +278,13 @@ int mochiSliceLength(ObjSlice* slice) {
 }
 
 ObjArray* mochiSliceCopy(MochiVM* vm, ObjSlice* slice) {
-    ObjArray* copy = mochiArrayNil(vm);
-    mochiFiberPushRoot(vm->fiber, (Obj*)copy);
+    ValueBuffer elems;
+    mochiValueBufferInit(&elems);
     for (int i = 0; i < slice->count; i++) {
-        mochiValueBufferWrite(vm, &copy->elems, slice->source->elems.data[i]);
+        mochiValueBufferWrite(vm, &elems, slice->source->elems.data[i]);
     }
-    mochiFiberPopRoot(vm->fiber);
+    ObjArray* copy = mochiArrayNil(vm);
+    copy->elems = elems;
     return copy;
 }
 
@@ -292,15 +296,14 @@ ObjByteArray* mochiByteArrayNil(MochiVM* vm) {
 }
 
 ObjByteArray* mochiByteArrayString(MochiVM* vm, const char* string) {
-    ObjByteArray* str = mochiByteArrayNil(vm);
-    mochiFiberPushRoot(vm->fiber, (Obj*)str);
-    int i = 0;
-    while (string[i] != '\0') {
-        mochiByteArraySnoc(vm, string[i], str);
-        i++;
+    ByteBuffer bytes;
+    mochiByteBufferInit(&bytes);
+    for (int i = 0; string[i] != '\0'; i++) {
+        mochiByteBufferWrite(vm, &bytes, string[i]);
     }
-    mochiByteArraySnoc(vm, '\0', str);
-    mochiFiberPopRoot(vm->fiber);
+    mochiByteBufferWrite(vm, &bytes, '\0');
+    ObjByteArray* str = mochiByteArrayNil(vm);
+    str->elems = bytes;
     return str;
 }
 
@@ -329,12 +332,13 @@ int mochiByteArrayLength(ObjByteArray* array) {
 }
 
 ObjByteArray* mochiByteArrayCopy(MochiVM* vm, int start, int length, ObjByteArray* array) {
-    ObjByteArray* copy = mochiByteArrayNil(vm);
-    mochiFiberPushRoot(vm->fiber, (Obj*)copy);
+    ByteBuffer elems;
+    mochiByteBufferInit(&elems);
     for (int i = 0; i < array->elems.count; i++) {
-        mochiByteBufferWrite(vm, &copy->elems, array->elems.data[i]);
+        mochiByteBufferWrite(vm, &elems, array->elems.data[i]);
     }
-    mochiFiberPopRoot(vm->fiber);
+    ObjByteArray* copy = mochiByteArrayNil(vm);
+    copy->elems = elems;
     return copy;
 }
 
@@ -368,12 +372,13 @@ int mochiByteSliceLength(ObjByteSlice* slice) {
 }
 
 ObjByteArray* mochiByteSliceCopy(MochiVM* vm, ObjByteSlice* slice) {
-    ObjByteArray* copy = mochiByteArrayNil(vm);
-    mochiFiberPushRoot(vm->fiber, (Obj*)copy);
+    ByteBuffer elems;
+    mochiByteBufferInit(&elems);
     for (int i = 0; i < slice->count; i++) {
-        mochiByteBufferWrite(vm, &copy->elems, slice->source->elems.data[i]);
+        mochiByteBufferWrite(vm, &elems, slice->source->elems.data[i]);
     }
-    mochiFiberPopRoot(vm->fiber);
+    ObjByteArray* copy = mochiByteArrayNil(vm);
+    copy->elems = elems;
     return copy;
 }
 
@@ -386,32 +391,26 @@ ObjRecord* mochiNewRecord(MochiVM* vm) {
 
 ObjRecord* mochiRecordExtend(MochiVM* vm, TableKey field, Value value, ObjRecord* rec) {
     Table* fields = mochiTableClone(vm, &rec->fields, true);
+    mochiTableSetScoped(vm, fields, field, value);
     ObjRecord* cloned = mochiNewRecord(vm);
     cloned->fields = *fields;
-    mochiFiberPushRoot(vm->fiber, (Obj*)cloned);
     DEALLOCATE(vm, fields);
-    mochiTableSetScoped(vm, &cloned->fields, field, value);
-    mochiFiberPopRoot(vm->fiber);
     return cloned;
 }
 
 ObjRecord* mochiRecordRestrict(MochiVM* vm, TableKey field, ObjRecord* rec) {
     Table* fields = mochiTableClone(vm, &rec->fields, true);
+    mochiTableTryRemoveScoped(vm, fields, field);
     ObjRecord* cloned = mochiNewRecord(vm);
     cloned->fields = *fields;
-    mochiFiberPushRoot(vm->fiber, (Obj*)cloned);
     DEALLOCATE(vm, fields);
-    mochiTableTryRemoveScoped(vm, &cloned->fields, field);
-    mochiFiberPopRoot(vm->fiber);
     return cloned;
 }
 
 ObjRecord* mochiRecordUpdate(MochiVM* vm, TableKey field, Value value, ObjRecord* rec) {
     // TODO: this does two objects allocations, make it just do one
     ObjRecord* restr = mochiRecordRestrict(vm, field, rec);
-    mochiFiberPushRoot(vm->fiber, (Obj*)restr);
     ObjRecord* upd = mochiRecordExtend(vm, field, value, restr);
-    mochiFiberPopRoot(vm->fiber);
     return upd;
 }
 

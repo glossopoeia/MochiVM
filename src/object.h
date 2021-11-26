@@ -1,6 +1,7 @@
 #ifndef mochivm_object_h
 #define mochivm_object_h
 
+#include <threads.h>
 #include "value.h"
 
 #define ASSERT_OBJ_TYPE(obj, objType, message) ASSERT(((Obj*)obj)->type == objType, message)
@@ -93,6 +94,9 @@ struct ObjFiber {
     uint8_t* ip;
     bool isRoot;
     bool isSuspended;
+
+    thrd_t thread;
+    _Atomic(bool) isPausedForGc;
 
     // Value stack, upon which all instructions that consume and produce data operate.
     Value* valueStack;
@@ -223,6 +227,9 @@ static inline ObjVarFrame* mochiFiberPopFrame(ObjFiber* fiber) {
 }
 static inline void mochiFiberPushRoot(ObjFiber* fiber, Obj* root) {
     *fiber->rootStackTop++ = root;
+}
+static inline Obj* mochiFiberPeekRoot(ObjFiber* fiber, int index) {
+    return (*fiber->rootStackTop - index);
 }
 static inline Obj* mochiFiberPopRoot(ObjFiber* fiber) {
     return *(--fiber->rootStackTop);
