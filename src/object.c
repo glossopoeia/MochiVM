@@ -94,6 +94,7 @@ ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int in
     fiber->isSuspended = false;
     fiber->isRoot = false;
     fiber->caller = NULL;
+    fiber->ip = first;
 
     fiber->isPausedForGc = false;
     return fiber;

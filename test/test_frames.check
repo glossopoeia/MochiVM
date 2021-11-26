@@ -8,6 +8,8 @@
 #suite Frames
 
 #test tail_call_with_no_frames
+    CONST_DOUBLE(1)
+
     WRITE_INT_INST(TAILCALL, 7, 1)
     // This push-constant instruction should get skipped by the tailcall,
     // so VERIFY_STACK(0) at the bottom verifies that the call actually moves

@@ -1,8 +1,8 @@
 #ifndef mochivm_object_h
 #define mochivm_object_h
 
-#include <threads.h>
 #include "value.h"
+#include <threads.h>
 
 #define ASSERT_OBJ_TYPE(obj, objType, message) ASSERT(((Obj*)obj)->type == objType, message)
 #define OBJ_ARRAY_COPY(objDest, objSrc, count) memcpy((Obj**)(objDest), (Obj**)(objSrc), sizeof(Obj*) * (count))

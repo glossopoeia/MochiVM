@@ -15,9 +15,6 @@ void vm_teardown() {
 
 #suite UnitTest
 
-#test has_default_fiber
-    ck_assert(vm->fibers.data[0] != NULL);
-
 #test writing_bytes
     mochiWriteCodeByte(vm, CODE_ABORT, 0);
     mochiWriteCodeByte(vm, 0, 0);
@@ -34,7 +31,8 @@ void vm_teardown() {
 #test run_simple_abort_twice
     mochiWriteCodeByte(vm, CODE_ABORT, 0);
     mochiWriteCodeByte(vm, 0, 0);
-    mochiRun(vm, 0, NULL);
+    int first = mochiRun(vm, 0, NULL);
+    printf("Ran first%d \n", first);
     int res = mochiRun(vm, 0, NULL);
     ck_assert(res == 0);
 

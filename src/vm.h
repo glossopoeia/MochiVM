@@ -1,8 +1,8 @@
 #ifndef mochivm_vm_h
 #define mochivm_vm_h
 
-#include <threads.h>
 #include "object.h"
+#include <threads.h>
 
 typedef enum
 {
@@ -43,6 +43,8 @@ struct MochiVM {
 
     // Is the garbage collector currently running? Simple stop the world assumed.
     _Atomic(bool) collecting;
+    // Provide a way to lock allocation so multiple threads don't start a GC pass simultaneously.
+    mtx_t allocLock;
 
     // The number of bytes that are known to be currently allocated. Includes all
     // memory that was proven live after the last GC, as well as any new bytes

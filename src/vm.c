@@ -95,6 +95,8 @@ MochiVM* mochiNewVM(MochiVMConfiguration* config) {
     vm->gray = (Obj**)reallocate(NULL, vm->grayCapacity * sizeof(Obj*), userData);
     vm->nextGC = vm->config.initialHeapSize;
 
+    mtx_init(&vm->allocLock, mtx_plain);
+
     mochiByteBufferInit(&vm->code);
     mochiIntBufferInit(&vm->lines);
     mochiValueBufferInit(&vm->constants);
@@ -143,6 +145,8 @@ void mochiFreeVM(MochiVM* vm) {
     mochiForeignFunctionBufferClear(vm, &vm->foreignFns);
     mochiFiberBufferClear(vm, &vm->fibers);
     mochiTableClear(vm, &vm->heap);
+
+    mtx_destroy(&vm->allocLock);
     DEALLOCATE(vm, vm);
 }
 
@@ -165,19 +169,6 @@ void mochiRevokePermission(MochiVM* vm, int permissionId) {
     ASSERT(false, "Permission revoking not yet implemented.");
 }
 
-static void pauseAllThreads(MochiVM* vm) {
-    // Each thread listens to the collecting signal and then pauses itself
-    // at an appropriate point for GC.
-    vm->collecting = true;
-    bool allThreadsPaused = false;
-    do {
-        allThreadsPaused = true;
-        for (int i = 0; i < vm->fibers.count; i++) {
-            allThreadsPaused = allThreadsPaused && vm->fibers.data[i]->isPausedForGc;
-        }
-    } while (!allThreadsPaused);
-}
-
 void mochiCollectGarbage(MochiVM* vm) {
 #if MOCHIVM_DEBUG_TRACE_MEMORY || MOCHIVM_DEBUG_TRACE_GC
     printf("-- gc --\n");
@@ -186,11 +177,9 @@ void mochiCollectGarbage(MochiVM* vm) {
     double startTime = (double)clock() / CLOCKS_PER_SEC;
 #endif
 
-    pauseAllThreads(vm);
-
 #if MOCHIVM_DEBUG_TRACE_MEMORY || MOCHIVM_DEBUG_TRACE_GC
-    double elapsed = ((double)clock() / CLOCKS_PER_SEC) - startTime;
-    printf("Took %.3fms to pause all threads for GC.", elapsed * 1000.0);
+    double paused = ((double)clock() / CLOCKS_PER_SEC) - startTime;
+    printf("Took %.3fms to pause all threads for GC.", paused * 1000.0);
 #endif
 
     // Mark all reachable objects.

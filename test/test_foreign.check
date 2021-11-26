@@ -67,6 +67,8 @@
     ck_assert(AS_DOUBLE(mochiFiberPopValue(vm->fibers.data[0])) == 2);
 
 #test sdl_init_and_quit
+    CONST_I32(0);
+
     WRITE_INST(CONSTANT, 0);
     WRITE_SHORT(0, 0);
     WRITE_INST(CALL_FOREIGN, 1);

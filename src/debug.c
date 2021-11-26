@@ -64,6 +64,7 @@ static int callInstruction(const char* name, MochiVM* vm, int offset) {
 static int constantInstruction(const char* name, MochiVM* vm, int offset) {
     uint8_t* code = vm->code.data;
     uint16_t constant = getShort(code, offset + 1);
+    ASSERT(constant < vm->constants.count, "Cannot write CONSTANT instruction because the constant index was less than the constant pool size.");
     printf("%-16s %-4d '", name, constant);
     printValue(vm, vm->constants.data[constant]);
     printf("'\n");
@@ -107,12 +108,14 @@ static int actionInstruction(const char* name, MochiVM* vm, int offset) {
 }
 
 void disassembleChunk(MochiVM* vm, const char* name) {
-    printf("== %s ==\n", name);
+    printf("== begin: %s ==\n", name);
 
     for (int offset = 0; offset < vm->code.count;) {
         // recall that instructions can be different size, hence not simply incrementing here
         offset = disassembleInstruction(vm, offset);
     }
+
+    printf("== end: %s ==\n", name);
 }
 
 int disassembleInstruction(MochiVM* vm, int offset) {

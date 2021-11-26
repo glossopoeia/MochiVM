@@ -182,43 +182,11 @@ static int run(MochiVM* vm, register ObjFiber* fiber) {
         }                                                                                                              \
     } while (false)
 
-#if MOCHIVM_DEBUG_TRACE_EXECUTION
-#define DEBUG_TRACE_INSTRUCTIONS() disassembleInstruction(vm, (int)(fiber->ip - codeStart))
-#else
-#define DEBUG_TRACE_INSTRUCTIONS()                                                                                     \
-    do {                                                                                                               \
-    } while (false)
-#endif
-
-#if MOCHIVM_DEBUG_TRACE_VALUE_STACK
-#define DEBUG_TRACE_VALUE_STACK() printFiberValueStack(vm, fiber)
-#else
-#define DEBUG_TRACE_VALUE_STACK()                                                                                      \
-    do {                                                                                                               \
-    } while (false)
-#endif
-
-#if MOCHIVM_DEBUG_TRACE_FRAME_STACK
-#define DEBUG_TRACE_FRAME_STACK() printFiberFrameStack(vm, fiber)
-#else
-#define DEBUG_TRACE_FRAME_STACK()                                                                                      \
-    do {                                                                                                               \
-    } while (false)
-#endif
-
-#if MOCHIVM_DEBUG_TRACE_ROOT_STACK
-#define DEBUG_TRACE_ROOT_STACK() printFiberRootStack(vm, fiber)
-#else
-#define DEBUG_TRACE_ROOT_STACK()                                                                                       \
-    do {                                                                                                               \
-    } while (false)
-#endif
-
 #if MOCHIVM_BATTERY_UV
 #define UV_EVENT_LOOP()                                                                                                \
     do {                                                                                                               \
         uv_run(uv_default_loop(), UV_RUN_NOWAIT);                                                                      \
-    } while (false)
+    } while (false);
 #else
 #define UV_EVENT_LOOP()                                                                                                \
     do {                                                                                                               \
@@ -242,10 +210,10 @@ static int run(MochiVM* vm, register ObjFiber* fiber) {
         if (fiber->isSuspended) {                                                                                      \
             goto CASE_CODE(NOP);                                                                                       \
         }                                                                                                              \
-        DEBUG_TRACE_VALUE_STACK();                                                                                     \
-        DEBUG_TRACE_FRAME_STACK();                                                                                     \
-        DEBUG_TRACE_ROOT_STACK();                                                                                      \
-        DEBUG_TRACE_INSTRUCTIONS();                                                                                    \
+        debugTraceValueStack(vm, fiber);                                                                               \
+        debugTraceFrameStack(vm, fiber);                                                                               \
+        debugTraceRootStack(vm, fiber);                                                                                \
+        debugTraceExecution(vm, fiber);                                                                                \
         goto* dispatchTable[instruction = (Code)READ_BYTE()];                                                          \
     } while (false)
 
@@ -257,10 +225,10 @@ static int run(MochiVM* vm, register ObjFiber* fiber) {
     if (fiber->isSuspended) {                                                                                          \
         goto loop;                                                                                                     \
     }                                                                                                                  \
-    DEBUG_TRACE_VALUE_STACK();                                                                                         \
-    DEBUG_TRACE_FRAME_STACK();                                                                                         \
-    DEBUG_TRACE_ROOT_STACK();                                                                                          \
-    DEBUG_TRACE_INSTRUCTIONS();                                                                                        \
+    debugTraceValueStack(vm, fiber);                                                                                   \
+    debugTraceFrameStack(vm, fiber);                                                                                   \
+    debugTraceRootStack(vm, fiber);                                                                                    \
+    debugTraceExecution(vm, fiber);                                                                                    \
     switch (instruction = (Code)READ_BYTE())
 
 #define CASE_CODE(name) case CODE_##name
@@ -1210,7 +1178,7 @@ static int run(MochiVM* vm, register ObjFiber* fiber) {
             ObjVarFrame* frame = PEEK_FRAME(frameIdx + 1);
             ASSERT(frame->slotCount > slotIdx, "FIND tried to access a slot outside "
                                                "the bounds of the frames slots.");
-            
+
             frame->slots[slotIdx] = POP_VAL();
             DISPATCH();
         }
@@ -2107,22 +2075,30 @@ int mochiRun(MochiVM* vm, int argc, const char* argv[]) {
     ObjFiber* fib = mochiNewFiber(vm, vm->code.data, NULL, 0);
     vm->fibers.data[0] = fib;
 
-    ObjArray* args = mochiArrayNil(vm);
+    /*ObjArray* args = mochiArrayNil(vm);
     mochiFiberPushValue(fib, OBJ_VAL(args));
     for (int i = 0; i < argc; i++) {
         ObjByteArray* arg = mochiByteArrayString(vm, argv[i]);
         mochiFiberPushRoot(fib, (Obj*)arg);
         mochiArraySnoc(vm, OBJ_VAL(arg), args);
         mochiFiberPopRoot(fib);
-    }
+    }*/
 
     int threadStatus = thrd_create(&fib->thread, mochiInterpretFirst, vm);
-    if (threadStatus != 0) {
+    if (threadStatus != thrd_success) {
         printf("Couldn't create main thread.\n");
+        return threadStatus;
     }
 
+    // only wait for the main thread to finish
+    int mainResult;
+    int joinStatus = thrd_join(fib->thread, &mainResult);
+    if (joinStatus != thrd_success) {
+        printf("Couldn't join main thread with runner.\n");
+        return joinStatus;
+    }
 #if MOCHIVM_BATTERY_UV
     uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 #endif
-    return 0;
+    return mainResult;
 }
