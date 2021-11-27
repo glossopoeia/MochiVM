@@ -1563,6 +1563,55 @@ static int run(MochiVM* vm, register ObjFiber* fiber) {
             DISPATCH();
         }
 
+        CASE_CODE(THREAD_SPAWN) : {
+            uint32_t threadIp = READ_UINT();
+            mochiSpawnCall(vm, fiber, threadIp);
+            DISPATCH();
+        }
+        CASE_CODE(THREAD_SPAWN_WITH) : {
+            uint32_t threadIp = READ_UINT();
+            uint32_t consumed = READ_UINT();
+            mochiSpawnCallWith(vm, fiber, threadIp, consumed);
+            DISPATCH();
+        }
+        CASE_CODE(THREAD_SPAWN_COPY) : {
+            mochiSpawnCopy(vm, fiber);
+            DISPATCH();
+        }
+        CASE_CODE(THREAD_CURRENT): {
+            PUSH_VAL(OBJ_VAL(fiber));
+            DISPATCH();
+        }
+        CASE_CODE(THREAD_SLEEP) : {
+            uint32_t millis = AS_U32(POP_VAL());
+            time_t secs = millis / 1000;
+            long int nanos = (millis % 1000) * 1000000;
+            int32_t res = thrd_sleep(&(struct timespec){.tv_sec = secs, .tv_nsec = nanos}, NULL);
+            PUSH_VAL(I32_VAL(vm, res));
+            DISPATCH();
+        }
+        CASE_CODE(THREAD_YIELD) : {
+            thrd_yield();
+            DISPATCH();
+        }
+        CASE_CODE(THREAD_JOIN) : {
+            ObjFiber* toJoin = AS_FIBER(PEEK_VAL(1));
+            int threadRes = 0;
+            int32_t res = thrd_join(toJoin->thread, &threadRes);
+            DROP_VALS(1);
+            PUSH_VAL(I32_VAL(vm, threadRes));
+            PUSH_VAL(I32_VAL(vm, res));
+            DISPATCH();
+        }
+        CASE_CODE(THREAD_EQUAL) : {
+            ObjFiber* left = AS_FIBER(PEEK_VAL(1));
+            ObjFiber* right = AS_FIBER(PEEK_VAL(2));
+            bool eq = mochiFiberEqual(left, right);
+            DROP_VALS(2);
+            PUSH_VAL(BOOL_VAL(vm, eq));
+            DISPATCH();
+        }
+
         CASE_CODE(ZAP) : {
             ASSERT(VALUE_COUNT() >= 1, "ZAP expects at least one value on the value stack.");
             DROP_VALS(1);

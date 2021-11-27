@@ -391,24 +391,50 @@ static int mochiFiberThread(void* resume) {
     return res;
 }
 
+static void startThread(MochiVM* vm, ObjFiber* caller, ObjFiber* new) {
+    addFiberToVM(vm, new);
+    struct NewThread* threadMeta = ALLOCATE(vm, struct NewThread);
+    threadMeta->vm = vm;
+    threadMeta->fiber = new;
+
+    // Now that we're all setup, create the new thread
+    int threadStatus = thrd_create(&new->thread, mochiFiberThread, threadMeta);
+    if (threadStatus != 0) {
+        // Thread creation failed, clean up.
+        removeFiberFromVM(vm, new);
+        DEALLOCATE(vm, threadMeta);
+    }
+    mochiFiberPushValue(caller, I32_VAL(vm, threadStatus));
+}
+
 void mochiSpawnCall(MochiVM* vm, ObjFiber* caller, int codeStart) {
     ObjFiber* fib = mochiNewFiber(vm, vm->code.data + codeStart, NULL, 0);
     fib->caller = caller;
     mochiFiberPushValue(caller, OBJ_VAL(fib));
 
-    addFiberToVM(vm, fib);
-    struct NewThread* threadMeta = ALLOCATE(vm, struct NewThread);
-    threadMeta->vm = vm;
-    threadMeta->fiber = fib;
+    startThread(vm, caller, fib);
+}
 
-    // Now that we're all setup, create the new thread
-    int threadStatus = thrd_create(&fib->thread, mochiFiberThread, threadMeta);
-    if (threadStatus != 0) {
-        // Thread creation failed, clean up.
-        removeFiberFromVM(vm, fib);
-        DEALLOCATE(vm, threadMeta);
+void mochiSpawnCallWith(MochiVM* vm, ObjFiber* caller, int codeStart, int valueConsume) {
+    ObjFiber* fib = mochiNewFiber(vm, vm->code.data + codeStart, NULL, 0);
+    fib->caller = caller;
+    mochiFiberPushValue(caller, OBJ_VAL(fib));
+
+    // going from valueConsume down ensures the order on the new thread is the same as on the calling thread
+    for (int i = valueConsume; i > 0; i--) {
+        mochiFiberPushValue(fib, mochiFiberPeekValue(caller, i));
     }
-    mochiFiberPushValue(fib, I32_VAL(vm, threadStatus));
+    mochiFiberDropValues(caller, valueConsume);
+
+    startThread(vm, caller, fib);
+}
+
+void mochiSpawnCopy(MochiVM* vm, ObjFiber* caller) {
+    ObjFiber* fib = mochiFiberClone(vm, caller);
+    fib->caller = caller;
+    mochiFiberPushValue(caller, OBJ_VAL(fib));
+
+    startThread(vm, caller, fib);
 }
 
 void mochiGrayObj(MochiVM* vm, Obj* obj) {

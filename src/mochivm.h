@@ -178,7 +178,8 @@ MOCHIVM_API int mochiAddForeign(MochiVM* vm, MochiVMForeignMethodFn fn);
 
 MOCHIVM_API void mochiSpawnCall(MochiVM* vm, ObjFiber* fiber, int codeStart);
 MOCHIVM_API void mochiSpawnCallWith(MochiVM* vm, ObjFiber* fiber, int codeStart, int valueConsume);
-MOCHIVM_API void mochiSpawnCallWithContext(MochiVM* vm, ObjFiber* fiber, int codeStart);
+MOCHIVM_API void mochiSpawnCopy(MochiVM* vm, ObjFiber* fiber);
+MOCHIVM_API ObjFiber* mochiThreadCurrent(MochiVM* vm);
 
 // Given a VM with completed code/constant blocks, starts a new VM fiber running with a byte code
 // pointer at the first code instruction. The string arguments are converted to Mochi string

@@ -315,6 +315,22 @@ int disassembleInstruction(MochiVM* vm, int offset) {
         return simpleInstruction("CALL_CONTINUATION", offset);
     case CODE_TAILCALL_CONTINUATION:
         return simpleInstruction("TAILCALL_CONTINUATION", offset);
+    case CODE_THREAD_SPAWN:
+        return intArgInstruction("THREAD_SPAWN", vm, offset);
+    case CODE_THREAD_SPAWN_WITH:
+        return twoIntArgInstruction("THREAD_SPAWN_WITH", vm, offset);
+    case CODE_THREAD_SPAWN_COPY:
+        return simpleInstruction("THREAD_SPAWN_COPY", offset);
+    case CODE_THREAD_CURRENT:
+        return simpleInstruction("THREAD_CURRENT", offset);
+    case CODE_THREAD_SLEEP:
+        return simpleInstruction("THREAD_SLEEP", offset);
+    case CODE_THREAD_YIELD:
+        return simpleInstruction("THREAD_YIELD", offset);
+    case CODE_THREAD_JOIN:
+        return simpleInstruction("THREAD_JOIN", offset);
+    case CODE_THREAD_EQUAL:
+        return simpleInstruction("THREAD_EQUAL", offset);
     case CODE_ZAP:
         return simpleInstruction("ZAP", offset);
     case CODE_DUP:

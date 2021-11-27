@@ -92,7 +92,6 @@ typedef struct ObjHandleFrame {
 struct ObjFiber {
     Obj obj;
     uint8_t* ip;
-    bool isRoot;
     bool isSuspended;
 
     thrd_t thread;
@@ -201,11 +200,15 @@ typedef struct ObjVariant {
 
 // Creates a new fiber object with the values from the given initial stack.
 ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int initialStackCount);
+ObjFiber* mochiFiberClone(MochiVM* vm, ObjFiber* orig);
 static inline size_t mochiFiberValueCount(ObjFiber* fiber) {
     return fiber->valueStackTop - fiber->valueStack;
 }
 static inline size_t mochiFiberFrameCount(ObjFiber* fiber) {
     return fiber->frameStackTop - fiber->frameStack;
+}
+static inline size_t mochiFiberRootCount(ObjFiber* fiber) {
+    return fiber->rootStackTop - fiber->rootStack;
 }
 static inline void mochiFiberPushValue(ObjFiber* fiber, Value v) {
     *fiber->valueStackTop++ = v;
@@ -233,6 +236,9 @@ static inline Obj* mochiFiberPeekRoot(ObjFiber* fiber, int index) {
 }
 static inline Obj* mochiFiberPopRoot(ObjFiber* fiber) {
     return *(--fiber->rootStackTop);
+}
+static inline bool mochiFiberEqual(ObjFiber* left, ObjFiber* right) {
+    return thrd_equal(left->thread, right->thread);
 }
 
 ObjClosure* mochiNewClosure(MochiVM* vm, uint8_t* body, uint8_t paramCount, uint16_t capturedCount);

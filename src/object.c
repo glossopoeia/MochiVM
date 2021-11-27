@@ -92,9 +92,34 @@ ObjFiber* mochiNewFiber(MochiVM* vm, uint8_t* first, Value* initialStack, int in
     fiber->valueStackTop += initialStackCount;
 
     fiber->isSuspended = false;
-    fiber->isRoot = false;
     fiber->caller = NULL;
     fiber->ip = first;
+
+    fiber->isPausedForGc = false;
+    return fiber;
+}
+
+ObjFiber* mochiFiberClone(MochiVM* vm, ObjFiber* original) {
+    Value* values = ALLOCATE_ARRAY(vm, Value, vm->config.valueStackCapacity);
+    ObjVarFrame** frames = ALLOCATE_ARRAY(vm, ObjVarFrame*, vm->config.frameStackCapacity);
+    Obj** roots = ALLOCATE_ARRAY(vm, Obj*, vm->config.rootStackCapacity);
+
+    valueArrayCopy(values, original->valueStack, mochiFiberValueCount(original));
+    memcpy(frames, original->frameStack, mochiFiberFrameCount(original));
+    OBJ_ARRAY_COPY(roots, original->rootStack, mochiFiberRootCount(original));
+
+    ObjFiber* fiber = ALLOCATE(vm, ObjFiber);
+    initObj(vm, (Obj*)fiber, OBJ_FIBER);
+    fiber->valueStack = values;
+    fiber->valueStackTop = values;
+    fiber->frameStack = frames;
+    fiber->frameStackTop = frames;
+    fiber->rootStack = roots;
+    fiber->rootStackTop = roots;
+
+    fiber->isSuspended = false;
+    fiber->caller = NULL;
+    fiber->ip = original->ip;
 
     fiber->isPausedForGc = false;
     return fiber;
