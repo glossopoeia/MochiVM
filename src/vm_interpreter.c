@@ -193,6 +193,12 @@ static int run(MochiVM* vm, register ObjFiber* fiber) {
     } while (false)
 #endif
 
+#define WAIT_GC()                                                                                                      \
+    while (vm->collecting) {                                                                                           \
+        fiber->isPausedForGc = true;                                                                                   \
+    }                                                                                                                  \
+    fiber->isPausedForGc = false
+
 #if MOCHIVM_COMPUTED_GOTO
 
     static void* dispatchTable[] = {
@@ -206,6 +212,7 @@ static int run(MochiVM* vm, register ObjFiber* fiber) {
 
 #define DISPATCH()                                                                                                     \
     do {                                                                                                               \
+        WAIT_GC();                                                                                                     \
         UV_EVENT_LOOP();                                                                                               \
         if (fiber->isSuspended) {                                                                                      \
             goto CASE_CODE(NOP);                                                                                       \
@@ -221,6 +228,7 @@ static int run(MochiVM* vm, register ObjFiber* fiber) {
 
 #define INTERPRET_LOOP                                                                                                 \
     loop:                                                                                                              \
+    WAIT_GC();                                                                                                         \
     UV_EVENT_LOOP();                                                                                                   \
     if (fiber->isSuspended) {                                                                                          \
         goto loop;                                                                                                     \
@@ -298,10 +306,14 @@ static int run(MochiVM* vm, register ObjFiber* fiber) {
             DISPATCH();
         }
 
-        CASE_CODE(TRUE) : PUSH_VAL(TRUE_VAL);
-        DISPATCH();
-        CASE_CODE(FALSE) : PUSH_VAL(FALSE_VAL);
-        DISPATCH();
+        CASE_CODE(TRUE) : {
+            PUSH_VAL(TRUE_VAL);
+            DISPATCH();
+        }
+        CASE_CODE(FALSE) : {
+            PUSH_VAL(FALSE_VAL);
+            DISPATCH();
+        }
         CASE_CODE(BOOL_NOT) : {
             bool b = AS_BOOL(POP_VAL());
             PUSH_VAL(BOOL_VAL(vm, !b));
@@ -1578,7 +1590,7 @@ static int run(MochiVM* vm, register ObjFiber* fiber) {
             mochiSpawnCopy(vm, fiber);
             DISPATCH();
         }
-        CASE_CODE(THREAD_CURRENT): {
+        CASE_CODE(THREAD_CURRENT) : {
             PUSH_VAL(OBJ_VAL(fiber));
             DISPATCH();
         }

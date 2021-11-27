@@ -3,6 +3,19 @@
 
 #include "memory.h"
 
+static void acquireLockSignalGc(MochiVM* vm) {
+    int lockRes = mtx_trylock(&vm->allocLock);
+    while (lockRes != thrd_success) {
+        PANIC_IF(lockRes == thrd_error, "Failed to acquire lock in an allocation.");
+        ObjFiber* fiber = mochiThreadCurrent(vm);
+        while (vm->collecting) {
+            fiber->isPausedForGc = true;
+        }
+        fiber->isPausedForGc = false;
+        lockRes = mtx_trylock(&vm->allocLock);
+    }
+}
+
 void* mochiReallocate(MochiVM* vm, void* memory, size_t oldSize, size_t newSize) {
 
     // TODO: while this method is protected from starting multiple GC cycles simultaneously
@@ -12,7 +25,7 @@ void* mochiReallocate(MochiVM* vm, void* memory, size_t oldSize, size_t newSize)
     // Only lock if we're allocating new memory, since that's the only thing that
     // will prompt a new GC cycle.
     if (newSize > 0) {
-        mtx_lock(&vm->allocLock);
+        acquireLockSignalGc(vm);
 #if MOCHIVM_DEBUG_TRACE_MEMORY
         printf("Lock acquired.\n");
 #endif
@@ -36,22 +49,29 @@ void* mochiReallocate(MochiVM* vm, void* memory, size_t oldSize, size_t newSize)
 #if MOCHIVM_DEBUG_GC_STRESS
     // Since collecting calls this function to free things, make sure we don't
     // recurse.
-    if (newSize > 0)
-        mochiCollectGarbage(vm);
+    bool shouldGc = newSize > 0 && mochiThreadCount(vm) > 0;
 #else
-    if (newSize > 0 && newHeapSize > vm->nextGC)
-        mochiCollectGarbage(vm);
+    bool shouldGc = newSize > 0 && newHeapSize > vm->nextGC && mochiThreadCount(vm) > 0;
 #endif
+    if (shouldGc) {
+        ObjFiber* current = mochiThreadCurrent(vm);
+        current->isPausedForGc = true;
+        mochiCollectGarbage(vm);
+        current->isPausedForGc = false;
+    }
 
     void* res = vm->config.reallocateFn(memory, newSize, vm->config.userData);
 
     if (newSize > 0) {
-        mtx_unlock(&vm->allocLock);
+        if (mtx_unlock(&vm->allocLock) == thrd_success) {
 #if MOCHIVM_DEBUG_TRACE_MEMORY
-        printf("Lock released.\n");
+            printf("Lock released.\n");
 #endif
+        } else {
+            PANIC("Could not free the lock during allocation.");
+        }
     }
-    
+
     return res;
 }
 

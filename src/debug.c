@@ -64,7 +64,8 @@ static int callInstruction(const char* name, MochiVM* vm, int offset) {
 static int constantInstruction(const char* name, MochiVM* vm, int offset) {
     uint8_t* code = vm->code.data;
     uint16_t constant = getShort(code, offset + 1);
-    ASSERT(constant < vm->constants.count, "Cannot write CONSTANT instruction because the constant index was less than the constant pool size.");
+    ASSERT(constant < vm->constants.count,
+           "Cannot write CONSTANT instruction because the constant index was less than the constant pool size.");
     printf("%-16s %-4d '", name, constant);
     printValue(vm, vm->constants.data[constant]);
     printf("'\n");

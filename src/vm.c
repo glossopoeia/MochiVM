@@ -169,13 +169,50 @@ void mochiRevokePermission(MochiVM* vm, int permissionId) {
     ASSERT(false, "Permission revoking not yet implemented.");
 }
 
+static void waitForThreadSync(MochiVM* vm) {
+    bool allThreadsPaused = false;
+    while (!allThreadsPaused) {
+        allThreadsPaused = true;
+        for (int i = 0; i < vm->fibers.count; i++) {
+            // fibers will set their ready for gc flags when they've reached a safe point
+            allThreadsPaused = allThreadsPaused
+                && vm->fibers.data[i] != NULL
+                && vm->fibers.data[i]->isPausedForGc;
+        }
+    }
+}
+
+static void sweep(MochiVM* vm, unsigned long* freed, unsigned long* reachable) {
+
+    Obj** obj = &vm->objects;
+    while (*obj != NULL) {
+        if (!((*obj)->isMarked)) {
+            // This object wasn't reached, so remove it from the list and free it.
+            Obj* unreached = *obj;
+            *obj = unreached->next;
+            mochiFreeObj(vm, unreached);
+            *freed += 1;
+        } else {
+            // This object was reached, so unmark it (for the next GC) and move on to
+            // the next.
+            (*obj)->isMarked = false;
+            obj = &(*obj)->next;
+            *reachable += 1;
+        }
+    }
+}
+
 void mochiCollectGarbage(MochiVM* vm) {
+    vm->collecting = true;
+
 #if MOCHIVM_DEBUG_TRACE_MEMORY || MOCHIVM_DEBUG_TRACE_GC
     printf("-- gc --\n");
 
     size_t before = vm->bytesAllocated;
     double startTime = (double)clock() / CLOCKS_PER_SEC;
 #endif
+
+    waitForThreadSync(vm);
 
 #if MOCHIVM_DEBUG_TRACE_MEMORY || MOCHIVM_DEBUG_TRACE_GC
     double paused = ((double)clock() / CLOCKS_PER_SEC) - startTime;
@@ -207,22 +244,7 @@ void mochiCollectGarbage(MochiVM* vm) {
     // Collect the white objects.
     unsigned long freed = 0;
     unsigned long reachable = 0;
-    Obj** obj = &vm->objects;
-    while (*obj != NULL) {
-        if (!((*obj)->isMarked)) {
-            // This object wasn't reached, so remove it from the list and free it.
-            Obj* unreached = *obj;
-            *obj = unreached->next;
-            mochiFreeObj(vm, unreached);
-            freed += 1;
-        } else {
-            // This object was reached, so unmark it (for the next GC) and move on to
-            // the next.
-            (*obj)->isMarked = false;
-            obj = &(*obj)->next;
-            reachable += 1;
-        }
-    }
+    sweep(vm, &freed, &reachable);
 
     // Calculate the next gc point, this is the current allocation plus
     // a configured percentage of the current allocation.
@@ -435,6 +457,25 @@ void mochiSpawnCopy(MochiVM* vm, ObjFiber* caller) {
     mochiFiberPushValue(caller, OBJ_VAL(fib));
 
     startThread(vm, caller, fib);
+}
+
+ObjFiber* mochiThreadCurrent(MochiVM* vm) {
+    thrd_t current = thrd_current();
+    for (int i = 0; i < vm->fibers.count; i++) {
+        if (vm->fibers.data[i] != NULL && thrd_equal(current, vm->fibers.data[i]->thread)) {
+            return vm->fibers.data[i];
+        }
+    }
+    PANIC("Current thread is not a MochiVM thread, but tried to be accessed as one.");
+    return NULL;
+}
+
+size_t mochiThreadCount(MochiVM* vm) {
+    size_t count = 0;
+    for (int i = 0; i < vm->fibers.count; i++) {
+        count += vm->fibers.data[i] == NULL ? 0 : 1;
+    }
+    return count;
 }
 
 void mochiGrayObj(MochiVM* vm, Obj* obj) {

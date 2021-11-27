@@ -150,6 +150,20 @@
         mochi##name##BufferFill(vm, buffer, data, 1);                                                                  \
     }
 
+#define PANIC(message)                                                                                                 \
+    do {                                                                                                               \
+        fprintf(stderr, "[%s:%d] Panic in %s(): %s\n", __FILE__, __LINE__, __func__, message);                         \
+        abort();                                                                                                       \
+    } while (false)
+
+#define PANIC_IF(condition, message)                                                                                   \
+    do {                                                                                                               \
+        if (!(condition)) {                                                                                            \
+            fprintf(stderr, "[%s:%d] Panic in %s(): %s\n", __FILE__, __LINE__, __func__, message);                     \
+            abort();                                                                                                   \
+        }                                                                                                              \
+    } while (false)
+
 // Assertions are used to validate program invariants. They indicate things the
 // program expects to be true about its internal state during execution. If an
 // assertion fails, there is a bug in MochiVM.
