@@ -131,7 +131,7 @@ typedef struct {
 // Get the current MochiVM version number.
 //
 // Can be used to range checks over versions.
-MOCHIVM_API int mochiGetVersionNumber();
+MOCHIVM_API int mochiGetVersionNumber(void);
 
 // Initializes [configuration] with all of its default values.
 //

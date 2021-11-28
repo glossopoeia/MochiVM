@@ -18,6 +18,7 @@
 #define __STDC_LIMIT_MACROS
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 // The Microsoft compiler does not support the "inline" modifier when compiling
@@ -170,8 +171,6 @@
 //
 // Assertions add significant overhead, so are only enabled in debug builds.
 #ifdef DEBUG
-
-#include <stdio.h>
 
 #define ASSERT(condition, message)                                                                                     \
     do {                                                                                                               \

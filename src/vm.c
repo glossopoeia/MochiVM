@@ -175,9 +175,7 @@ static void waitForThreadSync(MochiVM* vm) {
         allThreadsPaused = true;
         for (int i = 0; i < vm->fibers.count; i++) {
             // fibers will set their ready for gc flags when they've reached a safe point
-            allThreadsPaused = allThreadsPaused
-                && vm->fibers.data[i] != NULL
-                && vm->fibers.data[i]->isPausedForGc;
+            allThreadsPaused = allThreadsPaused && vm->fibers.data[i] != NULL && vm->fibers.data[i]->isPausedForGc;
         }
     }
 }
